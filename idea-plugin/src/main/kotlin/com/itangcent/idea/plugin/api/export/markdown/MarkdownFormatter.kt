@@ -36,10 +36,12 @@ class MarkdownFormatter {
     @Inject
     private val moduleHelper: ModuleHelper? = null
 
+    private val top: Int = 1
+
     fun parseRequests(requests: MutableList<Doc>): String {
         val sb = StringBuilder()
         val groupedRequest = groupRequests(requests)
-        parseApi(groupedRequest, 1) { sb.append(it) }
+        parseApi(groupedRequest, top) { sb.append(it) }
         return sb.toString()
     }
 
@@ -100,6 +102,10 @@ class MarkdownFormatter {
         handle(hN(deep))
         handle(" ")
         handle(info[NAME].toString())
+        //顶层节点 添加 [toc]
+        if (deep == top) {
+            handle("\n[toc]\n")
+        }
         handle("\n\n")
         info[DESC]?.let {
             handle(it.toString())
