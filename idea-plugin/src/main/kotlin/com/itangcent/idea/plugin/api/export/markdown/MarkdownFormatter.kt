@@ -13,6 +13,7 @@ import com.itangcent.common.utils.KVUtils
 import com.itangcent.common.utils.KitUtils
 import com.itangcent.idea.plugin.api.export.DefaultDocParseHelper
 import com.itangcent.idea.utils.ModuleHelper
+import com.itangcent.idea.utils.RequestUtils
 import com.itangcent.intellij.context.ActionContext
 import com.itangcent.intellij.logger.Logger
 import com.itangcent.intellij.util.ActionUtils
@@ -36,10 +37,12 @@ class MarkdownFormatter {
     @Inject
     private val moduleHelper: ModuleHelper? = null
 
+    private val top: Int = 1
+
     fun parseRequests(requests: MutableList<Doc>): String {
         val sb = StringBuilder()
         val groupedRequest = groupRequests(requests)
-        parseApi(groupedRequest, 1) { sb.append(it) }
+        parseApi(groupedRequest, top) { sb.append(it) }
         return sb.toString()
     }
 
@@ -144,8 +147,10 @@ class MarkdownFormatter {
 
     }
 
+    /**
+     * parse HttpRequest And HttpResponse
+     */
     private fun parseRequest(request: Request, deep: Int, handle: (String) -> Unit) {
-
         handle("---\n")
         handle("${hN(deep)} ${request.name}\n\n")
         handle("<a id=${request.name}> </a>\n\n")
@@ -204,6 +209,9 @@ class MarkdownFormatter {
                 handle("| ------------ | ------------ | ------------ |\n")
                 parseBody(0, "", "", request.body, handle)
 
+                handle("\n**Request Demo：**\n\n")
+                parseToJson(handle, request)
+
             } else if (!request.formParams.isNullOrEmpty()) {
                 handle("\n**Form：**\n\n")
                 handle("| name  |  value  | required |  type  |  desc  |\n")
@@ -221,6 +229,7 @@ class MarkdownFormatter {
             val response = request.response!!.firstOrNull { it.body != null }
             //todo:support multiple response
             if (response != null) {
+                handle("\n\n")
                 handle("${hN(deep + 1)} RESPONSE\n\n")
                 handle("**Header：**\n\n")
                 handle("| name  |  value  |  required | example  | desc  |\n")
@@ -235,9 +244,22 @@ class MarkdownFormatter {
                 handle("| name  |  type  |  desc  |\n")
                 handle("| ------------ | ------------ | ------------ |\n")
                 response.body?.let { parseBody(0, "", "", it, handle) }
+                // handler json example
+                handle("\n**Response Demo：**\n\n")
+                parseToJson(handle, request)
             }
-
         }
+
+    }
+
+    private fun parseToJson(handle: (String) -> Unit, request: Request) {
+        handle("```json\n")
+        request.body?.let {
+            if (it != 0) {
+                handle(RequestUtils.parseRawBody(it))
+            }
+        }
+        handle("\n```\n")
     }
 
     @Suppress("UNCHECKED_CAST")
