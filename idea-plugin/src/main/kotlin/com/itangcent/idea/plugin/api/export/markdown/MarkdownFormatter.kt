@@ -103,6 +103,10 @@ class MarkdownFormatter {
         handle(hN(deep))
         handle(" ")
         handle(info[NAME].toString())
+        //顶层节点 添加 [toc]
+        if (deep == top) {
+            handle("\n[toc]\n")
+        }
         handle("\n\n")
         info[DESC]?.let {
             handle(it.toString())
