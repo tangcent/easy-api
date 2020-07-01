@@ -116,7 +116,7 @@ class DefaultFileSaveHelper : FileSaveHelper {
             val descriptor = FileChooserDescriptorFactory
                     .createSingleFileOrFolderDescriptor()
                     .withTitle("Select location")
-                    .withDescription("Choose directory to save")
+                    .withDescription("Choose folder/file to save")
                     .withHideIgnored(false)
             val chooser = FileChooserFactory.getInstance().createFileChooser(descriptor, project, null)
             var toSelect: VirtualFile? = null

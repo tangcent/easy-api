@@ -2,6 +2,7 @@ package com.itangcent.idea.plugin.dialog
 
 import com.google.inject.Inject
 import com.intellij.ide.util.ClassFilter
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.ide.util.TreeClassChooserFactory
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
@@ -9,8 +10,12 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.editor.highlighter.EditorHighlighterFactory
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileTypes.FileTypeManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.testFramework.LightVirtualFile
@@ -18,6 +23,10 @@ import com.itangcent.common.logger.traceError
 import com.itangcent.common.logger.traceWarn
 import com.itangcent.common.utils.notNullOrEmpty
 import com.itangcent.idea.plugin.rule.contextOf
+import com.itangcent.idea.plugin.settings.SettingBinder
+import com.itangcent.idea.utils.Charsets
+import com.itangcent.idea.utils.FileSaveHelper
+import com.itangcent.idea.utils.FileSelectHelper
 import com.itangcent.intellij.config.rule.RuleParser
 import com.itangcent.intellij.config.rule.StringRule
 import com.itangcent.intellij.context.ActionContext
@@ -33,6 +42,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import java.awt.Dimension
 import java.awt.EventQueue
 import java.awt.event.*
+import java.io.File
 import java.util.*
 import java.util.Timer
 import java.util.concurrent.atomic.AtomicLong
@@ -48,7 +58,8 @@ class DebugDialog : JDialog() {
     private var scriptTextArea: JComponent? = null
     private var scriptTypeComboBox: JComboBox<ScriptSupport>? = null
     private var resetButton: JButton? = null
-    private var historyButton: JButton? = null
+    private var loadButton: JButton? = null
+    private var saveButton: JButton? = null
     private var helpButton: JButton? = null
     private var copyButton: JButton? = null
 
@@ -75,6 +86,12 @@ class DebugDialog : JDialog() {
 
     @Inject
     val contextSwitchListener: ContextSwitchListener? = null
+
+    @Inject
+    val fileSaveHelper: FileSaveHelper? = null
+
+    @Inject
+    val fileSelectHelper: FileSelectHelper? = null
 
     private var evalTimer: Timer = Timer()
     private var lastEvalTime: AtomicLong = AtomicLong(0)
@@ -140,6 +157,14 @@ class DebugDialog : JDialog() {
 
         copyButton!!.addActionListener {
             doCopy()
+        }
+
+        saveButton!!.addActionListener {
+            onSave()
+        }
+
+        loadButton!!.addActionListener {
+            onLoad()
         }
 
         autoComputer.listen(this::context)
@@ -336,6 +361,8 @@ class DebugDialog : JDialog() {
                         is PsiClass -> ruleParser.contextOf(duckTypeHelper!!.explicit(context))
                         else -> ruleParser.contextOf(scriptInfo.context!!, scriptInfo.context!!)
                     })
+            //eval success.
+
         } catch (e: Exception) {
             return "script eval failed:" + ExceptionUtils.getStackTrace(e)
         }
@@ -353,6 +380,37 @@ class DebugDialog : JDialog() {
         evalTimer.cancel()
         dispose()
         actionContext!!.unHold()
+    }
+
+    private fun onLoad() {
+        fileSelectHelper!!.selectFile({ file ->
+            var path = file.path
+            val suffix = path.substringAfterLast('.', "")
+            scriptSupports.firstOrNull { it.suffix() == suffix }
+                    ?.let { scriptType ->
+                        actionContext!!.runInSwingUI {
+                            this.scriptTypeComboBox!!.selectedItem = scriptType
+                        }
+                    }
+            val script = com.itangcent.common.utils.FileUtils.read(file, kotlin.text.Charsets.UTF_8)
+            if (script != null) {
+                actionContext!!.runInSwingUI {
+                    editor?.document?.setText(script)
+                }
+            }
+        }, {
+        })
+    }
+
+    private fun onSave() {
+        val charset = ActionContext.getContext()?.instance(SettingBinder::class)?.read()
+                ?.outputCharset?.let { Charsets.forName(it) }?.charset() ?: kotlin.text.Charsets.UTF_8
+        fileSaveHelper!!.saveBytes({
+            (scriptInfo?.script ?: "").toByteArray(charset)
+        }, {
+            "script." + scriptInfo?.scriptType?.suffix()
+        }, {}, {}, {})
+
     }
 
     interface ScriptSupport {
@@ -527,5 +585,6 @@ class DebugDialog : JDialog() {
     companion object {
         val scriptSupports = arrayOf(GroovyScriptSupport, GeneralScriptSupport, JsScriptSupport)
         private const val DELAY: Long = 3000L
+        const val script_path = "easy.api.script.path"
     }
 }
