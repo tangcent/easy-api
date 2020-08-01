@@ -310,10 +310,11 @@ open class PostmanFormatter {
     }
 
     private fun addScriptsToItem(item: HashMap<String, Any?>, preRequest: () -> String?, test: () -> String?) {
-        val events = ArrayList<Any>()
+        var events: ArrayList<Any>? = null
 
         preRequest()?.takeIf { it.notNullOrBlank() }?.let {
-            events.add(KV.any().set("listen", "prerequest")
+            events = ArrayList()
+            events!!.add(KV.any().set("listen", "prerequest")
                     .set("script", KV.any()
                             .set("exec", it.lines())
                             .set("type", "text/javascript")
@@ -321,14 +322,15 @@ open class PostmanFormatter {
         }
 
         test()?.takeIf { it.notNullOrBlank() }?.let {
-            events.add(KV.any().set("listen", "test")
+            events = events ?: ArrayList()
+            events!!.add(KV.any().set("listen", "test")
                     .set("script", KV.any()
                             .set("exec", it.lines())
                             .set("type", "text/javascript")
                     ))
         }
 
-        if (events.isNotEmpty()) {
+        if (events.notNullOrEmpty()) {
             item["event"] = events
         }
     }
