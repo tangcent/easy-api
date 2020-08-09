@@ -29,7 +29,6 @@ import com.itangcent.intellij.extend.guice.PostConstruct
 import com.itangcent.intellij.extend.rx.AutoComputer
 import com.itangcent.intellij.extend.rx.mutual
 import com.itangcent.intellij.jvm.DuckTypeHelper
-import com.itangcent.intellij.jvm.PsiUtils
 import com.itangcent.intellij.jvm.element.jvmClassHelper
 import com.itangcent.intellij.logger.Logger
 import com.itangcent.intellij.psi.ContextSwitchListener
@@ -39,7 +38,9 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.jetbrains.uast.getContainingClass
 import java.awt.Dimension
 import java.awt.EventQueue
-import java.awt.event.*
+import java.awt.event.KeyEvent
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 import java.util.*
 import java.util.Timer
 import java.util.concurrent.atomic.AtomicLong
@@ -235,7 +236,7 @@ class ScriptExecutorDialog : JDialog() {
 
         val selectedContext: Any? = this.contextComboBox!!.model.selectedItem ?: return
 
-        if (selectedContext == Companion.EMPTY_SCRIPT_CONTEXT) {
+        if (selectedContext == EMPTY_SCRIPT_CONTEXT) {
             selectClass()
             return
         }
