@@ -160,3 +160,7 @@
     
     * feat: add rule alias `param.doc`/`method.doc`/`class.doc` [(#323)](https://github.com/tangcent/easy-api/pull/323)
     
+    * chore: fix recommend config for ignore serialVersionUID [(#326)](https://github.com/tangcent/easy-api/pull/326)
+    
+    * chore: remove cache of recommend config. [(#327)](https://github.com/tangcent/easy-api/pull/327)
+    
