@@ -164,3 +164,9 @@
     
     * chore: remove cache of recommend config. [(#327)](https://github.com/tangcent/easy-api/pull/327)
     
+    * feat: support DeferredResult by recommend [(#332)](https://github.com/tangcent/easy-api/pull/332)
+    
+    * feat: new recommend config \[support_enum_common] [(#333)](https://github.com/tangcent/easy-api/pull/333)
+    
+    * fix: fix class/type #isExtend [(#334)](https://github.com/tangcent/easy-api/pull/334)
+    
