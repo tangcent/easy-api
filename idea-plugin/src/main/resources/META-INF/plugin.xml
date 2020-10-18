@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.itangcent.idea.plugin.easy-api</id>
     <name>EasyApi</name>
-    <version>2.0.3.183.0</version>
+    <version>2.0.4.183.0</version>
     <vendor email="pentatangcent@gmail.com" url="https://github.com/tangcent">Tangcent</vendor>
 
     <description><![CDATA[ Description will be added by gradle build]]></description>
@@ -21,7 +21,7 @@
     <change-notes><![CDATA[	Change notes will be filled by gradle build ]]>
     </change-notes>
 
-    <!--This plugin will support IntelliJ IDEA Community and Ultimate Only before v2.0.1-->
+    <!--This plugin will support IntelliJ IDEA Community and Ultimate only before v3.0.0-->
 
     <depends optional="true" config-file="easy-api-java.xml">com.intellij.modules.java</depends>
     <!--it will cause 【Optional dependency declaration on 'com.intellij.modules.idea' should specify "config-file"】-->

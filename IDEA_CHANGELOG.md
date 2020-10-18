@@ -170,3 +170,11 @@
     
     * fix: fix class/type #isExtend [(#334)](https://github.com/tangcent/easy-api/pull/334)
     
+    * fix: always use json settings. [(#336)](https://github.com/tangcent/easy-api/pull/336)
+    
+    * opti: new func: tool.traversal [(#338)](https://github.com/tangcent/easy-api/pull/338)
+    
+    * opti: support rule `field.default.value` [(#339)](https://github.com/tangcent/easy-api/pull/339)
+    
+    * fix: remove usage of Module.getModuleFilePath [(#340)](https://github.com/tangcent/easy-api/pull/340)
+    
