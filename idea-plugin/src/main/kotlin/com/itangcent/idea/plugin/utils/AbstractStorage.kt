@@ -12,6 +12,18 @@ abstract class AbstractStorage : Storage {
         set(DEFAULT_GROUP, name, value)
     }
 
+    override fun pop(name: String?): Any? {
+        return pop(DEFAULT_GROUP, name)
+    }
+
+    override fun peek(name: String?): Any? {
+        return peek(DEFAULT_GROUP, name)
+    }
+
+    override fun push(name: String?, value: Any?) {
+        push(DEFAULT_GROUP, name, value)
+    }
+
     override fun remove(name: String) {
         remove(DEFAULT_GROUP, name)
     }

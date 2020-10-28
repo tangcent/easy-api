@@ -7,6 +7,7 @@ import com.itangcent.common.utils.KV
 import com.itangcent.idea.binder.DbBeanBinderFactory
 import com.itangcent.idea.plugin.utils.Storage.Companion.DEFAULT_GROUP
 import com.itangcent.intellij.file.LocalFileRepository
+import java.util.*
 
 @Singleton
 @ScriptTypeName("localStorage")
@@ -43,6 +44,41 @@ class LocalStorage : AbstractStorage() {
         beanBinder.save(kv)
     }
 
+    override fun pop(group: String?, name: String?): Any? {
+        val beanBinder = getDbBeanBinderFactory().getBeanBinder(group ?: DEFAULT_GROUP)
+        val kv = beanBinder.read()
+        val queue = queue(kv, name)
+        val last = queue.removeLast()
+        beanBinder.save(kv)
+        return last
+    }
+
+    override fun peek(group: String?, name: String?): Any? {
+        val beanBinder = getDbBeanBinderFactory().getBeanBinder(group ?: DEFAULT_GROUP)
+        val kv = beanBinder.read()
+        val queue = queue(kv, name)
+        return queue.peekLast()
+    }
+
+    override fun push(group: String?, name: String?, value: Any?) {
+        val beanBinder = getDbBeanBinderFactory().getBeanBinder(group ?: DEFAULT_GROUP)
+        val kv = beanBinder.read()
+        val queue = queue(kv, name)
+        queue.addLast(value)
+        beanBinder.save(kv)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun queue(kv: KV<Any?, Any?>, name: String?): LinkedList<Any?> {
+        var queue = kv[name]
+        if (queue == null || queue !is LinkedList<*>) {
+            queue = LinkedList<Any>()
+            kv[name ?: Storage.NULL] = queue
+        }
+        return queue as LinkedList<Any?>
+    }
+
+
     override fun remove(group: String?, name: String) {
         val beanBinder = getDbBeanBinderFactory().getBeanBinder(group ?: DEFAULT_GROUP)
         val kv = beanBinder.tryRead() ?: return
@@ -57,7 +93,6 @@ class LocalStorage : AbstractStorage() {
                 ?.toTypedArray()
                 ?: emptyArray()
     }
-
 
     override fun clear(group: String?) {
         getDbBeanBinderFactory().deleteBinder(group ?: DEFAULT_GROUP)

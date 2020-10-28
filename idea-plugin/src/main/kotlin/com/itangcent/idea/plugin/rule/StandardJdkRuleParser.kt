@@ -71,7 +71,7 @@ abstract class StandardJdkRuleParser : ScriptRuleParser() {
         engineBindings.putAll(toolBindings)
         engineBindings["logger"] = logger
         engineBindings["localStorage"] = localStorage
-        engineBindings["sessionStorage"] = sessionStorage
+        engineBindings["session"] = sessionStorage
         engineBindings["helper"] = Helper(context.getPsiContext())
         engineBindings["httpClient"] = httpClientProvider!!.getHttpClient()
         engineBindings["files"] = actionContext!!.instance(Files::class)

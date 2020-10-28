@@ -6,6 +6,7 @@ import com.itangcent.annotation.script.ScriptTypeName
 import com.itangcent.common.kit.sub
 import com.itangcent.common.utils.KV
 import com.itangcent.idea.plugin.utils.Storage.Companion.NULL
+import java.util.*
 
 @Singleton
 @ScriptTypeName("session")
@@ -20,6 +21,29 @@ class SessionStorage : AbstractStorage() {
 
     override fun set(group: String?, name: String?, value: Any?) {
         kv.sub(group ?: NULL)[name ?: NULL] = value
+    }
+
+    override fun pop(group: String?, name: String?): Any? {
+        return queue(group, name).removeLast()
+    }
+
+    override fun peek(group: String?, name: String?): Any? {
+        return queue(group, name).peekLast()
+    }
+
+    override fun push(group: String?, name: String?, value: Any?) {
+        queue(group, name).addLast(value)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun queue(group: String?, name: String?): LinkedList<Any?> {
+        val sub = kv.sub(group ?: NULL)
+        var queue = sub[name ?: NULL]
+        if (queue == null || queue !is LinkedList<*>) {
+            queue = LinkedList<Any>()
+            sub[name ?: NULL] = queue
+        }
+        return queue as LinkedList<Any?>
     }
 
     override fun remove(group: String?, name: String) {

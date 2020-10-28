@@ -1,6 +1,7 @@
 package com.itangcent.idea.plugin.utils
 
 interface Storage {
+
     fun get(name: String?): Any?
 
     fun get(group: String?, name: String?): Any?
@@ -8,6 +9,18 @@ interface Storage {
     fun set(name: String?, value: Any?)
 
     fun set(group: String?, name: String?, value: Any?)
+
+    fun pop(name: String?): Any?
+
+    fun pop(group: String?, name: String?): Any?
+
+    fun peek(name: String?): Any?
+
+    fun peek(group: String?, name: String?): Any?
+
+    fun push(name: String?, value: Any?)
+
+    fun push(group: String?, name: String?, value: Any?)
 
     fun remove(name: String)
 
