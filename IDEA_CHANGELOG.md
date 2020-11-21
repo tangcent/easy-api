@@ -178,3 +178,20 @@
     
     * fix: remove usage of Module.getModuleFilePath [(#340)](https://github.com/tangcent/easy-api/pull/340)
     
+    * feat: support rule util `session` [(342)](https://github.com/tangcent/easy-api/pull/342)
+
+    * feat: support new method `annValue` for rule elements [(343)](https://github.com/tangcent/easy-api/pull/343)
+    
+    * opti: support rule `param.before`&`param.after` [(344)](https://github.com/tangcent/easy-api/pull/344)
+    
+    * opti: several recommended configs will not be selected by default any longer [(345)](https://github.com/tangcent/easy-api/pull/345)
+    
+    * feat: new recommend configs [(346)](https://github.com/tangcent/easy-api/pull/346)
+    
+    * opti: support repeat validation annotation [(347)](https://github.com/tangcent/easy-api/pull/347)
+    
+    * scala will not be supported by default [(349)](https://github.com/tangcent/easy-api/pull/349)
+    
+    * feat: support json5 for postman [(350)](https://github.com/tangcent/easy-api/pull/350)
+    
+    
