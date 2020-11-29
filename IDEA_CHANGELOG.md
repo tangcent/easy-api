@@ -194,4 +194,6 @@
     
     * feat: support json5 for postman [(350)](https://github.com/tangcent/easy-api/pull/350)
     
+    * opti: support rule `class.is.ctrl` [(352)](https://github.com/tangcent/easy-api/pull/352)
+    
     
