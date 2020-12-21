@@ -196,4 +196,6 @@
     
     * opti: support rule `class.is.ctrl` [(352)](https://github.com/tangcent/easy-api/pull/352)
     
+    * feat: new action `ToJson5` [(355)](https://github.com/tangcent/easy-api/pull/355)
+    
     
