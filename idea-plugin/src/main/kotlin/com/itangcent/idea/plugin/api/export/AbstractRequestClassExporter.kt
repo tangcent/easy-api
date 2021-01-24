@@ -483,7 +483,7 @@ abstract class AbstractRequestClassExporter : ClassExporter, Worker {
                     }
 
                     parsedParams.add(param to psiClassHelper!!.getTypeObject(unboxType, param.psi(),
-                            jsonSetting!!.jsonOption(JsonOption.READ_COMMENT)
+                            jsonSetting!!.jsonOptionForInput(JsonOption.READ_COMMENT)
                     ))
                 } finally {
                     ruleComputer.computer(ClassExportRuleKeys.PARAM_AFTER, param)
@@ -682,7 +682,7 @@ abstract class AbstractRequestClassExporter : ClassExporter, Worker {
 
         return when {
             fromRule -> psiClassHelper!!.getTypeObject(psiType, method.psi(),
-                    jsonSetting!!.jsonOption(JsonOption.READ_COMMENT))
+                    jsonSetting!!.jsonOptionForOutput(JsonOption.READ_COMMENT))
             needInfer() && (!duckTypeHelper!!.isQualified(psiType) ||
                     jvmClassHelper!!.isInterface(psiType)) -> {
                 logger!!.info("try infer return type of method[" + PsiClassUtils.fullNameOfMethod(method.psi()) + "]")
@@ -690,7 +690,7 @@ abstract class AbstractRequestClassExporter : ClassExporter, Worker {
 //                actionContext!!.callWithTimeout(20000) { methodReturnInferHelper.inferReturn(method) }
             }
             else -> psiClassHelper!!.getTypeObject(psiType, method.psi(),
-                    jsonSetting!!.jsonOption(JsonOption.READ_COMMENT))
+                    jsonSetting!!.jsonOptionForOutput(JsonOption.READ_COMMENT))
         }
     }
 

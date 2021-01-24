@@ -26,6 +26,8 @@ class Settings {
 
     var readGetter: Boolean = false
 
+    var readSetter: Boolean = false
+
     var inferEnable: Boolean = true
 
     var inferMaxDeep: Int = DEFAULT_INFER_MAX_DEEP
@@ -58,6 +60,7 @@ class Settings {
         newSetting.methodDocEnable = this.methodDocEnable
         newSetting.formExpanded = this.formExpanded
         newSetting.readGetter = this.readGetter
+        newSetting.readSetter = this.readSetter
         newSetting.inferEnable = this.inferEnable
         newSetting.inferMaxDeep = this.inferMaxDeep
         newSetting.httpTimeOut = this.httpTimeOut
@@ -84,6 +87,7 @@ class Settings {
         if (postmanJson5FormatType != other.postmanJson5FormatType) return false
         if (formExpanded != other.formExpanded) return false
         if (readGetter != other.readGetter) return false
+        if (readSetter != other.readSetter) return false
         if (inferEnable != other.inferEnable) return false
         if (inferMaxDeep != other.inferMaxDeep) return false
         if (httpTimeOut != other.httpTimeOut) return false
@@ -106,6 +110,7 @@ class Settings {
         result = 31 * result + postmanJson5FormatType.hashCode()
         result = 31 * result + formExpanded.hashCode()
         result = 31 * result + readGetter.hashCode()
+        result = 31 * result + readSetter.hashCode()
         result = 31 * result + inferEnable.hashCode()
         result = 31 * result + inferMaxDeep
         result = 31 * result + httpTimeOut

@@ -59,7 +59,6 @@ class EasyApiSettingGUI {
 
     private var pullNewestDataBeforeCheckBox: JCheckBox? = null
 
-
     private var generalPanel: JPanel? = null
 
     private var logLevelComboBox: JComboBox<Logger.Level>? = null
@@ -93,6 +92,8 @@ class EasyApiSettingGUI {
     private var maxDeepTextField: JTextField? = null
 
     private var readGetterCheckBox: JCheckBox? = null
+
+    private var readSetterCheckBox: JCheckBox? = null
 
     private var formExpandedCheckBox: JCheckBox? = null
 
@@ -175,6 +176,9 @@ class EasyApiSettingGUI {
 
         autoComputer.bind(readGetterCheckBox!!)
                 .mutual(this, "settings.readGetter")
+
+        autoComputer.bind(readSetterCheckBox!!)
+                .mutual(this, "settings.readSetter")
 
         autoComputer.bind(formExpandedCheckBox!!)
                 .mutual(this, "settings.formExpanded")
