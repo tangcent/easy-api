@@ -57,6 +57,13 @@
     
     * opti: preview recommendConfig with separator line [(#361)](https://github.com/tangcent/easy-api/pull/361)
 
+    * fix: always trim the name of folder [(#363)](https://github.com/tangcent/easy-api/pull/363)
+    
+    * opti: support param.required for methodDoc [(#364)](https://github.com/tangcent/easy-api/pull/364)
+    
+    * opti: support `setter` for `toJson(5)` [(#366)](https://github.com/tangcent/easy-api/pull/366)
+    
+    * opti: use raw as body and use unbox for query/form [(#367)](https://github.com/tangcent/easy-api/pull/367)
 
 * 1.9.0 ~
 
