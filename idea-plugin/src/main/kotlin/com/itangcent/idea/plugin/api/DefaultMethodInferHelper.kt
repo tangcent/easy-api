@@ -55,6 +55,9 @@ class DefaultMethodInferHelper : MethodInferHelper {
     @Inject
     private val psiResolver: PsiResolver? = null
 
+    @Inject
+    protected val settingBinder: SettingBinder? = null
+
     private val staticMethodCache: HashMap<Pair<PsiMethod, Array<Any?>?>, Any?> = HashMap()
 
     private val methodStack: Stack<Infer> = Stack()
@@ -65,17 +68,7 @@ class DefaultMethodInferHelper : MethodInferHelper {
 
     private var maxDeep: Int? = null
 
-    private var maxObjectDeep: Int? = 4
-
-    @Inject
-    protected val settingBinder: SettingBinder? = null
-
-    override fun setMaxDeep(maxDeep: Int) {
-        this.maxDeep = maxDeep
-        if (this.maxObjectDeep == null) {
-            this.maxObjectDeep = maxDeep
-        }
-    }
+    private var maxObjectDeep: Int = 4
 
     private fun inferMaxDeep(): Int {
         if (this.maxDeep == null) {
@@ -262,7 +255,7 @@ class DefaultMethodInferHelper : MethodInferHelper {
                 return null
             }
 
-            if (collection_methods.contains(psiMethod.name)) {
+            if (COLLECTION_METHODS.contains(psiMethod.name)) {
                 init(psiMethod)
 
                 val realCaller = valueOf(caller)
@@ -343,7 +336,7 @@ class DefaultMethodInferHelper : MethodInferHelper {
     }
 
     private fun tryInfer(infer: Infer): Any? {
-        LOG.debug("tryInfer:$infer")
+        LOG.info("tryInfer:$infer")
         actionContext!!.checkStatus()
         try {//find recursive call
             methodStack.filter { it.callMethod() == infer.callMethod() }
@@ -518,7 +511,8 @@ class DefaultMethodInferHelper : MethodInferHelper {
         }
 
         val CALL_FAILED = Any()
-        val collection_methods = HashSet(Arrays.asList("put", "set", "add", "addAll", "putAll"))
+        val COLLECTION_METHODS = setOf("put", "set", "add", "addAll", "putAll")
+
         fun init(content: PsiElement) {
             if (map_put_method != null) return
 
@@ -717,7 +711,7 @@ class DefaultMethodInferHelper : MethodInferHelper {
     }
 
     private fun getSimpleFields(psiClass: PsiClass, deep: Int): Map<String, Any?>? {
-        if (deep >= maxObjectDeep ?: 4) {
+        if (deep >= maxObjectDeep) {
             return null
         }
         actionContext!!.checkStatus()
@@ -772,7 +766,7 @@ class DefaultMethodInferHelper : MethodInferHelper {
     }
 
     private fun getSimpleFields(psiType: PsiType?, context: PsiElement, deep: Int): Any? {
-        if (deep >= maxObjectDeep ?: 4) {
+        if (deep >= maxObjectDeep) {
             return null
         }
         actionContext!!.checkStatus()
@@ -1484,6 +1478,10 @@ class DefaultMethodInferHelper : MethodInferHelper {
         override fun callMethod(): Any? {
             return psiMethod
         }
+
+        override fun toString(): String {
+            return "MethodReturnInfer(${PsiClassUtils.fullNameOfMethod(psiMethod)})"
+        }
     }
 
     /**
@@ -1600,6 +1598,10 @@ class DefaultMethodInferHelper : MethodInferHelper {
         override fun callMethod(): Any? {
             return psiMethod
         }
+
+        override fun toString(): String {
+            return "QuicklyMethodReturnInfer(${PsiClassUtils.fullNameOfMethod(psiMethod)})"
+        }
     }
 
     inner class NewExpressionInfer(
@@ -1641,8 +1643,16 @@ class DefaultMethodInferHelper : MethodInferHelper {
         override fun callMethod(): Any? {
             return psiNewExpression
         }
-    }
 
+        override fun toString(): String {
+            val constructor = this.psiNewExpression.resolveConstructor()
+            return if (constructor == null) {
+                "NewExpressionInfer(${psiNewExpression.text})"
+            } else {
+                "NewExpressionInfer(${PsiClassUtils.fullNameOfMethod(constructor)})"
+            }
+        }
+    }
 }
 
 private typealias LazyAction = () -> Unit
