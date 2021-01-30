@@ -1,3 +1,11 @@
+* 2.1.0~
+
+    * fix: resolve on-demand import [(#84)](https://github.com/Earth-1610/intellij-kotlin/pull/84)
+    
+    * opti: import default packages for `kotlin`&`scala` [(#85)](https://github.com/Earth-1610/intellij-kotlin/pull/85)
+    
+    * opti: log for method infer [(#369)](https://github.com/tangcent/easy-api/pull/369)
+    
 * 2.0.0~
     * feat: new rules `class.postman.prerequest`&`class.postman.test` [(#312)](https://github.com/tangcent/easy-api/pull/312)
     
