@@ -1,6 +1,7 @@
 package com.itangcent.common.kit
 
 import com.itangcent.common.utils.GsonUtils
+import kotlin.reflect.KClass
 
 object KitUtils {
 
@@ -15,6 +16,31 @@ object KitUtils {
         return try {
             action()
         } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun <T> safe(ignoreThrowable: KClass<*>, action: () -> T): T? {
+        return try {
+            action()
+        } catch (e: Exception) {
+            if (ignoreThrowable.isInstance(e)) {
+                null
+            } else {
+                throw e
+            }
+        }
+    }
+
+    fun <T> safe(vararg ignoreThrowable: KClass<*>, action: () -> T): T? {
+        return try {
+            action()
+        } catch (e: Exception) {
+            for (throwable in ignoreThrowable) {
+                if (throwable.isInstance(e)) {
+                    return null
+                }
+            }
             null
         }
     }
