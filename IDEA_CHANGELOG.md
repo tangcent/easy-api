@@ -6,6 +6,12 @@
     
     * opti: log for method infer [(#369)](https://github.com/tangcent/easy-api/pull/369)
     
+    * opti: support spring.ui by recommend [(371)](https://github.com/tangcent/easy-api/pull/371)
+    
+    * opti: use `setPragma` instead of `setBusyTimeout` [(372)](https://github.com/tangcent/easy-api/pull/372)
+    
+    * opti: refactor ApiDashboard [(373)](https://github.com/tangcent/easy-api/pull/373)
+    
 * 2.0.0~
     * feat: new rules `class.postman.prerequest`&`class.postman.test` [(#312)](https://github.com/tangcent/easy-api/pull/312)
     
