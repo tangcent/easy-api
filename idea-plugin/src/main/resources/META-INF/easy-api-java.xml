@@ -33,7 +33,7 @@
                     description="Export postman"/>
 
             <action id="com.itangcent.idea.easy_api.actions.MarkdownExportAction"
-                    class="com.itangcent.idea.plugin.actions.MarkdownExportAction" text="ExportMarkdown(beta)"
+                    class="com.itangcent.idea.plugin.actions.MarkdownExportAction" text="ExportMarkdown"
                     description="Export markdown"/>
 
             <action id="com.itangcent.idea.easy_api.actions.ApiCallAction"
