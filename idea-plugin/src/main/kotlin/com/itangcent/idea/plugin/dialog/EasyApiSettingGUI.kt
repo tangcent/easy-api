@@ -109,6 +109,8 @@ class EasyApiSettingGUI {
     private var previewTextArea: JTextArea? = null
     //endregion
 
+    private var builtInConfigTextArea: JTextArea? = null
+
     private val throttleHelper = ThrottleHelper()
 
     fun getRootPanel(): JPanel? {
@@ -244,6 +246,9 @@ class EasyApiSettingGUI {
                     RecommendConfigLoader.buildRecommendConfig(configs,
                             "\n#${"-".repeat(20)}\n")
                 }
+
+        autoComputer.bind(this.builtInConfigTextArea!!)
+                .mutual(this, "settings.builtInConfig")
 
         //endregion  general-----------------------------------------------------
 

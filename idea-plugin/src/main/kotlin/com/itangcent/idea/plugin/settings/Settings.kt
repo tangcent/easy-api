@@ -50,6 +50,8 @@ class Settings {
 
     var markdownFormatType: String = MarkdownFormatType.SIMPLE.name
 
+    var builtInConfig: String? = null
+
     fun copy(): Settings {
         val newSetting = Settings()
         newSetting.postmanToken = this.postmanToken
@@ -70,6 +72,7 @@ class Settings {
         newSetting.outputDemo = this.outputDemo
         newSetting.outputCharset = this.outputCharset
         newSetting.markdownFormatType = this.markdownFormatType
+        newSetting.builtInConfig = this.builtInConfig
         return newSetting
     }
 
@@ -97,6 +100,7 @@ class Settings {
         if (outputDemo != other.outputDemo) return false
         if (outputCharset != other.outputCharset) return false
         if (markdownFormatType != other.markdownFormatType) return false
+        if (builtInConfig != other.builtInConfig) return false
 
         return true
     }
@@ -120,6 +124,7 @@ class Settings {
         result = 31 * result + outputDemo.hashCode()
         result = 31 * result + outputCharset.hashCode()
         result = 31 * result + markdownFormatType.hashCode()
+        result = 31 * result + builtInConfig.hashCode()
         return result
     }
 
