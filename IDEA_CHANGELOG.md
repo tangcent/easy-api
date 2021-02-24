@@ -12,6 +12,14 @@
     
     * opti: refactor ApiDashboard [(373)](https://github.com/tangcent/easy-api/pull/373)
     
+    * opti: support built-in config [(#375)](https://github.com/tangcent/easy-api/pull/375)
+    
+    * opti: `properties.additional` support url [(#377)](https://github.com/tangcent/easy-api/pull/377)
+    
+    * opti: support `param.doc` for export methodDoc [(#378)](https://github.com/tangcent/easy-api/pull/378)
+    
+    * opti: support `url.cache.expire` [(#379)](https://github.com/tangcent/easy-api/pull/379)
+    
 * 2.0.0~
     * feat: new rules `class.postman.prerequest`&`class.postman.test` [(#312)](https://github.com/tangcent/easy-api/pull/312)
     
