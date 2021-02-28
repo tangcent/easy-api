@@ -20,6 +20,10 @@
     
     * opti: support `url.cache.expire` [(#379)](https://github.com/tangcent/easy-api/pull/379)
     
+    * opti: add recommend third config [(#381)](https://github.com/tangcent/easy-api/pull/381)
+    
+    * opti: show default built-in config in setting [(#382)](https://github.com/tangcent/easy-api/pull/382)
+    
 * 2.0.0~
     * feat: new rules `class.postman.prerequest`&`class.postman.test` [(#312)](https://github.com/tangcent/easy-api/pull/312)
     
