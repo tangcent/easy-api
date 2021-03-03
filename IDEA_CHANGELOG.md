@@ -24,6 +24,8 @@
     
     * opti: show default built-in config in setting [(#382)](https://github.com/tangcent/easy-api/pull/382)
     
+    * fix: bind `settings.builtInConfig` as nullable [(#384)](https://github.com/tangcent/easy-api/pull/384)
+    
 * 2.0.0~
     * feat: new rules `class.postman.prerequest`&`class.postman.test` [(#312)](https://github.com/tangcent/easy-api/pull/312)
     
