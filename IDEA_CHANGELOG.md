@@ -1,3 +1,7 @@
+* 2.1.4
+
+	* fix: use `asKV` instead of `as KV<>` [(#386)](https://github.com/tangcent/easy-api/pull/386)
+
 * 2.1.0~
 
     * fix: resolve on-demand import [(#84)](https://github.com/Earth-1610/intellij-kotlin/pull/84)
