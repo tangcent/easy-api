@@ -2,7 +2,6 @@ package com.itangcent.test
 
 import com.itangcent.intellij.extend.asArrayList
 import com.itangcent.intellij.extend.asHashMap
-import com.itangcent.intellij.extend.toInt
 import com.itangcent.intellij.extend.toPrettyString
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.*
@@ -15,12 +14,6 @@ import org.junit.runners.JUnit4
  */
 @RunWith(JUnit4::class)
 class AnyKitTest {
-
-    @Test
-    fun testToInt() {
-        assertEquals(1, true.toInt())
-        assertEquals(0, false.toInt())
-    }
 
     @Test
     fun testAsHashMap() {
