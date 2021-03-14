@@ -53,8 +53,8 @@ class RequestUtilsTest {
             value = ["a,null", "null,a"],
             nullValues = ["null"]
     )
-    fun testConcatPathToA( pre: String?,
-                         after: String?) {
+    fun testConcatPathToA(pre: String?,
+                          after: String?) {
         assertEquals("a", RequestUtils.concatPath(pre, after))
     }
 }
