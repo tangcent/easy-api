@@ -41,6 +41,7 @@ open class Request : Doc() {
     var bodyAttr: String? = null
 
     var response: MutableList<Response>? = null
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -75,7 +76,9 @@ open class Request : Doc() {
         return result
     }
 
-
+    override fun toString(): String {
+        return "Request(path=$path, method=$method, headers=$headers, paths=$paths, querys=$querys, formParams=$formParams, bodyType=$bodyType, body=$body, bodyAttr=$bodyAttr, response=$response)"
+    }
 }
 
 fun Request.getContentType(): String? {

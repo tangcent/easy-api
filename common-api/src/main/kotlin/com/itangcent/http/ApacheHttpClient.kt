@@ -21,7 +21,7 @@ import org.apache.http.impl.client.HttpClients
 import org.apache.http.impl.cookie.BasicClientCookie
 import org.apache.http.impl.cookie.BasicClientCookie2
 import org.apache.http.message.BasicNameValuePair
-import org.apache.http.util.EntityUtils
+import org.apache.http.util.toByteArray
 import java.io.File
 import java.io.FileNotFoundException
 import java.util.*
@@ -37,9 +37,9 @@ open class ApacheHttpClient : HttpClient {
 
     constructor() {
         val basicCookieStore = BasicCookieStore()
-        apacheCookieStore = ApacheCookieStore(basicCookieStore)
-        httpClientContext!!.cookieStore = basicCookieStore
-        httpClient = HttpClients.custom()
+        this.apacheCookieStore = ApacheCookieStore(basicCookieStore)
+        this.httpClientContext!!.cookieStore = basicCookieStore
+        this.httpClient = HttpClients.custom()
                 .setDefaultSocketConfig(SocketConfig.custom()
                         .setSoTimeout(30 * 1000)
                         .build())
@@ -52,8 +52,8 @@ open class ApacheHttpClient : HttpClient {
 
     constructor(httpClient: org.apache.http.client.HttpClient) {
         val basicCookieStore = BasicCookieStore()
-        apacheCookieStore = ApacheCookieStore(basicCookieStore)
-        httpClientContext!!.cookieStore = basicCookieStore
+        this.apacheCookieStore = ApacheCookieStore(basicCookieStore)
+        this.httpClientContext!!.cookieStore = basicCookieStore
         this.httpClient = httpClient
     }
 
@@ -287,7 +287,7 @@ class ApacheHttpResponse(
             {
                 if (bytes == null) {
                     val entity = response.entity
-                    bytes = EntityUtils.toByteArray(entity)
+                    bytes = entity.toByteArray()
                 }
             }
         }
@@ -360,9 +360,14 @@ class ApacheCookie : Cookie {
     override fun getVersion(): Int? {
         return cookie.version
     }
+
+    override fun toString(): String {
+        return cookie.toString()
+    }
+
 }
 
-fun Cookie.asApacheCookie(): org.apache.http.cookie.Cookie? {
+fun Cookie.asApacheCookie(): org.apache.http.cookie.Cookie {
     if (this is ApacheCookie) {
         return this.getWrapper()
     }
@@ -378,7 +383,10 @@ fun Cookie.asApacheCookie(): org.apache.http.cookie.Cookie? {
     this.getVersion()?.let { cookie.version = it }
     cookie.isSecure = this.isSecure()
     this.getExpiryDate()?.let { Date(it) }?.let { cookie.expiryDate = it }
-    this.getPorts()?.let { (cookie as BasicClientCookie2).ports = it }
-    this.getCommentURL()?.let { (cookie as BasicClientCookie2).commentURL = it }
+
+    if (cookie is BasicClientCookie2) {
+        this.getPorts()?.let { cookie.ports = it }
+        this.getCommentURL()?.let { cookie.commentURL = it }
+    }
     return cookie
 }
