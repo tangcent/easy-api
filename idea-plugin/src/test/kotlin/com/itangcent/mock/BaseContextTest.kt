@@ -3,19 +3,20 @@ package com.itangcent.mock
 import com.google.inject.Inject
 import com.intellij.openapi.project.Project
 import com.itangcent.idea.plugin.settings.SettingBinder
+import com.itangcent.idea.utils.ModuleHelper
 import com.itangcent.intellij.config.ConfigReader
 import com.itangcent.intellij.context.ActionContext
 import com.itangcent.intellij.extend.guice.with
+import com.itangcent.intellij.jvm.dev.DevEnv
 import com.itangcent.intellij.logger.Logger
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.fail
 import org.mockito.Mockito
 
 /**
  * Test case with [ActionContext]
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class BaseContextTest {
 
     @Inject
@@ -31,8 +32,20 @@ abstract class BaseContextTest {
         builder.bind(Logger::class) { it.with(PrintLogger::class) }
         builder.bind(Project::class) { it.toInstance(mockProject) }
         builder.bind(ConfigReader::class) { it.toInstance(mockConfigReader) }
+        builder.bind(DevEnv::class) { it.toInstance(mockDevEnv) }
+        builder.bind(ModuleHelper::class) { it.toInstance(ConstantModuleHelper.INSTANCE) }
         bind(builder)
-        builder.build().init(this)
+        val actionContext = builder.build()
+        try {
+            actionContext.init(this)
+            afterBind()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            fail("buildContext failed")
+        }
+    }
+
+    protected open fun afterBind() {
     }
 
     @AfterEach
@@ -46,5 +59,6 @@ abstract class BaseContextTest {
     companion object {
         val mockProject = Mockito.mock(Project::class.java)
         val mockConfigReader = Mockito.mock(ConfigReader::class.java)
+        val mockDevEnv = Mockito.mock(DevEnv::class.java)
     }
 }

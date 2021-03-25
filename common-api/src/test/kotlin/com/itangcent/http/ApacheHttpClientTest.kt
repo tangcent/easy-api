@@ -9,6 +9,7 @@ import org.apache.http.impl.client.HttpClients
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
+import javax.net.ssl.SSLHandshakeException
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -290,6 +291,8 @@ class ApacheHttpClientTest {
             }
         } catch (e: ConnectTimeoutException) {
             //skip test if connect timed out
+        } catch (e: SSLHandshakeException) {
+            //skip test if connect failed by Handshake
         }
     }
 }
