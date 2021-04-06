@@ -115,7 +115,7 @@ task patchUpdate {
             envDir.deleteDir()
         }
         envDir.mkdir()
-        new File("envs/EASY_YAPI_PR_TITLE").newOutputStream().withCloseable {
+        new File("envs/EASY_API_PR_TITLE").newOutputStream().withCloseable {
             it.write("release v${nextVersion}".getBytes(StandardCharsets.UTF_8))
         }
 
@@ -128,7 +128,7 @@ task patchUpdate {
             } catch (ignore) {
             }
         }
-        new File("envs/EASY_YAPI_PR_BODY").newOutputStream().withCloseable {
+        new File("envs/EASY_API_PR_BODY").newOutputStream().withCloseable {
             it.write(prBody.getBytes(StandardCharsets.UTF_8))
         }
     }
@@ -217,7 +217,7 @@ task patchUpdateRc {
         if (!envDir.exists()) {
             envDir.mkdir()
         }
-        new File("envs/EASY_YAPI_PR_TITLE").newOutputStream().withCloseable {
+        new File("envs/EASY_API_PR_TITLE").newOutputStream().withCloseable {
             it.write("release v${nextVersion}".getBytes(StandardCharsets.UTF_8))
         }
 
@@ -230,7 +230,7 @@ task patchUpdateRc {
             } catch (ignore) {
             }
         }
-        new File("envs/EASY_YAPI_PR_BODY").newOutputStream().withCloseable {
+        new File("envs/EASY_API_PR_BODY").newOutputStream().withCloseable {
             it.write(prBody.getBytes(StandardCharsets.UTF_8))
         }
     }
