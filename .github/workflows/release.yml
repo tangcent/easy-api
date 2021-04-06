@@ -35,14 +35,12 @@ jobs:
       - name: patch envs
         run: |
           source ./envs/env.sh
-          echo "EASY_YAPI_PR_TITLE=${EASY_YAPI_PR_TITLE}" >> $GITHUB_ENV
-          echo "EASY_YAPI_PR_BODY=${EASY_YAPI_PR_BODY}" >> $GITHUB_ENV
+          echo "EASY_API_PR_TITLE=${EASY_API_PR_TITLE}" >> $GITHUB_ENV
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v3
         with:
-          title: "${{env.EASY_YAPI_PR_TITLE}}"
-          body: "${{env.EASY_YAPI_PR_BODY}}"
+          title: "${{env.EASY_API_PR_TITLE}}"
           base: master
           labels: release
 
