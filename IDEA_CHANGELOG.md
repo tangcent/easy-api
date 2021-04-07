@@ -1,3 +1,33 @@
+* 2.1.5
+
+	* opti: add the specified sqlite dependency [(#402)](https://github.com/tangcent/easy-api/pull/402)
+
+	* feat: init dao by lazy [(#401)](https://github.com/tangcent/easy-api/pull/401)
+
+	* fix: fromJson compatible with the old version [(#400)](https://github.com/tangcent/easy-api/pull/400)
+
+	* chore: update release script [(#399)](https://github.com/tangcent/easy-api/pull/399)
+
+	* chore: add test cases [(#398)](https://github.com/tangcent/easy-api/pull/398)
+
+	* chore: add test cases [(#397)](https://github.com/tangcent/easy-api/pull/397)
+
+	* chore: add test cases [(#396)](https://github.com/tangcent/easy-api/pull/396)
+
+	* chore: add test case of [KVKit] [(#395)](https://github.com/tangcent/easy-api/pull/395)
+
+	* chore: support co [(#394)](https://github.com/tangcent/easy-api/pull/394)
+
+	* chore: add test cases [(#393)](https://github.com/tangcent/easy-api/pull/393)
+
+	* chore: add test case for [KVUtils] [(#392)](https://github.com/tangcent/easy-api/pull/392)
+
+	* chore: add test case for [KitUtils] [(#391)](https://github.com/tangcent/easy-api/pull/391)
+
+	* chore: ignore `chore` for patch release [(#390)](https://github.com/tangcent/easy-api/pull/390)
+
+	* feat: parse `Header`&`Param` by `ExtensibleKit.fromJson` [(#389)](https://github.com/tangcent/easy-api/pull/389)
+
 * 2.1.4
 
 	* fix: use `asKV` instead of `as KV<>` [(#386)](https://github.com/tangcent/easy-api/pull/386)
