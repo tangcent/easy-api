@@ -9,6 +9,7 @@ import com.itangcent.idea.config.CachedResourceResolver
 import com.itangcent.idea.plugin.script.GroovyActionExtLoader
 import com.itangcent.idea.plugin.script.LoggerBuffer
 import com.itangcent.idea.plugin.settings.SettingBinder
+import com.itangcent.idea.plugin.settings.lazy
 import com.itangcent.idea.utils.ConfigurableLogger
 import com.itangcent.intellij.actions.ActionEventDataContextAdaptor
 import com.itangcent.intellij.actions.KotlinAnAction
@@ -17,6 +18,8 @@ import com.itangcent.intellij.constant.EventKey
 import com.itangcent.intellij.context.ActionContext
 import com.itangcent.intellij.extend.guice.singleton
 import com.itangcent.intellij.extend.guice.with
+import com.itangcent.intellij.file.DefaultLocalFileRepository
+import com.itangcent.intellij.file.LocalFileRepository
 import com.itangcent.intellij.jvm.kotlin.KotlinAutoInject
 import com.itangcent.intellij.logger.ConsoleRunnerLogger
 import com.itangcent.intellij.logger.Logger
@@ -39,7 +42,6 @@ abstract class BasicAnAction : KotlinAnAction {
         super.onBuildActionContext(event, builder)
         builder.bindInstance("plugin.name", "easy_api")
 
-        builder.bind(SettingBinder::class) { it.toInstance(ServiceManager.getService(SettingBinder::class.java)) }
         builder.bind(Logger::class) { it.with(ConfigurableLogger::class).singleton() }
         builder.bind(Logger::class, "delegate.logger") { it.with(ConsoleRunnerLogger::class).singleton() }
         builder.bind(ResourceResolver::class) { it.with(CachedResourceResolver::class).singleton() }
@@ -80,7 +82,7 @@ abstract class BasicAnAction : KotlinAnAction {
 
     companion object {
         init {
-            Setup.load(ApiExportAction::class.java.classLoader)
+            Setup.load(BasicAnAction::class.java.classLoader)
             Setup.setup(OnlyOnceInContextTipSetup::class)
             Setup.setup(IdeaAutoInject::class)
             Setup.setup(KotlinAutoInject::class)

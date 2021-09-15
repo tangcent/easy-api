@@ -4,13 +4,13 @@ import com.itangcent.intellij.context.ActionContext
 import java.awt.Component
 import java.awt.Dialog
 import java.awt.Toolkit
+import java.awt.event.MouseEvent
 import javax.swing.BorderFactory
 import javax.swing.JComponent
 import javax.swing.JTable
 import javax.swing.JTree
 import javax.swing.table.TableColumn
-import javax.swing.tree.DefaultMutableTreeNode
-import javax.swing.tree.TreePath
+import javax.swing.tree.*
 
 
 object SwingUtils {
@@ -61,13 +61,52 @@ object SwingUtils {
         val width = component.width
         val height = component.height
 
-        component.setLocation(scmSize.width / 2 - width / 2,
-                scmSize.height / 2 - height / 2)
+        component.setLocation(
+            scmSize.width / 2 - width / 2,
+            scmSize.height / 2 - height / 2
+        )
     }
 
 }
 
+fun MouseEvent?.isDoubleClick(): Boolean {
+    if (this == null || this.isConsumed) return false
+
+    if (this.isPopupTrigger) return false
+    if (this.clickCount == 1 && this.isControlDown) {
+        return true
+    } else if (this.clickCount == 2 && this.button == MouseEvent.BUTTON1) {
+        return true
+    }
+    return false
+}
 
 fun JTable.findColumn(index: Int): TableColumn? {
     return this.getColumn(this.getColumnName(index))
+}
+
+fun TreeModel.reload() {
+    (this as? DefaultTreeModel)?.reload()
+}
+
+fun TreeModel.reload(node: TreeNode) {
+    (this as? DefaultTreeModel)?.reload(node)
+}
+
+fun TreeModel.clear(node: TreeNode) {
+    if (node !is DefaultMutableTreeNode) return
+    if (node.childCount > 0) {
+        node.removeAllChildren()
+        this.reload(node)
+    }
+}
+
+fun TreeModel.clear() {
+    (this.root as? TreeNode)?.let { this.clear(it) }
+}
+
+fun TreeModel.remove(node: TreeNode) {
+    if (node !is DefaultMutableTreeNode) return
+    node.removeFromParent()
+    this.reload(node)
 }

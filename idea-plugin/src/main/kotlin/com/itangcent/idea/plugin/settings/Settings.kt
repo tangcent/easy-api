@@ -1,78 +1,80 @@
 package com.itangcent.idea.plugin.settings
 
-import com.itangcent.idea.plugin.config.RecommendConfigLoader
+import com.itangcent.idea.plugin.settings.helper.RecommendConfigLoader
+import com.itangcent.idea.plugin.settings.xml.ApplicationSettingsSupport
+import com.itangcent.idea.plugin.settings.xml.ProjectSettingsSupport
 import com.itangcent.idea.utils.Charsets
-import com.itangcent.idea.utils.ConfigurableLogger
 
-class Settings {
+class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
 
-    var pullNewestDataBefore: Boolean = false
+    override var methodDocEnable: Boolean = false
 
-    var methodDocEnable: Boolean = false
+    override var genericEnable: Boolean = false
 
     //postman
 
-    var postmanToken: String? = null
+    override var pullNewestDataBefore: Boolean = false
 
-    var wrapCollection: Boolean = false
+    override var postmanToken: String? = null
 
-    var autoMergeScript: Boolean = false
+    override var postmanWorkspace: String? = null
 
-    var postmanJson5FormatType: String = PostmanJson5FormatType.EXAMPLE_ONLY.name
+    override var postmanExportMode: String? = PostmanExportMode.COPY.name
 
-    //intelligent
+    override var postmanCollections: String? = null
 
-    var formExpanded: Boolean = true
+    override var wrapCollection: Boolean = false
 
-    var readGetter: Boolean = false
+    override var autoMergeScript: Boolean = false
 
-    var readSetter: Boolean = false
+    override var postmanJson5FormatType: String = PostmanJson5FormatType.EXAMPLE_ONLY.name
 
-    var inferEnable: Boolean = true
+    //region intelligent
 
-    var inferMaxDeep: Int = DEFAULT_INFER_MAX_DEEP
+    override var queryExpanded: Boolean = true
+
+    override var formExpanded: Boolean = true
+
+    override var readGetter: Boolean = false
+
+    override var readSetter: Boolean = false
+
+    override var inferEnable: Boolean = false
+
+    override var inferMaxDeep: Int = DEFAULT_INFER_MAX_DEEP
+
+    //endregion
+
+    //region http--------------------------
 
     //unit:s
-    var httpTimeOut: Int = 5
+    override var httpTimeOut: Int = 5
+
+    override var trustHosts: Array<String> = DEFAULT_TRUST_HOSTS
+
+    //endregion
 
     //enable to use recommend config
-    var useRecommendConfig: Boolean = true
+    override var useRecommendConfig: Boolean = true
 
-    var recommendConfigs: String = RecommendConfigLoader.defaultCodes()
+    override var recommendConfigs: String = RecommendConfigLoader.defaultCodes()
 
-    var logLevel: Int = ConfigurableLogger.CoarseLogLevel.LOW.getLevel()
+    override var logLevel: Int = 50
 
     // markdown
 
-    var outputDemo: Boolean = true
+    override var outputDemo: Boolean = true
 
-    var outputCharset: String = Charsets.UTF_8.displayName()
+    override var outputCharset: String = Charsets.UTF_8.displayName()
 
-    var markdownFormatType: String = MarkdownFormatType.SIMPLE.name
+    override var markdownFormatType: String = MarkdownFormatType.SIMPLE.name
 
-    var builtInConfig: String? = null
+    override var builtInConfig: String? = null
 
     fun copy(): Settings {
         val newSetting = Settings()
-        newSetting.postmanToken = this.postmanToken
-        newSetting.wrapCollection = this.wrapCollection
-        newSetting.autoMergeScript = this.autoMergeScript
-        newSetting.postmanJson5FormatType = this.postmanJson5FormatType
-        newSetting.pullNewestDataBefore = this.pullNewestDataBefore
-        newSetting.methodDocEnable = this.methodDocEnable
-        newSetting.formExpanded = this.formExpanded
-        newSetting.readGetter = this.readGetter
-        newSetting.readSetter = this.readSetter
-        newSetting.inferEnable = this.inferEnable
-        newSetting.inferMaxDeep = this.inferMaxDeep
-        newSetting.httpTimeOut = this.httpTimeOut
-        newSetting.useRecommendConfig = this.useRecommendConfig
-        newSetting.recommendConfigs = this.recommendConfigs
-        newSetting.logLevel = this.logLevel
-        newSetting.outputDemo = this.outputDemo
-        newSetting.outputCharset = this.outputCharset
-        newSetting.markdownFormatType = this.markdownFormatType
-        newSetting.builtInConfig = this.builtInConfig
+        this.copyTo(newSetting as ProjectSettingsSupport)
+        this.copyTo(newSetting as ApplicationSettingsSupport)
         return newSetting
     }
 
@@ -84,10 +86,15 @@ class Settings {
 
         if (pullNewestDataBefore != other.pullNewestDataBefore) return false
         if (methodDocEnable != other.methodDocEnable) return false
+        if (genericEnable != other.genericEnable) return false
         if (postmanToken != other.postmanToken) return false
+        if (postmanWorkspace != other.postmanWorkspace) return false
+        if (postmanExportMode != other.postmanExportMode) return false
+        if (postmanCollections != other.postmanCollections) return false
         if (wrapCollection != other.wrapCollection) return false
         if (autoMergeScript != other.autoMergeScript) return false
         if (postmanJson5FormatType != other.postmanJson5FormatType) return false
+        if (queryExpanded != other.queryExpanded) return false
         if (formExpanded != other.formExpanded) return false
         if (readGetter != other.readGetter) return false
         if (readSetter != other.readSetter) return false
@@ -101,6 +108,7 @@ class Settings {
         if (outputCharset != other.outputCharset) return false
         if (markdownFormatType != other.markdownFormatType) return false
         if (builtInConfig != other.builtInConfig) return false
+        if (!trustHosts.contentEquals(other.trustHosts)) return false
 
         return true
     }
@@ -108,10 +116,15 @@ class Settings {
     override fun hashCode(): Int {
         var result = pullNewestDataBefore.hashCode()
         result = 31 * result + methodDocEnable.hashCode()
+        result = 31 * result + genericEnable.hashCode()
         result = 31 * result + (postmanToken?.hashCode() ?: 0)
+        result = 31 * result + (postmanWorkspace?.hashCode() ?: 0)
+        result = 31 * result + (postmanExportMode?.hashCode() ?: 0)
+        result = 31 * result + (postmanCollections?.hashCode() ?: 0)
         result = 31 * result + wrapCollection.hashCode()
         result = 31 * result + autoMergeScript.hashCode()
         result = 31 * result + postmanJson5FormatType.hashCode()
+        result = 31 * result + queryExpanded.hashCode()
         result = 31 * result + formExpanded.hashCode()
         result = 31 * result + readGetter.hashCode()
         result = 31 * result + readSetter.hashCode()
@@ -125,10 +138,21 @@ class Settings {
         result = 31 * result + outputCharset.hashCode()
         result = 31 * result + markdownFormatType.hashCode()
         result = 31 * result + builtInConfig.hashCode()
+        result = 31 * result + trustHosts.hashCode()
         return result
     }
 
     companion object {
         const val DEFAULT_INFER_MAX_DEEP = 4
+
+        val DEFAULT_TRUST_HOSTS: Array<String> =
+            arrayOf(
+                "https://raw.githubusercontent.com/tangcent",
+                "https://api.getpostman.com",
+                "https://localhost",
+                "http://localhost",
+                "https://127.0.0.1",
+                "http://127.0.0.1",
+            )
     }
 }

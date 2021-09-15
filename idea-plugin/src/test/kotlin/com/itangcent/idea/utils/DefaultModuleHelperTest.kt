@@ -58,14 +58,14 @@ internal class DefaultModuleHelperTest : PluginContextLightCodeInsightFixtureTes
         assertEquals("users", moduleHelper.findModule(userCtrlPsiClass.methods[0] as Any))
 
         //findModuleByPath--------------------------------------------
-        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-yapi/idea-plugin/src/main/kotlin/com/itangcent"))
-        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-yapi/idea-plugin/src/main/java/com/itangcent"))
-        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-yapi/idea-plugin/src/main/scala/com/itangcent"))
+        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-api/idea-plugin/src/main/kotlin/com/itangcent"))
+        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-api/idea-plugin/src/main/java/com/itangcent"))
+        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-api/idea-plugin/src/main/scala/com/itangcent"))
 
-        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-yapi/idea-plugin/main/kotlin/com/itangcent"))
-        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-yapi/idea-plugin/kotlin/com/itangcent"))
-        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-yapi/idea-plugin/java/com/itangcent"))
-        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-yapi/idea-plugin/scala/com/itangcent"))
+        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-api/idea-plugin/main/kotlin/com/itangcent"))
+        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-api/idea-plugin/kotlin/com/itangcent"))
+        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-api/idea-plugin/java/com/itangcent"))
+        assertEquals("idea-plugin", moduleHelper.findModuleByPath("easy-api/idea-plugin/scala/com/itangcent"))
 
     }
 }

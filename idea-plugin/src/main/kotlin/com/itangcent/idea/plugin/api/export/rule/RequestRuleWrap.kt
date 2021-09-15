@@ -6,6 +6,7 @@ import com.itangcent.common.constant.HttpMethod
 import com.itangcent.common.model.*
 import com.itangcent.common.utils.*
 import com.itangcent.idea.plugin.api.export.*
+import com.itangcent.idea.plugin.api.export.core.*
 import com.itangcent.idea.psi.resource
 import com.itangcent.idea.utils.setExts
 import com.itangcent.intellij.context.ActionContext
@@ -13,8 +14,9 @@ import com.itangcent.intellij.jvm.DuckTypeHelper
 import com.itangcent.intellij.jvm.PsiClassHelper
 import com.itangcent.intellij.logger.Logger
 import com.itangcent.intellij.psi.JsonOption
+import java.util.*
 
-class RequestRuleWrap(private val request: Request) {
+class RequestRuleWrap(private val methodExportContext: MethodExportContext, private val request: Request) {
 
     //region request
 
@@ -23,7 +25,19 @@ class RequestRuleWrap(private val request: Request) {
     }
 
     fun setName(name: String) {
-        requestHelper.setName(request, name)
+        requestBuilderListener.setName(methodExportContext, request, name)
+    }
+
+    fun desc(): String? {
+        return request.desc
+    }
+
+    fun setDesc(desc: String?) {
+        request.desc = desc
+    }
+
+    fun appendDesc(desc: String?) {
+        requestBuilderListener.appendDesc(methodExportContext, request, desc)
     }
 
     /**
@@ -36,11 +50,11 @@ class RequestRuleWrap(private val request: Request) {
     }
 
     fun setMethod(method: String) {
-        requestHelper.setMethod(request, method)
+        requestBuilderListener.setMethod(methodExportContext, request, method)
     }
 
     fun setMethodIfMissed(method: String) {
-        return requestHelper.setMethodIfMissed(request, method)
+        return requestBuilderListener.setMethodIfMissed(methodExportContext, request, method)
     }
 
     fun path(): String? {
@@ -51,8 +65,12 @@ class RequestRuleWrap(private val request: Request) {
         return request.path?.urls()
     }
 
-    fun setPath(path: URL) {
-        requestHelper.setPath(request, path)
+    fun setPath(vararg path: String?) {
+        requestBuilderListener.setPath(methodExportContext, request, URL.of(*path))
+    }
+
+    fun setPaths(path: List<String>) {
+        requestBuilderListener.setPath(methodExportContext, request, URL.of(path))
     }
 
     /**
@@ -73,8 +91,8 @@ class RequestRuleWrap(private val request: Request) {
      * addAsJsonBody if content-type is json
      * otherwise addAsForm
      */
-    fun setBody(model: Any) {
-        requestHelper.setModelAsBody(request, model)
+    fun setBody(model: Any?) {
+        model?.let { requestBuilderListener.setModelAsBody(methodExportContext, request, it) }
     }
 
     fun setBodyClass(bodyClass: String?) {
@@ -87,13 +105,14 @@ class RequestRuleWrap(private val request: Request) {
             context.instance(Logger::class).warn("no resource be related with:${request}")
             return
         }
-        val responseType = context.instance(DuckTypeHelper::class).findType(bodyClass, resource)
-        val res = context.instance(PsiClassHelper::class).getTypeObject(responseType, resource, JsonOption.ALL)
-        res?.let { requestHelper.setModelAsBody(this.request, it) }
+        val responseType = context.instance(DuckTypeHelper::class).findType(bodyClass, resource) ?: return
+        val res =
+            context.instance(PsiClassHelper::class).getTypeObject(responseType, resource, JsonOption.ALL) ?: return
+        requestBuilderListener.setModelAsBody(methodExportContext, this.request, res)
     }
 
     fun addModelAsParam(model: Any) {
-        requestHelper.addModelAsParam(request, model)
+        requestBuilderListener.addModelAsParam(methodExportContext, request, model)
     }
 
     fun addModelClass(modelClass: String?) {
@@ -108,81 +127,76 @@ class RequestRuleWrap(private val request: Request) {
         }
         val responseType = context.instance(DuckTypeHelper::class).findType(modelClass, resource)
         val res = context.instance(PsiClassHelper::class).getTypeObject(responseType, resource, JsonOption.ALL)
-        res?.let { requestHelper.addModelAsParam(this.request, it) }
+        res?.let { requestBuilderListener.addModelAsParam(methodExportContext, this.request, it) }
     }
 
     fun addFormParam(formParam: FormParam) {
-        requestHelper.addFormParam(request, formParam)
+        requestBuilderListener.addFormParam(methodExportContext, request, formParam)
     }
 
     fun addParam(param: Param) {
-        requestHelper.addParam(request, param)
+        requestBuilderListener.addParam(methodExportContext, request, param)
     }
 
     fun addPathParam(pathParam: PathParam) {
-        requestHelper.addPathParam(request, pathParam)
+        requestBuilderListener.addPathParam(methodExportContext, request, pathParam)
     }
 
     fun setJsonBody(body: Any?, bodyAttr: String?) {
-        requestHelper.setJsonBody(request, body, bodyAttr)
-    }
-
-    fun appendDesc(desc: String?) {
-        requestHelper.appendDesc(request, desc)
+        requestBuilderListener.setJsonBody(methodExportContext, request, body, bodyAttr)
     }
 
     fun addParam(paramName: String, defaultVal: String?, desc: String?) {
-        requestHelper.addParam(request, paramName, defaultVal, desc)
+        requestBuilderListener.addParam(methodExportContext, request, paramName, defaultVal, desc)
     }
 
     fun addParam(paramName: String, defaultVal: String?, required: Boolean?, desc: String?) {
-        requestHelper.addParam(request, paramName, defaultVal, required ?: true, desc)
+        requestBuilderListener.addParam(methodExportContext, request, paramName, defaultVal, required ?: true, desc)
     }
 
     fun setParam(paramName: String, defaultVal: String?, required: Boolean?, desc: String?) {
         val param = request.querys?.firstOrNull { it.name == paramName }
         if (param == null) {
-            requestHelper.addParam(request, paramName, defaultVal, required ?: true, desc)
+            requestBuilderListener.addParam(methodExportContext, request, paramName, defaultVal, required ?: true, desc)
         } else {
-            if (param.value.anyIsNullOrBlank() && defaultVal.notNullOrBlank()) {
-                param.value = defaultVal
-            }
-            param.desc = param.desc.append(desc)
+            param.value = defaultVal
+            param.desc = desc
             param.required = required
         }
     }
 
     fun addFormParam(paramName: String, defaultVal: String?, desc: String?) {
-        requestHelper.addFormParam(request, paramName, defaultVal, desc)
+        requestBuilderListener.addFormParam(methodExportContext, request, paramName, defaultVal, desc)
     }
 
     fun addFormParam(paramName: String, defaultVal: String?, required: Boolean?, desc: String?) {
-        requestHelper.addFormParam(request, paramName, defaultVal, required ?: true, desc)
+        requestBuilderListener.addFormParam(methodExportContext, request, paramName, defaultVal, required ?: true, desc)
     }
 
     fun setFormParam(paramName: String, defaultVal: String?, required: Boolean?, desc: String?) {
         val param = request.formParams?.firstOrNull { it.name == paramName }
         if (param == null) {
-            requestHelper.addFormParam(request, paramName, defaultVal, required ?: true, desc)
+            requestBuilderListener.addFormParam(
+                methodExportContext, request, paramName, defaultVal, required
+                    ?: true, desc
+            )
         } else {
-            if (param.value.anyIsNullOrBlank() && defaultVal.notNullOrBlank()) {
-                param.value = defaultVal
-            }
-            param.desc = param.desc.append(desc)
+            param.value = defaultVal
+            param.desc = desc
             param.required = required
         }
     }
 
     fun addFormFileParam(paramName: String, required: Boolean?, desc: String?) {
-        requestHelper.addFormFileParam(request, paramName, required ?: true, desc)
+        requestBuilderListener.addFormFileParam(methodExportContext, request, paramName, required ?: true, desc)
     }
 
     fun setFormFileParam(paramName: String, required: Boolean?, desc: String?) {
         val param = request.formParams?.firstOrNull { it.name == paramName }
         if (param == null) {
-            requestHelper.addFormFileParam(request, paramName, required ?: true, desc)
+            requestBuilderListener.addFormFileParam(methodExportContext, request, paramName, required ?: true, desc)
         } else {
-            param.desc = param.desc.append(desc)
+            param.desc = desc
             param.required = required
         }
     }
@@ -193,15 +207,15 @@ class RequestRuleWrap(private val request: Request) {
 
     fun header(name: String): HeaderRuleWrap? {
         return this.request.headers
-                ?.firstOrNull { it.name == name }
-                ?.let { HeaderRuleWrap(this.request, it) }
+            ?.firstOrNull { it.name == name }
+            ?.let { HeaderRuleWrap(this.request, it) }
     }
 
     fun headers(name: String): Array<HeaderRuleWrap> {
         return this.request.headers
-                ?.filter { it.name == name }
-                ?.mapToTypedArray { HeaderRuleWrap(this.request, it) }
-                ?: emptyArray()
+            ?.filter { it.name == name }
+            ?.mapToTypedArray { HeaderRuleWrap(this.request, it) }
+            ?: emptyArray()
     }
 
     fun removeHeader(name: String) {
@@ -209,11 +223,11 @@ class RequestRuleWrap(private val request: Request) {
     }
 
     fun addHeader(name: String, value: String) {
-        requestHelper.addHeader(request, name, value)
+        requestBuilderListener.addHeader(methodExportContext, request, name, value)
     }
 
     fun addHeaderIfMissed(name: String, value: String): Boolean {
-        return requestHelper.addHeaderIfMissed(request, name, value)
+        return requestBuilderListener.addHeaderIfMissed(methodExportContext, request, name, value)
     }
 
     fun addHeader(name: String, value: String?, required: Boolean?, desc: String?) {
@@ -222,7 +236,7 @@ class RequestRuleWrap(private val request: Request) {
         header.value = value
         header.required = required
         header.desc = desc
-        requestHelper.addHeader(request, header)
+        requestBuilderListener.addHeader(methodExportContext, request, header)
     }
 
     fun setHeader(name: String, value: String?, required: Boolean?, desc: String?) {
@@ -230,16 +244,14 @@ class RequestRuleWrap(private val request: Request) {
         if (header == null) {
             addHeader(name, value, required, desc)
         } else {
-            if (header.value.anyIsNullOrBlank() && value.notNullOrBlank()) {
-                header.value = value
-            }
+            header.value = value
             header.desc = header.desc.append(desc)
             header.required = required
         }
     }
 
     fun addPathParam(name: String, desc: String) {
-        requestHelper.addPathParam(request, name, desc)
+        requestBuilderListener.addPathParam(methodExportContext, request, name, desc)
     }
 
     fun addPathParam(name: String, value: String, desc: String) {
@@ -247,7 +259,7 @@ class RequestRuleWrap(private val request: Request) {
         pathParam.name = name
         pathParam.value = value
         pathParam.desc = desc
-        requestHelper.addPathParam(request, pathParam)
+        requestBuilderListener.addPathParam(methodExportContext, request, pathParam)
     }
 
     fun setPathParam(name: String, value: String, desc: String) {
@@ -255,9 +267,7 @@ class RequestRuleWrap(private val request: Request) {
         if (param == null) {
             addPathParam(name, value, desc)
         } else {
-            if (param.value.anyIsNullOrBlank() && value.notNullOrBlank()) {
-                param.value = value
-            }
+            param.value = value
             param.desc = param.desc.append(desc)
         }
     }
@@ -267,77 +277,76 @@ class RequestRuleWrap(private val request: Request) {
     //region response
 
     @ScriptIgnore
-    private fun response(): Response? {
-        return request.response?.first()
+    private fun response(): Response {
+        if (request.response == null) {
+            request.response = LinkedList()
+            request.response!!.add(Response())
+        }
+        return request.response!!.first()
     }
 
     fun addResponseHeader(header: Header) {
-        response()?.let { requestHelper.addResponseHeader(it, header) }
+        requestBuilderListener.addResponseHeader(methodExportContext, response(), header)
     }
 
     fun setResponseBody(bodyType: String, body: Any?) {
-        response()?.let { requestHelper.setResponseBody(it, bodyType, body) }
+        requestBuilderListener.setResponseBody(methodExportContext, response(), bodyType, body)
     }
 
     fun setResponseBody(body: Any?) {
-        response()?.let { requestHelper.setResponseBody(it, "raw", body) }
+        requestBuilderListener.setResponseBody(methodExportContext, response(), "raw", body)
     }
 
     fun setResponseBodyClass(bodyClass: String?) {
         if (bodyClass == null) {
             return
         }
-        response()?.let {
-            val context = ActionContext.getContext()!!
-            val resource = request.resource()
-            if (resource == null) {
-                context.instance(Logger::class).warn("no resource be related with:${request}")
-                return
-            }
-            val responseType = context.instance(DuckTypeHelper::class).findType(bodyClass, resource)
-            val res = context.instance(PsiClassHelper::class).getTypeObject(responseType, resource, JsonOption.ALL)
-            requestHelper.setResponseBody(it, "raw", res)
+        val context = ActionContext.getContext()!!
+        val resource = request.resource()
+        if (resource == null) {
+            context.instance(Logger::class).warn("no resource be related with:${request}")
+            return
         }
+        val responseType = context.instance(DuckTypeHelper::class).findType(bodyClass, resource)
+        val res = context.instance(PsiClassHelper::class).getTypeObject(responseType, resource, JsonOption.ALL)
+        requestBuilderListener.setResponseBody(methodExportContext, response(), "raw", res)
     }
 
     fun setResponseBodyClass(bodyType: String, bodyClass: String?) {
         if (bodyClass == null) {
             return
         }
-        response()?.let {
-            val context = ActionContext.getContext()!!
-            val resource = request.resource()
-            if (resource == null) {
-                context.instance(Logger::class).warn("no resource be related with:${request}")
-                return
-            }
-            val responseType = context.instance(DuckTypeHelper::class).findType(bodyClass, resource)
-            val res = context.instance(PsiClassHelper::class).getTypeObject(responseType, resource, JsonOption.ALL)
-            requestHelper.setResponseBody(it, bodyType, res)
+        val context = ActionContext.getContext()!!
+        val resource = request.resource()
+        if (resource == null) {
+            context.instance(Logger::class).warn("no resource be related with:${request}")
+            return
         }
+        val responseType = context.instance(DuckTypeHelper::class).findType(bodyClass, resource)
+        val res = context.instance(PsiClassHelper::class).getTypeObject(responseType, resource, JsonOption.ALL)
+        requestBuilderListener.setResponseBody(methodExportContext, response(), bodyType, res)
     }
 
     fun setResponseCode(code: Any?) {
         val codeInt = code.asInt() ?: return
-        response()?.let { requestHelper.setResponseCode(it, codeInt) }
+        requestBuilderListener.setResponseCode(methodExportContext, response(), codeInt)
     }
 
     fun appendResponseBodyDesc(bodyDesc: String?) {
-        response()?.let { requestHelper.appendResponseBodyDesc(it, bodyDesc) }
+        requestBuilderListener.appendResponseBodyDesc(methodExportContext, response(), bodyDesc)
     }
 
     fun addResponseHeader(name: String, value: String) {
-        response()?.let { requestHelper.addResponseHeader(it, name, value) }
+        requestBuilderListener.addResponseHeader(methodExportContext, response(), name, value)
     }
 
     fun addResponseHeader(name: String, value: String?, required: Boolean?, desc: String?) {
-        val response = response() ?: return
         val header = Header()
         header.name = name
         header.value = value
         header.required = required
         header.desc = desc
-        requestHelper.addResponseHeader(response, header)
+        requestBuilderListener.addResponseHeader(methodExportContext, response(), header)
     }
 
     fun setResponseHeader(name: String, value: String?, required: Boolean?, desc: String?) {
@@ -346,10 +355,8 @@ class RequestRuleWrap(private val request: Request) {
         if (header == null) {
             addResponseHeader(name, value, required, desc)
         } else {
-            if (header.value.anyIsNullOrBlank() && value.notNullOrBlank()) {
-                header.value = value
-            }
-            header.desc = header.desc.append(desc)
+            header.value = value
+            header.desc = desc
             header.required = required
         }
     }
@@ -357,14 +364,15 @@ class RequestRuleWrap(private val request: Request) {
     //endregion response
 
     companion object {
-        val requestHelper: RequestHelper = ActionContext.local()
+        val requestBuilderListener: RequestBuilderListener = ActionContext.local()
     }
 }
 
 @ScriptTypeName("header")
 class HeaderRuleWrap(
-        private val request: Request,
-        private val header: Header) {
+    private val request: Request,
+    private val header: Header
+) {
 
     fun name(): String? {
         return header.name
@@ -410,5 +418,23 @@ class HeaderRuleWrap(
         header.required = this.header.required
         this.header.exts()?.let { header.setExts(it) }
         return HeaderRuleWrap(request, header)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as HeaderRuleWrap
+
+        if (request != other.request) return false
+        if (header != other.header) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = request.hashCode()
+        result = 31 * result + header.hashCode()
+        return result
     }
 }

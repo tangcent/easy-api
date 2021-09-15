@@ -5,20 +5,27 @@ import com.google.inject.Singleton
 import com.itangcent.annotation.script.ScriptIgnore
 import com.itangcent.annotation.script.ScriptTypeName
 import com.itangcent.http.*
-import com.itangcent.idea.plugin.api.export.ClassExportRuleKeys
+import com.itangcent.idea.plugin.api.export.core.ClassExportRuleKeys
 import com.itangcent.idea.plugin.rule.SuvRuleContext
-import com.itangcent.idea.plugin.settings.SettingBinder
+import com.itangcent.idea.plugin.settings.helper.HttpSettingsHelper
 import com.itangcent.intellij.config.ConfigReader
 import com.itangcent.intellij.config.rule.RuleComputer
+import com.itangcent.intellij.logger.Logger
+import org.apache.http.client.config.CookieSpecs
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.config.SocketConfig
 import org.apache.http.impl.client.HttpClients
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
+import java.io.ByteArrayInputStream
+import java.io.InputStream
+import java.nio.charset.Charset
+import java.util.concurrent.TimeUnit
 
 @Singleton
 class ConfigurableHttpClientProvider : AbstractHttpClientProvider() {
 
     @Inject(optional = true)
-    protected val settingBinder: SettingBinder? = null
+    protected val httpSettingsHelper: HttpSettingsHelper? = null
 
     @Inject(optional = true)
     protected val configReader: ConfigReader? = null
@@ -26,40 +33,44 @@ class ConfigurableHttpClientProvider : AbstractHttpClientProvider() {
     @Inject(optional = true)
     protected val ruleComputer: RuleComputer? = null
 
+    @Inject
+    protected val logger: Logger? = null
+
     override fun buildHttpClient(): HttpClient {
         val httpClientBuilder = HttpClients.custom()
 
         val config = readHttpConfig()
 
         httpClientBuilder
+                .setConnectionManager(PoolingHttpClientConnectionManager().also {
+                    it.maxTotal = 50
+                    it.defaultMaxPerRoute = 20
+                })
                 .setDefaultSocketConfig(SocketConfig.custom()
-                        .setSoTimeout(config.timeOut.toMill())
+                        .setSoTimeout(config.timeOut)
                         .build())
                 .setDefaultRequestConfig(RequestConfig.custom()
-                        .setConnectTimeout(config.timeOut.toMill())
-                        .setConnectionRequestTimeout(config.timeOut.toMill())
-                        .setSocketTimeout(config.timeOut.toMill())
-                        .build())
+                        .setConnectTimeout(config.timeOut)
+                        .setConnectionRequestTimeout(config.timeOut)
+                        .setSocketTimeout(config.timeOut)
+                        .setCookieSpec(CookieSpecs.STANDARD).build())
+                .setSSLHostnameVerifier(NOOP_HOST_NAME_VERIFIER)
+                .setSSLSocketFactory(SSLSF)
 
         return HttpClientWrapper(ApacheHttpClient(httpClientBuilder.build()))
-    }
-
-    private fun Int.toMill(): Int {
-        return this * 1000
     }
 
     private fun readHttpConfig(): HttpConfig {
         val httpConfig = HttpConfig()
 
-        settingBinder?.read()?.let { setting ->
-            httpConfig.timeOut = setting.httpTimeOut
+        httpSettingsHelper?.let {
+            httpConfig.timeOut = it.httpTimeOut(TimeUnit.MILLISECONDS)
         }
-
 
         if (configReader != null) {
             try {
-                configReader.first("http.timeOut")?.toInt()
-                        ?.let { httpConfig.timeOut = it }
+                configReader.first("http.timeOut")?.toLong()
+                        ?.let { httpConfig.timeOut = TimeUnit.SECONDS.toMillis(it).toInt() }
             } catch (e: NumberFormatException) {
             }
         }
@@ -200,6 +211,12 @@ class ConfigurableHttpClientProvider : AbstractHttpClientProvider() {
          * @return  the response to the request
          */
         override fun call(): HttpResponse {
+            val url = url() ?: throw IllegalArgumentException("url not be set")
+            if (httpSettingsHelper != null
+                    && !httpSettingsHelper.checkTrustUrl(url, false)) {
+                logger?.warn("[access forbidden] call:$url")
+                return EmptyHttpResponse(this)
+            }
             var i = 0
             while (true) {
                 val suvRuleContext = SuvRuleContext()
@@ -209,12 +226,68 @@ class ConfigurableHttpClientProvider : AbstractHttpClientProvider() {
                 suvRuleContext.setExt("response", response)
                 ruleComputer.computer(ClassExportRuleKeys.HTTP_CLIENT_AFTER_CALL, suvRuleContext, null)
                 if (response.isDiscarded() && i < 3) {
+                    response.close()
                     ++i
                     continue
                 }
                 return response
             }
         }
+    }
+
+    class EmptyHttpResponse(private val request: HttpRequest) : HttpResponse {
+        override fun code(): Int {
+            return 404
+        }
+
+        override fun headers(): List<HttpHeader>? {
+            return null
+        }
+
+        override fun headers(headerName: String): Array<String>? {
+            return null
+        }
+
+        override fun string(): String? {
+            return null
+        }
+
+        override fun string(charset: Charset): String? {
+            return null
+        }
+
+        override fun stream(): InputStream {
+            return ByteArrayInputStream(byteArrayOf())
+        }
+
+        override fun contentType(): String? {
+            return null
+        }
+
+        override fun bytes(): ByteArray? {
+            return null
+        }
+
+        override fun containsHeader(headerName: String): Boolean? {
+            return false
+        }
+
+        override fun firstHeader(headerName: String): String? {
+            return null
+        }
+
+        override fun lastHeader(headerName: String): String? {
+            return null
+        }
+
+        override fun request(): HttpRequest {
+            return this.request
+        }
+
+        override fun close() {
+            //NOP
+        }
+
     }
 
     @ScriptTypeName("response")
@@ -245,6 +318,4 @@ class ConfigurableHttpClientProvider : AbstractHttpClientProvider() {
     companion object {
         const val defaultHttpTimeOut: Int = 10
     }
-
-
 }

@@ -38,23 +38,25 @@ abstract class BaseContextTest {
         val actionContext = builder.build()
         try {
             actionContext.init(this)
-            afterBind()
+            afterBind(actionContext)
         } catch (e: Exception) {
             e.printStackTrace()
             fail("buildContext failed")
         }
     }
 
-    protected open fun afterBind() {
+    protected open fun bind(builder: ActionContext.ActionContextBuilder) {}
+
+    protected open fun afterBind(actionContext: ActionContext) {
     }
 
     @AfterEach
     fun tearDown() {
-        actionContext.waitComplete()
-        actionContext.stop(true)
+        if (this::actionContext.isInitialized) {
+            actionContext.waitComplete()
+            actionContext.stop(true)
+        }
     }
-
-    protected open fun bind(builder: ActionContext.ActionContextBuilder) {}
 
     companion object {
         val mockProject = Mockito.mock(Project::class.java)

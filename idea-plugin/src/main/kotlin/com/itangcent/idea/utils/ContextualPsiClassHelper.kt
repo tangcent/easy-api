@@ -5,11 +5,12 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
 import com.itangcent.common.utils.KV
 import com.itangcent.common.utils.asBool
-import com.itangcent.idea.plugin.api.export.ClassExportRuleKeys
+import com.itangcent.idea.plugin.api.export.core.ClassExportRuleKeys
 import com.itangcent.intellij.config.ConfigReader
 import com.itangcent.intellij.config.rule.RuleComputeListener
 import com.itangcent.intellij.config.rule.RuleContext
 import com.itangcent.intellij.config.rule.RuleKey
+import com.itangcent.intellij.config.rule.computer
 import com.itangcent.intellij.extend.guice.PostConstruct
 import com.itangcent.intellij.jvm.dev.DevEnv
 import com.itangcent.intellij.jvm.duck.DuckType
@@ -30,9 +31,9 @@ import java.util.*
 open class ContextualPsiClassHelper : DefaultPsiClassHelper() {
 
     @Inject
-    private val configReader: ConfigReader? = null
+    protected lateinit var configReader: ConfigReader
 
-    @Inject
+    @Inject(optional = true)
     private val ruleComputeListener: RuleComputeListener? = null
 
     @Inject
@@ -89,7 +90,7 @@ open class ContextualPsiClassHelper : DefaultPsiClassHelper() {
     }
 
     private fun clearCachePotentially() {
-        if (configReader!!.first("json.cache.disable").asBool() == true) {
+        if (configReader.first("json.cache.disable").asBool() == true) {
             devEnv?.dev {
                 logger!!.info("clear json cache")
             }
@@ -97,25 +98,50 @@ open class ContextualPsiClassHelper : DefaultPsiClassHelper() {
         }
     }
 
-    override fun beforeParseFieldOrMethod(fieldName: String, fieldType: DuckType, fieldOrMethod: ExplicitElement<*>, resourcePsiClass: ExplicitClass, option: Int, kv: KV<String, Any?>): Boolean {
-        parseContext.get()?.add(fieldName)
-        devEnv?.dev {
-            logger!!.info("path -> ${parseScriptContext.path()}")
-        }
-        ruleComputer!!.computer(ClassExportRuleKeys.FIELD_PARSE_BEFORE, fieldOrMethod, fieldOrMethod.psi())
+    override fun beforeParseFieldOrMethod(
+        fieldName: String,
+        fieldType: DuckType,
+        fieldOrMethod: ExplicitElement<*>,
+        resourcePsiClass: ExplicitClass,
+        option: Int,
+        kv: KV<String, Any?>
+    ): Boolean {
+        pushField(fieldName)
+        ruleComputer.computer(ClassExportRuleKeys.FIELD_PARSE_BEFORE, fieldOrMethod)
 
         return super.beforeParseFieldOrMethod(fieldName, fieldType, fieldOrMethod, resourcePsiClass, option, kv)
     }
 
-    override fun onIgnoredParseFieldOrMethod(fieldName: String, fieldType: DuckType, fieldOrMethod: ExplicitElement<*>, resourcePsiClass: ExplicitClass, option: Int, kv: KV<String, Any?>) {
+    private fun pushField(fieldName: String) {
+        parseContext.get()?.add(fieldName)
+        devEnv?.dev {
+            logger!!.info("path -> ${parseScriptContext.path()}")
+        }
+    }
+
+    override fun onIgnoredParseFieldOrMethod(
+        fieldName: String,
+        fieldType: DuckType,
+        fieldOrMethod: ExplicitElement<*>,
+        resourcePsiClass: ExplicitClass,
+        option: Int,
+        kv: KV<String, Any?>
+    ) {
         super.onIgnoredParseFieldOrMethod(fieldName, fieldType, fieldOrMethod, resourcePsiClass, option, kv)
         popField(fieldName)
     }
 
-    override fun afterParseFieldOrMethod(fieldName: String, fieldType: DuckType, fieldOrMethod: ExplicitElement<*>, resourcePsiClass: ExplicitClass, option: Int, kv: KV<String, Any?>) {
+    override fun afterParseFieldOrMethod(
+        fieldName: String,
+        fieldType: DuckType,
+        fieldOrMethod: ExplicitElement<*>,
+        resourcePsiClass: ExplicitClass,
+        option: Int,
+        kv: KV<String, Any?>
+    ) {
         super.afterParseFieldOrMethod(fieldName, fieldType, fieldOrMethod, resourcePsiClass, option, kv)
 
-        ruleComputer!!.computer(ClassExportRuleKeys.FIELD_PARSE_AFTER, fieldOrMethod, fieldOrMethod.psi())
+        ruleComputer.computer(ClassExportRuleKeys.FIELD_PARSE_AFTER, fieldOrMethod)
         popField(fieldName)
     }
 
@@ -143,7 +169,13 @@ open class ContextualPsiClassHelper : DefaultPsiClassHelper() {
 
     inner class InnerComputeListener : RuleComputeListener {
 
-        override fun computer(ruleKey: RuleKey<*>, target: Any, context: PsiElement?, contextHandle: (RuleContext) -> Unit, methodHandle: (RuleKey<*>, Any, PsiElement?, (RuleContext) -> Unit) -> Any?): Any? {
+        override fun computer(
+            ruleKey: RuleKey<*>,
+            target: Any,
+            context: PsiElement?,
+            contextHandle: (RuleContext) -> Unit,
+            methodHandle: (RuleKey<*>, Any, PsiElement?, (RuleContext) -> Unit) -> Any?
+        ): Any? {
             return if (JSON_RULE_KEYS.contains(ruleKey)) {
                 methodHandle(ruleKey, target, context) {
                     contextHandle(it)
@@ -158,13 +190,13 @@ open class ContextualPsiClassHelper : DefaultPsiClassHelper() {
 
     companion object {
         val JSON_RULE_KEYS = arrayOf(
-                ClassRuleKeys.FIELD_IGNORE,
-                ClassRuleKeys.FIELD_DOC,
-                ClassRuleKeys.FIELD_NAME,
-                ClassExportRuleKeys.FIELD_DEFAULT_VALUE,
-                ClassExportRuleKeys.FIELD_PARSE_BEFORE,
-                ClassExportRuleKeys.FIELD_PARSE_AFTER,
-                ClassExportRuleKeys.FIELD_REQUIRED
+            ClassRuleKeys.FIELD_IGNORE,
+            ClassRuleKeys.FIELD_DOC,
+            ClassRuleKeys.FIELD_NAME,
+            ClassExportRuleKeys.FIELD_DEFAULT_VALUE,
+            ClassExportRuleKeys.FIELD_PARSE_BEFORE,
+            ClassExportRuleKeys.FIELD_PARSE_AFTER,
+            ClassExportRuleKeys.FIELD_REQUIRED
         )
     }
 }

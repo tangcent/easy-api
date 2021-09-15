@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
 import com.google.gson.TypeAdapterFactory
+import com.google.gson.internal.LazilyParsedNumber
 import com.google.gson.internal.bind.ObjectTypeAdapter
 import com.itangcent.common.utils.GsonUtils
 import com.itangcent.common.utils.RegisterExclusionStrategy
@@ -12,17 +13,18 @@ import com.itangcent.common.utils.getPropertyValue
 
 object GsonExUtils {
 
-    private val gson: Gson
+    val gson: Gson
 
     init {
         val numberObjectTypeAdapter = NumberFixedObjectTypeAdapter()
         gson = GsonBuilder()
-                .setExclusionStrategies(RegisterExclusionStrategy().exclude(Visional::class.java))
-                .registerTypeAdapterFactory(NumberFixedObjectTypeAdapter.FACTORY)
-                .registerTypeAdapter(Any::class.java, numberObjectTypeAdapter)
-                .registerTypeAdapter(Map::class.java, numberObjectTypeAdapter)
-                .registerTypeAdapter(List::class.java, numberObjectTypeAdapter)
-                .create()
+            .setExclusionStrategies(RegisterExclusionStrategy().exclude(Visional::class.java))
+            .registerTypeAdapterFactory(NumberFixedObjectTypeAdapter.FACTORY)
+            .registerTypeAdapter(Any::class.java, numberObjectTypeAdapter)
+            .registerTypeAdapter(Map::class.java, numberObjectTypeAdapter)
+            .registerTypeAdapter(List::class.java, numberObjectTypeAdapter)
+            .registerTypeAdapter(LazilyParsedNumber::class.java, LazilyParsedNumberTypeAdapter())
+            .create()
         numberObjectTypeAdapter.setGson(gson)
 
         try {
@@ -45,38 +47,21 @@ object GsonExUtils {
 
         //unwrap for UnmodifiableList
         if (factories::class.qualifiedName == "java.util.Collections.UnmodifiableRandomAccessList" ||
-                factories::class.qualifiedName == "java.util.Collections.UnmodifiableList") {
+            factories::class.qualifiedName == "java.util.Collections.UnmodifiableList"
+        ) {
             factories = factories.getPropertyValue("list") ?: return
         }
 
         (factories as MutableList<TypeAdapterFactory>).remove(ObjectTypeAdapter.FACTORY)
     }
 
-    @Deprecated(message = "use JacksonUtils.toJson")
     fun toJson(bean: Any?): String {
-        val beanWithClass = BeanWithClass()
-        if (bean != null) {
-            beanWithClass.c = bean.javaClass.name
-            beanWithClass.j = gson.toJson(bean)
-        }
-        return gson.toJson(beanWithClass)
+        return gson.toJson(bean)
     }
 
-    @Deprecated(message = "use JacksonUtils.fromJson")
     @Suppress("UNCHECKED_CAST")
-    fun <T> fromJson(json: String): T? {
-        val beanWithClass = gson.fromJson(json, BeanWithClass::class.java)
-        if (beanWithClass.c == null) return null
-        val cls: Class<T> = Class.forName(beanWithClass.c) as Class<T>
-        return gson.fromJson(beanWithClass.j!!, cls)
-    }
-
-    class BeanWithClass {
-        //class
-        var c: String? = null
-
-        //json
-        var j: String? = null
+    inline fun <reified T> fromJson(json: String): T? {
+        return gson.fromJson(json, T::class.java)
     }
 
     fun prettyJson(json: String): String {
@@ -86,3 +71,10 @@ object GsonExUtils {
     }
 }
 
+
+fun String.resolveGsonLazily(): String {
+    if (this.contains("\"com.google.gson.internal.LazilyParsedNumber\"")) {
+        return this.replace("\"com.google.gson.internal.LazilyParsedNumber\"", "\"java.lang.Integer\"")
+    }
+    return this
+}

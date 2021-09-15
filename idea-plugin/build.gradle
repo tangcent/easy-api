@@ -31,7 +31,7 @@ intellij {
     updateSinceUntilBuild false
     sameSinceUntilBuild false
 
-    plugins "org.jetbrains.kotlin:1.3.11-release-IJ2017.3-1"
+    //plugins "org.jetbrains.kotlin:1.3.11-release-IJ2017.3-1"
     //plugins "org.jetbrains.kotlin:1.3.11-release-IJ2017.3-1", "org.intellij.scala:2017.3.11"
     //plugins 'org.jetbrains.kotlin:1.3.21-release-IJ2018.2-1' //dependency kotlin
 
@@ -62,10 +62,6 @@ artifacts {
 
 repositories {
 
-//    flatDir {
-//        dirs 'libs'
-//    }
-
     mavenCentral()
 
 }
@@ -80,17 +76,17 @@ dependencies {
 //    implementation fileTree(dir: 'libs', include: ['*.jar'])
 
 
-    implementation('com.itangcent:intellij-idea:0.9.4-SNAPSHOT') {
+    implementation('com.itangcent:intellij-idea:1.0.8') {
         exclude group: 'com.google.inject'
         exclude group: 'com.google.code.gson'
     }
 
-    implementation('com.itangcent:intellij-kotlin-support:0.9.4-SNAPSHOT') {
+    implementation('com.itangcent:intellij-kotlin-support:1.0.8') {
         exclude group: 'com.google.inject'
         exclude group: 'com.google.code.gson'
     }
 
-//    implementation('com.itangcent:intellij-scala-support:0.9.4-SNAPSHOT') {
+//    implementation('com.itangcent:intellij-scala-support:1.0.8') {
 //        exclude group: 'com.google.inject'
 //        exclude group: 'com.google.code.gson'
 //    }
@@ -118,10 +114,15 @@ dependencies {
     testRuntime("org.junit.vintage:junit-vintage-engine:5.7.1")
     testImplementation "org.jetbrains.kotlin:kotlin-test-junit5:$kotlin_version"
 
-    // https://mvnrepository.com/artifact/com.nhaarman.mockitokotlin2/mockito-kotlin
-    testImplementation group: 'com.nhaarman.mockitokotlin2', name: 'mockito-kotlin', version: '2.2.0'
+    // https://search.maven.org/artifact/org.mockito.kotlin/mockito-kotlin/3.2.0/jar
+    testImplementation 'org.mockito.kotlin:mockito-kotlin:3.2.0'
 
-    testImplementation('com.itangcent:intellij-idea-test:0.9.4-SNAPSHOT')
+    // https://mvnrepository.com/artifact/org.mockito/mockito-inline
+    testImplementation group: 'org.mockito', name: 'mockito-inline', version: '3.11.0'
+
+    testImplementation('com.itangcent:intellij-idea-test:1.0.8') {
+        exclude group: 'com.nhaarman.mockitokotlin2', module: 'mockito-kotlin'
+    }
 }
 
 compileKotlin {

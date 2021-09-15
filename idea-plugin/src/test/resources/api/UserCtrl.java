@@ -5,8 +5,12 @@ import com.itangcent.model.IResult;
 import com.itangcent.model.Result;
 import com.itangcent.model.UserInfo;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestBody;
 
 /**
  * apis about user
@@ -28,7 +32,6 @@ public class UserCtrl extends BaseController {
         return "hello world";
     }
 
-
     /**
      * get user info
      *
@@ -45,4 +48,21 @@ public class UserCtrl extends BaseController {
         userInfo.setAge(45);
         return Result.success(userInfo);
     }
+
+    /**
+     * create new user
+     */
+    @PostMapping("/add")
+    public Result<UserInfo> create(@RequestBody UserInfo userInfo) {
+        return Result.success(userInfo);
+    }
+
+    /**
+     * update user info
+     */
+    @PutMapping("/update")
+    public Result<UserInfo> update(@ModelAttribute UserInfo userInfo) {
+        return Result.success(userInfo);
+    }
+
 }

@@ -1,6 +1,8 @@
 package com.itangcent.common.kit
 
-import com.itangcent.common.utils.GsonUtils
+import com.itangcent.common.spi.SpiUtils
+import com.itangcent.utils.DefaultJsonSupport
+import com.itangcent.utils.JsonSupport
 import kotlin.reflect.KClass
 
 object KitUtils {
@@ -41,8 +43,15 @@ object KitUtils {
                     return null
                 }
             }
-            null
+            throw e
         }
+    }
+}
+
+fun <T> Boolean?.or(whenTrue: T, whenFalse: T): T {
+    return when (this) {
+        true -> whenTrue
+        else -> whenFalse
     }
 }
 
@@ -55,7 +64,7 @@ fun Any?.toJson(): String? {
         return this
     }
 
-    return GsonUtils.toJson(this)
+    return (SpiUtils.loadService(JsonSupport::class) ?: DefaultJsonSupport).toJson(this)
 }
 
 fun String.headLine(): String? {
@@ -76,10 +85,5 @@ fun String.headLine(): String? {
 }
 
 fun String?.equalIgnoreCase(str: String?): Boolean {
-    if (this == null) {
-        return str == null
-    } else if (str == null) {
-        return false
-    }
-    return this.toLowerCase() == str.toLowerCase()
+    return this.equals(str, ignoreCase = true)
 }

@@ -3,16 +3,23 @@ package com.itangcent.idea.swing
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 
+/**
+ * Test case of [SafeHashHelper]
+ */
 internal class SafeHashHelperTest {
 
     @Test
     fun testHash() {
         val safeHashHelper = SafeHashHelper()
 
+        assertNull(safeHashHelper.getBean(0))
+        assertNull(safeHashHelper.getBean(100))
+
         val a1 = SafeHashHelperTestModel("A", 1)
         val a1Hash = safeHashHelper.hash(a1)
-        assertEquals(a1Hash,  safeHashHelper.hash(a1))
+        assertEquals(a1Hash, safeHashHelper.hash(a1))
 
         val b1 = SafeHashHelperTestModel("B", 1)
         val b1Hash = safeHashHelper.hash(b1)
