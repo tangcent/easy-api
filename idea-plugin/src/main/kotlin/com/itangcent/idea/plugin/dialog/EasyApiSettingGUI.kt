@@ -1,59 +1,99 @@
 package com.itangcent.idea.plugin.dialog
 
-import com.intellij.ide.DataManager
-import com.intellij.ide.util.PropertiesComponent
-import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
-import com.intellij.openapi.fileChooser.FileChooserFactory
-import com.intellij.openapi.fileChooser.FileSaverDescriptor
+import com.google.inject.Inject
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.ui.ComboBoxTableRenderer
 import com.intellij.openapi.util.text.StringUtil
-import com.intellij.openapi.vfs.LocalFileSystem
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.wm.WindowManager
-import com.intellij.ui.CheckBoxList
+import com.intellij.ui.MutableCollectionComboBoxModel
+import com.intellij.ui.table.JBTable
+import com.itangcent.cache.withoutCache
 import com.itangcent.common.utils.*
 import com.itangcent.idea.icons.EasyIcons
 import com.itangcent.idea.icons.iconOnly
-import com.itangcent.idea.plugin.config.RecommendConfigLoader
+import com.itangcent.idea.plugin.api.export.postman.PostmanCachedApiHelper
+import com.itangcent.idea.plugin.api.export.postman.PostmanUrls.INTEGRATIONS_DASHBOARD
+import com.itangcent.idea.plugin.api.export.postman.PostmanWorkspace
+import com.itangcent.idea.plugin.configurable.AbstractEasyApiSettingGUI
 import com.itangcent.idea.plugin.settings.MarkdownFormatType
+import com.itangcent.idea.plugin.settings.PostmanExportMode
 import com.itangcent.idea.plugin.settings.PostmanJson5FormatType
 import com.itangcent.idea.plugin.settings.Settings
+import com.itangcent.idea.plugin.settings.helper.*
+import com.itangcent.idea.plugin.settings.xml.postmanCollectionsAsPairs
+import com.itangcent.idea.plugin.settings.xml.setPostmanCollectionsPairs
+import com.itangcent.idea.plugin.support.IdeaSupport
 import com.itangcent.idea.utils.Charsets
-import com.itangcent.idea.utils.ConfigurableLogger
 import com.itangcent.idea.utils.SwingUtils
-import com.itangcent.intellij.extend.rx.AutoComputer
+import com.itangcent.idea.utils.isDoubleClick
+import com.itangcent.intellij.context.ActionContext
 import com.itangcent.intellij.extend.rx.ThrottleHelper
 import com.itangcent.intellij.extend.rx.mutual
 import com.itangcent.intellij.logger.Logger
 import com.itangcent.suv.http.ConfigurableHttpClientProvider
 import com.itangcent.utils.ResourceUtils
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
+import java.awt.event.MouseListener
 import java.io.File
 import javax.swing.*
+import javax.swing.table.DefaultTableModel
 
 
-class EasyApiSettingGUI {
+class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
+
+    @Inject
+    private lateinit var actionContext: ActionContext
+
+    @Inject(optional = true)
+    private var myProject: Project? = null
 
     private var rootPanel: JPanel? = null
 
-    //region import&export
-    private var importButton: JButton? = null
+    //region postman-----------------------------------------------------
 
-    private var exportButton: JButton? = null
-    //endregion
+    private var postmanTokenLabel: JLabel? = null
 
-    //region postman
+    private var postmanTokenTextField: JTextField? = null
 
-    private var postmanTokenTextArea: JTextArea? = null
+    private lateinit var postmanWorkspaceComboBox: JComboBox<PostmanWorkspaceData>
 
     private var wrapCollectionCheckBox: JCheckBox? = null
 
     private var autoMergeScriptCheckBox: JCheckBox? = null
 
+    private var postmanExportModeComboBox: JComboBox<String>? = null
+
     private var postmanJson5FormatTypeComboBox: JComboBox<String>? = null
 
-    //endregion
+    private var postmanWorkSpaceRefreshButton: JButton? = null
+
+    private var postmanCollectionsTable: JBTable? = null
+
+    private var postmanCollectionsRefreshButton: JButton? = null
+
+    private var postmanExportCollectionPanel: JPanel? = null
+
+    @Inject
+    private lateinit var postmanCachedApiHelper: PostmanCachedApiHelper
+
+    @Inject
+    private lateinit var postmanSettingsHelper: PostmanSettingsHelper
+
+    private var allWorkspaces: List<PostmanWorkspaceData>? = null
+
+    private var selectedPostmanWorkspace: PostmanWorkspaceData?
+        get() {
+            val postmanWorkspace = settingsInstance?.postmanWorkspace ?: return DEFAULT_WORKSPACE
+            return allWorkspaces?.firstOrNull { it.id == postmanWorkspace } ?: PostmanWorkspaceData(
+                postmanWorkspace,
+                "unknown"
+            )
+        }
+        set(value) {
+            settingsInstance?.postmanWorkspace = value?.id
+        }
+
+    //endregion postman-----------------------------------------------------
 
     //region general-----------------------------------------------------
 
@@ -64,6 +104,8 @@ class EasyApiSettingGUI {
     private var logLevelComboBox: JComboBox<Logger.Level>? = null
 
     private var methodDocEnableCheckBox: JCheckBox? = null
+
+    private var genericEnableCheckBox: JCheckBox? = null
 
     private var globalCacheSizeLabel: JLabel? = null
 
@@ -76,10 +118,6 @@ class EasyApiSettingGUI {
     private var projectCacheSize: String = "0M"
 
     private var clearProjectCacheButton: JButton? = null
-
-    private var projectCachePanel: JPanel? = null
-
-    private var hasProject = false
 
     private var outputDemoCheckBox: JCheckBox? = null
 
@@ -97,218 +135,228 @@ class EasyApiSettingGUI {
 
     private var formExpandedCheckBox: JCheckBox? = null
 
+    private var queryExpandedCheckBox: JCheckBox? = null
+
     private var recommendedCheckBox: JCheckBox? = null
 
     private var httpTimeOutTextField: JTextField? = null
 
+    private var trustHostsTextArea: JTextArea? = null
+
     //endregion general-----------------------------------------------------
-
-    //region recommend
-    private var recommendConfigList: CheckBoxList<String>? = null
-
-    private var previewTextArea: JTextArea? = null
-    //endregion
-
-    private var builtInConfigTextArea: JTextArea? = null
 
     private val throttleHelper = ThrottleHelper()
 
-    fun getRootPanel(): JPanel? {
+    override fun getRootPanel(): JPanel? {
         return rootPanel
     }
 
-    private var settings: Settings? = null
+    /**
+     * please call it from dispatch thread
+     */
+    override fun onCreate() {
 
-    private var autoComputer: AutoComputer = AutoComputer()
+        initGeneral()
 
-    fun onCreate() {
+        initPostman()
+    }
 
-        EasyIcons.Export.iconOnly(this.exportButton)
-        EasyIcons.Import.iconOnly(this.importButton)
-        SwingUtils.immersed(this.exportButton!!)
-        SwingUtils.immersed(this.importButton!!)
+    private fun initPostman() {
 
+        EasyIcons.Refresh.iconOnly(this.postmanWorkSpaceRefreshButton)
+        EasyIcons.Refresh.iconOnly(this.postmanCollectionsRefreshButton)
+        SwingUtils.immersed(this.postmanWorkSpaceRefreshButton!!)
+
+        postmanJson5FormatTypeComboBox!!.model =
+            DefaultComboBoxModel(PostmanJson5FormatType.values().mapToTypedArray { it.name })
+
+        autoComputer.bind<String?>(this, "settingsInstance.postmanJson5FormatType")
+            .with(this.postmanJson5FormatTypeComboBox!!)
+            .filter { throttleHelper.acquire("settingsInstance.postmanJson5FormatType", 300) }
+            .eval { (it ?: PostmanJson5FormatType.EXAMPLE_ONLY.name) }
+
+        postmanExportModeComboBox!!.model =
+            DefaultComboBoxModel(PostmanExportMode.values().mapToTypedArray { it.name })
+
+        autoComputer.bind<String?>(this, "settingsInstance.postmanExportMode")
+            .with(this.postmanExportModeComboBox!!)
+            .filter { throttleHelper.acquire("settingsInstance.postmanExportMode", 300) }
+            .eval { (it ?: PostmanExportMode.COPY.name) }
+
+        autoComputer.bindVisible(postmanWorkSpaceRefreshButton!!)
+            .with(this.postmanTokenTextField!!)
+            .eval { it.notNullOrBlank() }
+
+        autoComputer.bindVisible(postmanExportCollectionPanel!!)
+            .with<String?>(this, "settingsInstance.postmanExportMode")
+            .eval {
+                it == PostmanExportMode.UPDATE.name
+            }
+
+        postmanWorkSpaceRefreshButton!!.addActionListener {
+            refreshPostmanWorkSpaces(false)
+        }
+
+        postmanCollectionsRefreshButton!!.addActionListener {
+            refreshPostmanCollections(false)
+        }
+
+        postmanTokenLabel!!.addMouseListener(object : MouseAdapter() {
+            override fun mouseClicked(e: MouseEvent?) {
+                if (e.isDoubleClick()) {
+                    actionContext.instance(IdeaSupport::class).openUrl(INTEGRATIONS_DASHBOARD)
+                }
+            }
+        })
+    }
+
+    private fun initGeneral() {
         //region general-----------------------------------------------------
+
         recommendedCheckBox!!.toolTipText = RecommendConfigLoader.plaint()
 
         autoComputer.bind(pullNewestDataBeforeCheckBox!!)
-                .mutual(this, "settings.pullNewestDataBefore")
+            .mutual(this, "settingsInstance.pullNewestDataBefore")
 
-        autoComputer.bind(postmanTokenTextArea!!)
-                .mutual(this, "settings.postmanToken")
+        autoComputer.bind(postmanTokenTextField!!)
+            .mutual(this, "settingsInstance.postmanToken")
 
         autoComputer.bind(wrapCollectionCheckBox!!)
-                .mutual(this, "settings.wrapCollection")
+            .mutual(this, "settingsInstance.wrapCollection")
 
         autoComputer.bind(autoMergeScriptCheckBox!!)
-                .mutual(this, "settings.autoMergeScript")
-
-        postmanJson5FormatTypeComboBox!!.model = DefaultComboBoxModel(PostmanJson5FormatType.values().mapToTypedArray { it.name })
-
-        autoComputer.bind<String?>(this, "settings.postmanJson5FormatType")
-                .with(this.postmanJson5FormatTypeComboBox!!)
-                .filter { throttleHelper.acquire("settings.postmanJson5FormatType", 300) }
-                .eval { (it ?: PostmanJson5FormatType.EXAMPLE_ONLY.name) }
+            .mutual(this, "settingsInstance.autoMergeScript")
 
         autoComputer.bind(this.globalCacheSizeLabel!!)
-                .with(this::globalCacheSize)
-                .eval { it }
+            .with(this::globalCacheSize)
+            .eval { it }
 
         this.clearGlobalCacheButton!!.addActionListener {
             clearGlobalCache()
         }
 
         autoComputer.bind(this.projectCacheSizeLabel!!)
-                .with(this::projectCacheSize)
-                .eval { it }
-
-        autoComputer.bindVisible(this.projectCachePanel!!)
-                .with(this::hasProject)
-                .eval { it }
+            .with(this::projectCacheSize)
+            .eval { it }
 
         this.clearProjectCacheButton!!.addActionListener {
             clearProjectCache()
         }
 
         autoComputer.bind(methodDocEnableCheckBox!!)
-                .mutual(this, "settings.methodDocEnable")
+            .mutual(this, "settingsInstance.methodDocEnable")
+
+        autoComputer.bind(genericEnableCheckBox!!)
+            .mutual(this, "settingsInstance.genericEnable")
 
         autoComputer.bind(inferEnableCheckBox!!)
-                .mutual(this, "settings.inferEnable")
+            .mutual(this, "settingsInstance.inferEnable")
 
         autoComputer.bind(readGetterCheckBox!!)
-                .mutual(this, "settings.readGetter")
+            .mutual(this, "settingsInstance.readGetter")
 
         autoComputer.bind(readSetterCheckBox!!)
-                .mutual(this, "settings.readSetter")
+            .mutual(this, "settingsInstance.readSetter")
 
         autoComputer.bind(formExpandedCheckBox!!)
-                .mutual(this, "settings.formExpanded")
+            .mutual(this, "settingsInstance.formExpanded")
+
+        autoComputer.bind(queryExpandedCheckBox!!)
+            .mutual(this, "settingsInstance.queryExpanded")
 
         autoComputer.bind(recommendedCheckBox!!)
-                .mutual(this, "settings.useRecommendConfig")
+            .mutual(this, "settingsInstance.useRecommendConfig")
 
         autoComputer.bind(outputDemoCheckBox!!)
-                .mutual(this, "settings.outputDemo")
+            .mutual(this, "settingsInstance.outputDemo")
 
         autoComputer.bind(this.maxDeepTextField!!)
-                .with<Int?>(this, "settings.inferMaxDeep")
-                .eval { (it ?: Settings.DEFAULT_INFER_MAX_DEEP).toString() }
+            .with<Int?>(this, "settingsInstance.inferMaxDeep")
+            .eval { (it ?: Settings.DEFAULT_INFER_MAX_DEEP).toString() }
 
-        autoComputer.bind<Int>(this, "settings.inferMaxDeep")
-                .with(this.maxDeepTextField!!)
-                .eval {
-                    try {
-                        it?.toInt() ?: Settings.DEFAULT_INFER_MAX_DEEP
-                    } catch (e: Exception) {
-                        Settings.DEFAULT_INFER_MAX_DEEP
-                    }
+        autoComputer.bind<Int>(this, "settingsInstance.inferMaxDeep")
+            .with(this.maxDeepTextField!!)
+            .eval {
+                try {
+                    it?.toInt() ?: Settings.DEFAULT_INFER_MAX_DEEP
+                } catch (e: Exception) {
+                    Settings.DEFAULT_INFER_MAX_DEEP
                 }
-
+            }
         autoComputer.bind(this.httpTimeOutTextField!!)
-                .with<Int?>(this, "settings.httpTimeOut")
-                .eval { (it ?: ConfigurableHttpClientProvider.defaultHttpTimeOut).toString() }
+            .with<Int?>(this, "settingsInstance.httpTimeOut")
+            .eval { (it ?: ConfigurableHttpClientProvider.defaultHttpTimeOut).toString() }
 
-        autoComputer.bind<Int>(this, "settings.httpTimeOut")
-                .with(this.httpTimeOutTextField!!)
-                .eval {
-                    try {
-                        it?.toInt() ?: ConfigurableHttpClientProvider.defaultHttpTimeOut
-                    } catch (e: Exception) {
-                        ConfigurableHttpClientProvider.defaultHttpTimeOut
-                    }
+        autoComputer.bind<Int>(this, "settingsInstance.httpTimeOut")
+            .with(this.httpTimeOutTextField!!)
+            .eval {
+                try {
+                    it?.toInt() ?: ConfigurableHttpClientProvider.defaultHttpTimeOut
+                } catch (e: Exception) {
+                    ConfigurableHttpClientProvider.defaultHttpTimeOut
                 }
+            }
 
-        logLevelComboBox!!.model = DefaultComboBoxModel(ConfigurableLogger.CoarseLogLevel.editableValues())
+        logLevelComboBox!!.model = DefaultComboBoxModel(CommonSettingsHelper.CoarseLogLevel.editableValues())
 
-        autoComputer.bind<Int?>(this, "settings.logLevel")
-                .with(this.logLevelComboBox!!)
-                .filter { throttleHelper.acquire("settings.logLevel", 300) }
-                .eval { (it ?: ConfigurableLogger.CoarseLogLevel.LOW).getLevel() }
+        autoComputer.bind<Int?>(this, "settingsInstance.logLevel")
+            .with(this.logLevelComboBox!!)
+            .filter { throttleHelper.acquire("settingsInstance.logLevel", 300) }
+            .eval { (it ?: CommonSettingsHelper.CoarseLogLevel.LOW).getLevel() }
 
         outputCharsetComboBox!!.model = DefaultComboBoxModel(Charsets.SUPPORTED_CHARSETS)
 
-        markdownFormatTypeComboBox!!.model = DefaultComboBoxModel(MarkdownFormatType.values().mapToTypedArray { it.name })
+        markdownFormatTypeComboBox!!.model =
+            DefaultComboBoxModel(MarkdownFormatType.values().mapToTypedArray { it.name })
 
-        autoComputer.bind<String?>(this, "settings.outputCharset")
-                .with(this.outputCharsetComboBox!!)
-                .filter { throttleHelper.acquire("settings.outputCharset", 300) }
-                .eval { (it ?: Charsets.UTF_8).displayName() }
+        autoComputer.bind<String?>(this, "settingsInstance.outputCharset")
+            .with(this.outputCharsetComboBox!!)
+            .filter { throttleHelper.acquire("settingsInstance.outputCharset", 300) }
+            .eval { (it ?: Charsets.UTF_8).displayName() }
 
-        autoComputer.bind<String?>(this, "settings.markdownFormatType")
-                .with(this.markdownFormatTypeComboBox!!)
-                .filter { throttleHelper.acquire("settings.markdownFormatType", 300) }
-                .eval { (it ?: MarkdownFormatType.SIMPLE.name) }
+        autoComputer.bind<String?>(this, "settingsInstance.markdownFormatType")
+            .with(this.markdownFormatTypeComboBox!!)
+            .filter { throttleHelper.acquire("settingsInstance.markdownFormatType", 300) }
+            .eval { (it ?: MarkdownFormatType.SIMPLE.name) }
 
-        autoComputer.bind(this.previewTextArea!!)
-                .with<String>(this, "settings.recommendConfigs")
-                .eval { configs ->
-                    RecommendConfigLoader.buildRecommendConfig(configs,
-                            "\n#${"-".repeat(20)}\n")
-                }
+        autoComputer.bind<Array<String>>(this, "settingsInstance.trustHosts")
+            .with(trustHostsTextArea!!)
+            .eval { trustHosts -> trustHosts?.lines()?.toTypedArray() ?: emptyArray() }
 
-        autoComputer.bind(this.builtInConfigTextArea!!)
-                .with<String?>(this, "settings.builtInConfig")
-                .eval { it.takeIf { it.notNullOrBlank() } ?: DEFAULT_BUILT_IN_CONFIG }
+        autoComputer.bind(trustHostsTextArea!!)
+            .with<Array<String>>(this, "settingsInstance.trustHosts")
+            .eval { trustHosts -> trustHosts.joinToString(separator = "\n") }
 
-        autoComputer.bind<String?>(this, "settings.builtInConfig")
-                .with(builtInConfigTextArea!!)
-                .eval { it.takeIf { it != DEFAULT_BUILT_IN_CONFIG } ?: "" }
-
-        //endregion  general-----------------------------------------------------
-
-        refresh()
-
-        bindRecommendConfig()
-
-        this.recommendConfigList!!.setCheckBoxListListener { index, value ->
-            val code = RecommendConfigLoader[index] ?: return@setCheckBoxListListener
-            val settings = this.settings!!
-            if (value) {
-                settings.recommendConfigs = RecommendConfigLoader.addSelectedConfig(settings.recommendConfigs, code)
-            } else {
-                settings.recommendConfigs = RecommendConfigLoader.removeSelectedConfig(settings.recommendConfigs, code)
-            }
-            autoComputer.value(this, "settings.recommendConfigs", settings.recommendConfigs)
-//            this.previewTextArea!!.text =  RecommendConfigReader.buildRecommendConfig(settings!!.recommendConfigs)
-        }
-
-        this.exportButton!!.addActionListener {
-            export()
-        }
-        this.importButton!!.addActionListener {
-            import()
-        }
+        //endregion general-----------------------------------------------------
     }
 
-    fun setSettings(settings: Settings) {
+    override fun setSettings(settings: Settings) {
+        val snapshot = settings.copy()
+        super.setSettings(settings)
+
         throttleHelper.refresh("throttleHelper")
 
-        autoComputer.value(this::settings, settings.copy())
-
-        this.logLevelComboBox!!.selectedItem = ConfigurableLogger.CoarseLogLevel.toLevel(settings.logLevel)
+        this.postmanWorkspaceComboBoxModel?.selectedItem = this.selectedPostmanWorkspace
+        this.logLevelComboBox!!.selectedItem = CommonSettingsHelper.CoarseLogLevel.toLevel(settings.logLevel)
         this.outputCharsetComboBox!!.selectedItem = Charsets.forName(settings.outputCharset)
         this.postmanJson5FormatTypeComboBox!!.selectedItem = settings.postmanJson5FormatType
+        this.postmanExportModeComboBox!!.selectedItem = settings.postmanExportMode
         this.markdownFormatTypeComboBox!!.selectedItem = settings.markdownFormatType
 
-        RecommendConfigLoader.selectedCodes(settings.recommendConfigs).forEach {
-            this.recommendConfigList!!.setItemSelected(it, true)
-        }
-//        this.recommendConfigList!!.selectedIndices = settings.recommendConfigs.map {
-//            RecommendConfigReader.RECOMMEND_CONFIG_CODES.indexOf(it)
-//        }.toIntArray()
+        refresh(snapshot)
     }
 
-    private fun bindRecommendConfig() {
-        recommendConfigList!!.setItems(RecommendConfigLoader.codes().toList())
-        {
-            it.padEnd(30) + "    " +
-                    RecommendConfigLoader[it]?.truncate(100)
-                            ?.replace("\n", "    ")
+    private fun refresh(settings: Settings) {
+        actionContext.runAsync {
+            //fix
+            this.settingsInstance?.postmanExportMode = settings.postmanExportMode
+            refreshCache()
+            refreshPostmanWorkSpaces()
+            refreshPostmanCollections()
         }
     }
 
-    fun refresh() {
+    private fun refreshCache() {
 
         try {
             computeGlobalCacheSize()
@@ -323,12 +371,122 @@ class EasyApiSettingGUI {
         }
     }
 
-    private fun computeProjectCacheSize() {
-        val currentProject = getCurrentProject()
-        autoComputer.value(this::hasProject, currentProject != null)
-        if (currentProject == null) {
-            return
+    private var postmanWorkspaceComboBoxModel: MutableCollectionComboBoxModel<PostmanWorkspaceData>? = null
+
+    private fun refreshPostmanWorkSpaces(userCache: Boolean = true) {
+        (postmanSettingsHelper as? MemoryPostmanSettingsHelper)?.setPrivateToken(this.settingsInstance?.postmanToken)
+        val allWorkspaces = postmanCachedApiHelper.getAllWorkspaces(userCache)
+        val allWorkspacesData: ArrayList<PostmanWorkspaceData> = arrayListOf(DEFAULT_WORKSPACE)
+        if (allWorkspaces == null) {
+            if (settingsInstance?.postmanWorkspace != null) {
+                allWorkspacesData.add(PostmanWorkspaceData(settingsInstance?.postmanWorkspace ?: "", "unknown"))
+            }
+        } else {
+            allWorkspaces.forEach { allWorkspacesData.add(PostmanWorkspaceData(it)) }
         }
+        this.allWorkspaces = allWorkspacesData
+        if (postmanWorkspaceComboBoxModel == null) {
+            postmanWorkspaceComboBoxModel =
+                MutableCollectionComboBoxModel(allWorkspacesData ?: emptyList(), selectedPostmanWorkspace)
+            postmanWorkspaceComboBox.model = postmanWorkspaceComboBoxModel
+            autoComputer.bind(postmanWorkspaceComboBox)
+                .mutual(this::selectedPostmanWorkspace)
+        } else {
+            val selected = this.selectedPostmanWorkspace
+            postmanWorkspaceComboBoxModel!!.replaceAll(allWorkspacesData.toMutableList())
+            postmanWorkspaceComboBoxModel!!.selectedItem = selected
+        }
+    }
+
+    @Volatile
+    private var postmanCollectionTableModel: DefaultTableModel? = null
+    private var tableMouseListener: MouseListener? = null
+    private var postmanCollectionInit = false
+
+
+    @Synchronized
+    private fun refreshPostmanCollections(cache: Boolean) {
+        if (cache) {
+            refreshPostmanCollections()
+        } else {
+            postmanCachedApiHelper.withoutCache {
+                refreshPostmanCollections()
+            }
+        }
+    }
+
+    @Synchronized
+    private fun refreshPostmanCollections() {
+        this.postmanExportCollectionPanel!!.isVisible =
+            this.settingsInstance?.postmanExportMode == PostmanExportMode.UPDATE.name
+        if (postmanCollectionTableModel != null) {
+            postmanCollectionsTable!!.removeAll()
+            postmanCollectionTableModel!!.columnCount = 0
+            postmanCollectionTableModel!!.rowCount = 0
+        }
+        val allCollections = postmanCachedApiHelper.getAllCollectionPreferred() ?: emptyList()
+        val collectionDataArray = allCollections.mapToTypedArray { PostmanCollectionData(it) }
+        val collectionMap = HashMap<String, PostmanCollectionData>()
+        collectionDataArray.forEach { collectionMap[it.id] = it }
+        val columns = arrayOf("module", "collection")
+        val data: ArrayList<Array<Any>> = ArrayList()
+        settingsInstance?.postmanCollectionsAsPairs()?.forEach { collection ->
+            data.add(
+                arrayOf(
+                    collection.first,
+                    collectionMap[collection.second] ?: PostmanCollectionData(collection.second, "unknown")
+                )
+            )
+        }
+        val tableModel = DefaultTableModel(data.toTypedArray(), columns)
+        postmanCollectionsTable!!.model = tableModel
+        this.postmanCollectionTableModel = tableModel
+
+        val columnModel = postmanCollectionsTable!!.columnModel
+
+        val moduleColumn = columnModel.getColumn(0)
+        moduleColumn.preferredWidth = 200
+
+        val collectionColumn = columnModel.getColumn(1)
+        collectionColumn.preferredWidth = 340
+        collectionColumn.cellEditor = ComboBoxTableRenderer(collectionDataArray)
+
+        if (tableMouseListener == null) {
+            val tablePopMenu = JPopupMenu()
+
+            val insertRowItem = JMenuItem("Insert Row")
+
+            insertRowItem.addActionListener {
+                postmanCollectionTableModel!!.addRow(arrayOf("", null))
+            }
+
+            tablePopMenu.add(insertRowItem)
+
+            val removeRowItem = JMenuItem("Remove Row")
+
+            removeRowItem.addActionListener {
+                postmanCollectionsTable!!.selectedRow
+                    .takeIf { it >= 0 }
+                    ?.let { postmanCollectionTableModel!!.removeRow(it) }
+            }
+
+            tablePopMenu.add(removeRowItem)
+
+            tableMouseListener = object : MouseAdapter() {
+                override fun mousePressed(e: MouseEvent?) {
+                    if (e == null) return
+                    if (SwingUtilities.isRightMouseButton(e)) {
+                        tablePopMenu.show(e.component!!, e.x, e.y)
+                    }
+                }
+            }
+            postmanCollectionsTable!!.addMouseListener(tableMouseListener)
+        }
+        postmanCollectionInit = true
+    }
+
+    private fun computeProjectCacheSize() {
+        val currentProject = myProject ?: return
         val projectBasePath = currentProject.basePath
         val cachePath = "$projectBasePath${File.separator}.idea${File.separator}.cache${File.separator}$basePath"
         val cacheSize = computeFolderSize(cachePath)
@@ -337,11 +495,7 @@ class EasyApiSettingGUI {
     }
 
     private fun clearProjectCache() {
-        val currentProject = getCurrentProject()
-        autoComputer.value(this::hasProject, currentProject != null)
-        if (currentProject == null) {
-            return
-        }
+        val currentProject = myProject ?: return
         val projectBasePath = currentProject.basePath
         val cachePath = "$projectBasePath${File.separator}.idea${File.separator}.cache${File.separator}$basePath"
         deleteFolder(cachePath)
@@ -369,51 +523,28 @@ class EasyApiSettingGUI {
         return 0
     }
 
-    private fun getCurrentProject(): Project? {
-        val projects = ProjectManager.getInstance().openProjects
-        if (projects.size == 1) {
-            return projects[0]
-        }
-
-        val wm = WindowManager.getInstance()
-        if (generalPanel?.parent != null) {
-            for (project in projects) {
-                if (SwingUtilities.isDescendingFrom(generalPanel,
-                                wm.suggestParentWindow(project))) {
-                    return project
-                }
-            }
-        }
-
-        for (project in projects) {
-            val window = wm.suggestParentWindow(project)
-            if (window != null && window.isActive) {
-                return project
-            }
-        }
-
-        try {
-            val dataContext = DataManager.getInstance()?.getDataContext(generalPanel)
-            val project = dataContext?.getData(CommonDataKeys.PROJECT)
-            if (project != null) {
-                return project
-            }
-        } catch (e: Exception) {
-            ///ignore
-        }
-
-        return null
-    }
-
     private fun deleteFolder(path: String) {
         return FileUtils.deleteDirectory(File(path))
     }
 
-    fun getSettings(): Settings {
-        if (settings == null) {
-            settings = Settings()
+    override fun getSettings(): Settings {
+        return super.getSettings().also {
+            readPostmanCollections(it)
         }
-        return settings!!
+    }
+
+    private fun readPostmanCollections(settings: Settings) {
+        if(!postmanCollectionInit){
+            return
+        }
+        val collectionModel = postmanCollectionTableModel ?: return
+        val pairs: ArrayList<Pair<String, String>> = ArrayList()
+        for (row in 0 until collectionModel.rowCount) {
+            val module = collectionModel.getValueAt(row, 0) as? String ?: continue
+            val collectionId = collectionModel.getValueAt(row, 1) as? PostmanCollectionData ?: continue
+            pairs.add(module to collectionId.id)
+        }
+        settings.setPostmanCollectionsPairs(pairs)
     }
 
     private fun globalBasePath(): String {
@@ -425,43 +556,103 @@ class EasyApiSettingGUI {
         return home
     }
 
-    private fun export() {
-        val descriptor = FileSaverDescriptor("Export Setting",
-                "Choose directory to export setting to",
-                "json")
-        descriptor.withHideIgnored(false)
-        val chooser = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, this.getRootPanel()!!)
-        var toSelect: VirtualFile? = null
-        val lastLocation = PropertiesComponent.getInstance().getValue(setting_path)
-        if (lastLocation != null) {
-            toSelect = LocalFileSystem.getInstance().refreshAndFindFileByPath(lastLocation)
+    private class PostmanWorkspaceData {
+
+        var id: String?
+        var name: String
+
+        constructor(id: String?, name: String) {
+            this.id = id
+            this.name = name
         }
-        val fileWrapper = chooser.save(toSelect, "setting.json")
-        if (fileWrapper != null) {
-            com.itangcent.intellij.util.FileUtils.forceSave(fileWrapper.file.path, GsonUtils.toJson(settings).toByteArray(kotlin.text.Charsets.UTF_8))
+
+        constructor(postmanWorkspace: PostmanWorkspace) {
+            this.id = postmanWorkspace.id ?: ""
+            this.name = postmanWorkspace.nameWithType() ?: ""
+        }
+
+        override fun toString(): String {
+            return name
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as PostmanWorkspaceData
+
+            if (id != other.id) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return id.hashCode()
+        }
+
+    }
+
+    private class PostmanCollectionData {
+
+        var id: String
+        var name: String
+
+        constructor(id: String, name: String) {
+            this.id = id
+            this.name = name
+        }
+
+        constructor(collectionData: HashMap<String, Any?>) {
+            this.id = collectionData.getAs("id") ?: "unknown"
+            this.name = collectionData.getAs("name") ?: "unknown"
+        }
+
+        override fun toString(): String {
+            return name
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+            if (id != (other as? PostmanWorkspaceData)?.id) return false
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return id.hashCode()
         }
     }
 
-    private fun import() {
-        val descriptor = FileChooserDescriptorFactory
-                .createSingleFileOrFolderDescriptor()
-                .withTitle("Import Setting")
-                .withDescription("Choose setting file")
-                .withHideIgnored(false)
-        val chooser = FileChooserFactory.getInstance().createFileChooser(descriptor, null, this.getRootPanel()!!)
-        var toSelect: VirtualFile? = null
-        val lastLocation = PropertiesComponent.getInstance().getValue(setting_path)
-        if (lastLocation != null) {
-            toSelect = LocalFileSystem.getInstance().refreshAndFindFileByPath(lastLocation)
-        }
-        val files = chooser.choose(null, toSelect)
-        if (files.notNullOrEmpty()) {
-            val virtualFile = files[0]
-            val read = FileUtils.read(File(virtualFile.path), kotlin.text.Charsets.UTF_8)
-            if (read.notNullOrEmpty()) {
-                setSettings(GsonUtils.fromJson(read!!, Settings::class))
-            }
-        }
+    override fun readSettings(settings: Settings, from: Settings) {
+        settings.postmanToken = from.postmanToken
+        settings.wrapCollection = from.wrapCollection
+        settings.autoMergeScript = from.autoMergeScript
+        settings.postmanJson5FormatType = from.postmanJson5FormatType
+        settings.pullNewestDataBefore = from.pullNewestDataBefore
+        settings.methodDocEnable = from.methodDocEnable
+        settings.genericEnable = from.genericEnable
+        settings.queryExpanded = from.queryExpanded
+        settings.formExpanded = from.formExpanded
+        settings.readGetter = from.readGetter
+        settings.readSetter = from.readSetter
+        settings.inferEnable = from.inferEnable
+        settings.inferMaxDeep = from.inferMaxDeep
+        settings.httpTimeOut = from.httpTimeOut
+        settings.useRecommendConfig = from.useRecommendConfig
+        settings.logLevel = from.logLevel
+        settings.outputDemo = from.outputDemo
+        settings.outputCharset = from.outputCharset
+        settings.markdownFormatType = from.markdownFormatType
+        settings.trustHosts = from.trustHosts
+        settings.postmanWorkspace = from.postmanWorkspace
+        settings.postmanExportMode = from.postmanExportMode
+        settings.postmanCollections = from.postmanCollections
+    }
+
+    override fun checkUI(): Boolean {
+        return this.postmanTokenTextField?.text == this.settingsInstance?.postmanToken
+                && this.trustHostsTextArea?.text == this.settingsInstance?.trustHosts?.joinToString(separator = "\n")
+                && (this.postmanExportCollectionPanel!!.isVisible == (this.settingsInstance?.postmanExportMode == PostmanExportMode.UPDATE.name))
     }
 
     companion object {
@@ -472,5 +663,9 @@ class EasyApiSettingGUI {
         private const val built_in_config_name = ".default.built.in.easy.api.config"
 
         val DEFAULT_BUILT_IN_CONFIG = ResourceUtils.readResource(built_in_config_name)
+
+        private var DEFAULT_WORKSPACE = PostmanWorkspaceData(null, "")
     }
 }
+
+private val LOG = org.apache.log4j.Logger.getLogger(EasyApiSettingGUI::class.java)

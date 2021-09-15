@@ -9,7 +9,7 @@ internal class CustomInfoImplTest {
 
     @Test
     fun pluginName() {
-        assertEquals("easy-yapi", SpiUtils.loadService(CustomInfo::class)
+        assertEquals("easy-api", SpiUtils.loadService(CustomInfo::class)
         !!.pluginName())
     }
 }

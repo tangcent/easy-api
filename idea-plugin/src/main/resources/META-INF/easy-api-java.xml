@@ -30,17 +30,28 @@
 
             <action id="com.itangcent.idea.easy_api.actions.PostmanExportAction"
                     class="com.itangcent.idea.plugin.actions.PostmanExportAction" text="ExportPostman"
-                    description="Export postman"/>
+                    description="Export Postman"/>
 
             <action id="com.itangcent.idea.easy_api.actions.MarkdownExportAction"
-                    class="com.itangcent.idea.plugin.actions.MarkdownExportAction" text="ExportMarkdown"
-                    description="Export markdown"/>
+                    class="com.itangcent.idea.plugin.actions.MarkdownExportAction" text="ExportMarkdown(beta)"
+                    description="Export Markdown"/>
 
             <action id="com.itangcent.idea.easy_api.actions.ApiCallAction"
                     class="com.itangcent.idea.plugin.actions.ApiCallAction" text="Call"
-                    description="Call"/>
+                    description="Call">
+                <keyboard-shortcut
+                        first-keystroke="alt shift C"
+                        keymap="$default"
+                />
+                <keyboard-shortcut
+                        first-keystroke="control C"
+                        keymap="Mac OS X" replace-all="true"/>
+                <keyboard-shortcut
+                        first-keystroke="control C"
+                        keymap="Mac OS X 10.5+" replace-all="true"/>
+            </action>
 
-            <action id="com.itangcent.idea.easy_api.actions.SuvExportAction"
+            <action id="com.itangcent.idea.easy_api.actions.MultipleExportAction"
                     class="com.itangcent.idea.plugin.actions.SuvExportAction" text="Export"
                     description="Export">
                 <keyboard-shortcut
@@ -68,14 +79,32 @@
     </actions>
 
     <extensions defaultExtensionNs="com.intellij">
-        <applicationConfigurable groupId="null"
-                                 displayName="EasyApi"
-                                 id="preferences.EasyApiConfigurable"
-                                 instance="com.itangcent.idea.plugin.actions.EasyApiConfigurable"/>
+        <projectConfigurable groupId="null"
+                             displayName="EasyApi"
+                             id="easyapi.settings.EasyApiConfigurable"
+                             instance="com.itangcent.idea.plugin.configurable.EasyApiConfigurable"/>
 
-        <applicationService id="easyapi.setting.binder"
-                            serviceInterface="com.itangcent.idea.plugin.settings.SettingBinder"
-                            serviceImplementation="com.itangcent.idea.plugin.settings.XmlSettingBinder"/>
+        <projectConfigurable groupId="easyapi.settings.EasyApiConfigurable"
+                             displayName="Recommend"
+                             id="easyapi.settings.EasyApiConfigurable.Recommend"
+                             instance="com.itangcent.idea.plugin.configurable.EasyApiRecommendConfigurable"/>
+
+        <projectConfigurable groupId="easyapi.settings.EasyApiConfigurable"
+                             displayName="BuildInConfig"
+                             id="easyapi.settings.EasyApiConfigurable.BuiltInConfig"
+                             instance="com.itangcent.idea.plugin.configurable.EasyApiSettingBuiltInConfigConfigurable"/>
+
+        <projectConfigurable groupId="easyapi.settings.EasyApiConfigurable"
+                             displayName="Other"
+                             id="easyapi.settings.EasyApiConfigurable.Other"
+                             instance="com.itangcent.idea.plugin.configurable.EasyApiOtherConfigurable"/>
+
+        <applicationService id="easyapi.setting.application.binder"
+                            serviceImplementation="com.itangcent.idea.plugin.settings.xml.ApplicationSettingsComponent"/>
+
+        <projectService id="easyapi.setting.project.binder"
+                        serviceImplementation="com.itangcent.idea.plugin.settings.xml.ProjectSettingsComponent"/>
+
     </extensions>
 
 </idea-plugin>

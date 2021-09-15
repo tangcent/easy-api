@@ -9,27 +9,31 @@ import com.itangcent.common.logger.traceError
 import com.itangcent.common.model.Doc
 import com.itangcent.common.model.MethodDoc
 import com.itangcent.common.model.Request
-import com.itangcent.common.utils.GsonUtils
 import com.itangcent.common.utils.filterAs
 import com.itangcent.common.utils.notNullOrBlank
-import com.itangcent.common.utils.notNullOrEmpty
 import com.itangcent.debug.LoggerCollector
 import com.itangcent.idea.config.CachedResourceResolver
 import com.itangcent.idea.plugin.Worker
 import com.itangcent.idea.plugin.api.cache.DefaultFileApiCacheRepository
 import com.itangcent.idea.plugin.api.cache.FileApiCacheRepository
 import com.itangcent.idea.plugin.api.cache.ProjectCacheRepository
-import com.itangcent.idea.plugin.api.export.*
+import com.itangcent.idea.plugin.api.export.MethodFilter
+import com.itangcent.idea.plugin.api.export.core.*
+import com.itangcent.idea.plugin.api.export.curl.CurlExporter
+import com.itangcent.idea.plugin.api.export.generic.GenericMethodDocClassExporter
+import com.itangcent.idea.plugin.api.export.generic.GenericRequestClassExporter
 import com.itangcent.idea.plugin.api.export.markdown.MarkdownFormatter
 import com.itangcent.idea.plugin.api.export.postman.*
+import com.itangcent.idea.plugin.api.export.spring.SpringRequestClassExporter
 import com.itangcent.idea.plugin.config.RecommendConfigReader
 import com.itangcent.idea.plugin.dialog.SuvApiExportDialog
 import com.itangcent.idea.plugin.rule.SuvRuleParser
 import com.itangcent.idea.plugin.script.GroovyActionExtLoader
 import com.itangcent.idea.plugin.script.LoggerBuffer
 import com.itangcent.idea.plugin.settings.SettingBinder
+import com.itangcent.idea.plugin.settings.helper.*
 import com.itangcent.idea.psi.PsiResource
-import com.itangcent.idea.utils.Charsets
+import com.itangcent.idea.swing.MessagesHelper
 import com.itangcent.idea.utils.CustomizedPsiClassHelper
 import com.itangcent.idea.utils.FileSaveHelper
 import com.itangcent.idea.utils.RuleComputeListenerRegistry
@@ -44,7 +48,6 @@ import com.itangcent.intellij.extend.guice.with
 import com.itangcent.intellij.file.DefaultLocalFileRepository
 import com.itangcent.intellij.file.LocalFileRepository
 import com.itangcent.intellij.jvm.PsiClassHelper
-import com.itangcent.intellij.jvm.PsiResolver
 import com.itangcent.intellij.logger.Logger
 import com.itangcent.intellij.psi.SelectedHelper
 import com.itangcent.intellij.tip.TipsHelper
@@ -58,7 +61,7 @@ import kotlin.reflect.KClass
 import kotlin.reflect.full.createInstance
 import kotlin.streams.toList
 
-class SuvApiExporter {
+open class SuvApiExporter {
 
     @Inject
     private val logger: Logger? = null
@@ -79,55 +82,55 @@ class SuvApiExporter {
         val docs: MutableList<DocWrapper> = Collections.synchronizedList(ArrayList<DocWrapper>())
 
         SelectedHelper.Builder()
-                .fileFilter { FileType.acceptable(it.name) }
-                .classHandle {
-                    actionContext!!.checkStatus()
-                    classExporter!!.export(it) { doc ->
-                        docs.add(DocWrapper(doc))
-                    }
+            .fileFilter { FileType.acceptable(it.name) }
+            .classHandle {
+                actionContext!!.checkStatus()
+                classExporter!!.export(it) { doc ->
+                    docs.add(DocWrapper(doc))
                 }
-                .onCompleted {
-                    try {
-                        if (classExporter is Worker) {
-                            classExporter.waitCompleted()
-                        }
-                        if (docs.isEmpty()) {
-                            logger.info("No api be found!")
-                            return@onCompleted
-                        }
+            }
+            .onCompleted {
+                try {
+                    if (classExporter is Worker) {
+                        classExporter.waitCompleted()
+                    }
+                    if (docs.isEmpty()) {
+                        logger.info("No api be found!")
+                        return@onCompleted
+                    }
 
-                        val multipleApiExportDialog = actionContext!!.instance { SuvApiExportDialog() }
+                    val multipleApiExportDialog = actionContext!!.instance { SuvApiExportDialog() }
 
-                        UIUtils.show(multipleApiExportDialog)
+                    UIUtils.show(multipleApiExportDialog)
 
-                        actionContext.runInSwingUI {
+                    actionContext.runInSwingUI {
 
-                            multipleApiExportDialog.setOnChannelChanged { channel ->
-                                if (channel == null) {
-                                    multipleApiExportDialog.updateRequestList(docs)
-                                    return@setOnChannelChanged
-                                }
-                                val apiExporterAdapter = channel as ApiExporterWrapper
-                                multipleApiExportDialog.updateRequestList(docs
-                                        .filter { apiExporterAdapter.support(it.docType) }
-                                        .toList())
+                        multipleApiExportDialog.setOnChannelChanged { channel ->
+                            if (channel == null) {
+                                multipleApiExportDialog.updateRequestList(docs)
+                                return@setOnChannelChanged
                             }
+                            val apiExporterAdapter = channel as ApiExporterWrapper
+                            multipleApiExportDialog.updateRequestList(docs
+                                .filter { apiExporterAdapter.support(it.docType) }
+                                .toList())
+                        }
 
 //                            multipleApiExportDialog.updateRequestList(docs)
 
-                            multipleApiExportDialog.setChannels(EXPORTER_CHANNELS)
+                        multipleApiExportDialog.setChannels(EXPORTER_CHANNELS)
 
-                            multipleApiExportDialog.setApisHandle { channel, requests ->
-                                doExport(channel as ApiExporterWrapper, requests as List<DocWrapper>)
-                            }
-
-
+                        multipleApiExportDialog.setApisHandle { channel, requests ->
+                            doExport(channel as ApiExporterWrapper, requests as List<DocWrapper>)
                         }
-                    } catch (e: Exception) {
-                        logger.error("Apis find failed" + ExceptionUtils.getStackTrace(e))
+
+
                     }
+                } catch (e: Exception) {
+                    logger.error("Apis find failed" + ExceptionUtils.getStackTrace(e))
                 }
-                .traversal()
+            }
+            .traversal()
     }
 
     private var customActionExtLoader: ((String, ActionContext.ActionContextBuilder) -> Unit)? = null
@@ -174,9 +177,6 @@ class SuvApiExporter {
         @Inject
         protected val actionContext: ActionContext? = null
 
-        @Inject
-        private val psiResolver: PsiResolver? = null
-
         private var suvApiExporter: SuvApiExporter? = null
 
         fun setSuvApiExporter(suvApiExporter: SuvApiExporter) {
@@ -194,15 +194,15 @@ class SuvApiExporter {
             actionContextBuilder.bindInstance(DataContext::class, actionContext.instance(DataContext::class))
 
             val resources = requests
-                    .stream()
-                    .filter { it != null }
-                    .map { it.resource }
-                    .filter { it != null }
-                    .map { it as PsiResource }
-                    .map { it.resource() }
-                    .filter { it is PsiMethod }
-                    .map { it as PsiMethod }
-                    .toList()
+                .stream()
+                .filter { it != null }
+                .map { it.resource }
+                .filter { it != null }
+                .map { it as PsiResource }
+                .map { it.resource() }
+                .filter { it is PsiMethod }
+                .map { it as PsiMethod }
+                .toList()
 
             actionContextBuilder.bindInstance(MethodFilter::class, ExplicitMethodFilter(resources))
 
@@ -253,7 +253,8 @@ class SuvApiExporter {
         protected open fun actionPerformed(actionContext: ActionContext) {
             val loggerBuffer: LoggerBuffer? = actionContext.getCache<LoggerBuffer>("LOGGER_BUF")
             loggerBuffer?.drainTo(actionContext.instance(Logger::class))
-            val actionExtLoader: GroovyActionExtLoader? = actionContext.getCache<GroovyActionExtLoader>("GROOVY_ACTION_EXT_LOADER")
+            val actionExtLoader: GroovyActionExtLoader? =
+                actionContext.getCache<GroovyActionExtLoader>("GROOVY_ACTION_EXT_LOADER")
             actionExtLoader?.let { extLoader ->
                 actionContext.on(EventKey.ON_COMPLETED) {
                     extLoader.close()
@@ -265,7 +266,10 @@ class SuvApiExporter {
             next()
         }
 
-        protected open fun onBuildActionContext(actionContext: ActionContext, builder: ActionContext.ActionContextBuilder) {
+        protected open fun onBuildActionContext(
+            actionContext: ActionContext,
+            builder: ActionContext.ActionContextBuilder
+        ) {
 
             builder.bindInstance("plugin.name", "easy_api")
 
@@ -299,22 +303,25 @@ class SuvApiExporter {
             return "Basic"
         }
 
-        protected open fun afterBuildActionContext(actionContext: ActionContext, builder: ActionContext.ActionContextBuilder) {
+        protected open fun afterBuildActionContext(
+            actionContext: ActionContext,
+            builder: ActionContext.ActionContextBuilder
+        ) {
 
         }
 
         private fun doExportApisFromMethod(requestWrappers: List<DocWrapper>) {
 
             val classes = requestWrappers
-                    .stream()
-                    .filter { it != null }
-                    .map { it.resource }
-                    .filter { it is PsiResource }
-                    .map { it as PsiResource }
-                    .map { it.resourceClass() }
-                    .filter { it != null }
-                    .distinct()
-                    .toList()
+                .stream()
+                .filter { it != null }
+                .map { it.resource }
+                .filter { it is PsiResource }
+                .map { it as PsiResource }
+                .map { it.resourceClass() }
+                .filter { it != null }
+                .distinct()
+                .toList()
 
             val docs: MutableList<Doc> = ArrayList()
             for (cls in classes) {
@@ -371,7 +378,10 @@ class SuvApiExporter {
     class PostmanApiExporterAdapter : ApiExporterAdapter() {
 
         @Inject
-        private val postmanApiHelper: PostmanApiHelper? = null
+        private lateinit var postmanApiHelper: PostmanApiHelper
+
+        @Inject
+        private lateinit var postmanSettingsHelper: PostmanSettingsHelper
 
         @Inject
         private val fileSaveHelper: FileSaveHelper? = null
@@ -379,11 +389,17 @@ class SuvApiExporter {
         @Inject
         private val postmanFormatter: PostmanFormatter? = null
 
+        @Inject
+        private lateinit var project: Project
+
         override fun actionName(): String {
             return "PostmanExportAction"
         }
 
-        override fun afterBuildActionContext(actionContext: ActionContext, builder: ActionContext.ActionContextBuilder) {
+        override fun afterBuildActionContext(
+            actionContext: ActionContext,
+            builder: ActionContext.ActionContextBuilder
+        ) {
             super.afterBuildActionContext(actionContext, builder)
 
             builder.bind(LocalFileRepository::class) { it.with(DefaultLocalFileRepository::class).singleton() }
@@ -391,12 +407,27 @@ class SuvApiExporter {
             builder.bind(PostmanApiHelper::class) { it.with(PostmanCachedApiHelper::class).singleton() }
             builder.bind(HttpClientProvider::class) { it.with(ConfigurableHttpClientProvider::class).singleton() }
 
-            builder.bind(ClassExporter::class) { it.with(PostmanSpringRequestClassExporter::class).singleton() }
-
             builder.bind(FormatFolderHelper::class) { it.with(PostmanFormatFolderHelper::class).singleton() }
 
-            builder.bind(ConfigReader::class, "delegate_config_reader") { it.with(PostmanConfigReader::class).singleton() }
+            builder.bind(ConfigReader::class, "delegate_config_reader") {
+                it.with(PostmanConfigReader::class).singleton()
+            }
             builder.bind(ConfigReader::class) { it.with(RecommendConfigReader::class).singleton() }
+
+            builder.bind(ClassExporter::class) { it.with(CompositeClassExporter::class).singleton() }
+            builder.bindInstance(
+                "AVAILABLE_CLASS_EXPORTER",
+                arrayOf<Any>(
+                    SpringRequestClassExporter::class,
+                    GenericRequestClassExporter::class
+                )
+            )
+
+            builder.bind(RequestBuilderListener::class) { it.with(ComponentRequestBuilderListener::class).singleton() }
+            builder.bindInstance(
+                "AVAILABLE_REQUEST_BUILDER_LISTENER",
+                arrayOf<Any>(DefaultRequestBuilderListener::class, PostmanRequestBuilderListener::class)
+            )
 
             //always not read api from cache
             builder.bindInstance("class.exporter.read.cache", false)
@@ -407,45 +438,8 @@ class SuvApiExporter {
         }
 
         override fun doExportDocs(docs: MutableList<Doc>) {
-
-            try {
-                val postman = postmanFormatter!!.parseRequests(docs.filterAs())
-                docs.clear()
-                if (postmanApiHelper!!.hasPrivateToken()) {
-                    logger!!.info("PrivateToken of postman be found")
-                    val createdCollection = postmanApiHelper.createCollection(postman)
-
-                    if (createdCollection.notNullOrEmpty()) {
-                        val collectionName = createdCollection!!["name"]?.toString()
-                        if (collectionName.notNullOrBlank()) {
-                            logger!!.info("Imported as collection:$collectionName")
-                            return
-                        }
-                    }
-
-                    logger!!.error("Export to postman failed,You could check below:" +
-                            "1.the network " +
-                            "2.the privateToken")
-
-                } else {
-                    logger!!.info("PrivateToken of postman not be setting")
-                    logger!!.info("To enable automatically import to postman you could set privateToken of postman" +
-                            "in \"Preference -> Other Setting -> EasyApi\"")
-                    logger!!.info("If you do not have a privateToken of postman, you can easily generate one by heading over to the" +
-                            " Postman Integrations Dashboard [https://go.postman.co/integrations/services/pm_pro_api].")
-                }
-                fileSaveHelper!!.saveOrCopy(GsonUtils.prettyJson(postman), {
-                    logger!!.info("Exported data are copied to clipboard,you can paste to postman now")
-                }, {
-                    logger!!.info("Apis save success: $it")
-                }) {
-                    logger!!.info("Apis save failed")
-                }
-            } catch (e: Exception) {
-                logger!!.traceError("Apis save failed", e)
-
-            }
-
+            actionContext!!.instance(PostmanApiExporter::class)
+                .export(docs.filterAs())
         }
     }
 
@@ -458,22 +452,33 @@ class SuvApiExporter {
         private val markdownFormatter: MarkdownFormatter? = null
 
         @Inject
-        private val settingBinder: SettingBinder? = null
+        private lateinit var markdownSettingsHelper: MarkdownSettingsHelper
 
         override fun actionName(): String {
             return "MarkdownExportAction"
         }
 
-        override fun afterBuildActionContext(actionContext: ActionContext, builder: ActionContext.ActionContextBuilder) {
+        override fun afterBuildActionContext(
+            actionContext: ActionContext,
+            builder: ActionContext.ActionContextBuilder
+        ) {
             super.afterBuildActionContext(actionContext, builder)
 
             builder.bind(LocalFileRepository::class) { it.with(DefaultLocalFileRepository::class).singleton() }
 
-            builder.bind(ClassExporter::class) { it.with(ComboClassExporter::class).singleton() }
-            builder.bindInstance("AVAILABLE_CLASS_EXPORTER", arrayOf<Any>(SpringRequestClassExporter::class, DefaultMethodDocClassExporter::class))
+            builder.bind(ClassExporter::class) { it.with(CompositeClassExporter::class).singleton() }
+            builder.bindInstance(
+                "AVAILABLE_CLASS_EXPORTER",
+                arrayOf<Any>(
+                    SpringRequestClassExporter::class,
+                    GenericRequestClassExporter::class,
+                    GenericMethodDocClassExporter::class
+                )
+            )
 
-
-            builder.bind(ConfigReader::class, "delegate_config_reader") { it.with(EasyApiConfigReader::class).singleton() }
+            builder.bind(ConfigReader::class, "delegate_config_reader") {
+                it.with(EasyApiConfigReader::class).singleton()
+            }
             builder.bind(ConfigReader::class) { it.with(RecommendConfigReader::class).singleton() }
 
             //always not read api from cache
@@ -494,8 +499,7 @@ class SuvApiExporter {
                 docs.clear()
                 actionContext!!.runAsync {
                     try {
-                        fileSaveHelper!!.saveOrCopy(apiInfo, Charsets.forName(settingBinder!!.read().outputCharset)?.charset()
-                                ?: kotlin.text.Charsets.UTF_8, {
+                        fileSaveHelper!!.saveOrCopy(apiInfo, markdownSettingsHelper.outputCharset(), {
                             logger!!.info("Exported data are copied to clipboard,you can paste to a md file now")
                         }, {
                             logger!!.info("Apis save success: $it")
@@ -514,6 +518,67 @@ class SuvApiExporter {
         }
     }
 
+    class CurlApiExporterAdapter : ApiExporterAdapter() {
+
+        @Inject
+        private val fileSaveHelper: FileSaveHelper? = null
+
+        @Inject
+        private lateinit var curlExporter: CurlExporter
+
+        @Inject
+        private lateinit var markdownSettingsHelper: MarkdownSettingsHelper
+
+        @Inject
+        private lateinit var messagesHelper: MessagesHelper
+
+        override fun actionName(): String {
+            return "CurlExportAction"
+        }
+
+        override fun afterBuildActionContext(
+            actionContext: ActionContext,
+            builder: ActionContext.ActionContextBuilder
+        ) {
+            super.afterBuildActionContext(actionContext, builder)
+
+            builder.bind(LocalFileRepository::class) { it.with(DefaultLocalFileRepository::class).singleton() }
+
+            builder.bind(ClassExporter::class) { it.with(CompositeClassExporter::class).singleton() }
+            builder.bindInstance(
+                "AVAILABLE_CLASS_EXPORTER",
+                arrayOf<Any>(
+                    SpringRequestClassExporter::class,
+                    GenericRequestClassExporter::class
+                )
+            )
+
+            builder.bind(ConfigReader::class, "delegate_config_reader") {
+                it.with(EasyApiConfigReader::class).singleton()
+            }
+            builder.bind(ConfigReader::class) { it.with(RecommendConfigReader::class).singleton() }
+
+            //always not read api from cache
+            builder.bindInstance("class.exporter.read.cache", false)
+
+            builder.bindInstance("file.save.default", "easy-api-curl.md")
+            builder.bindInstance("file.save.last.location.key", "com.itangcent.curl.export.path")
+        }
+
+        override fun doExportDocs(docs: MutableList<Doc>) {
+            val requests = docs.filterAs(Request::class)
+            try {
+                if (docs.isEmpty()) {
+                    logger!!.info("No api be found to export!")
+                    return
+                }
+                curlExporter.export(requests)
+            } catch (e: Exception) {
+                logger!!.traceError("Apis save failed", e)
+            }
+        }
+    }
+
     private fun doExport(channel: ApiExporterWrapper, requests: List<DocWrapper>) {
         if (requests.isNullOrEmpty()) {
             logger!!.info("no api has be selected")
@@ -527,9 +592,9 @@ class SuvApiExporter {
     companion object {
 
         private val EXPORTER_CHANNELS: List<*> = listOf(
-                ApiExporterWrapper(PostmanApiExporterAdapter::class, "Postman", Request::class),
-                ApiExporterWrapper(MarkdownApiExporterAdapter::class, "Markdown", Request::class, MethodDoc::class)
+            ApiExporterWrapper(PostmanApiExporterAdapter::class, "Postman", Request::class),
+            ApiExporterWrapper(MarkdownApiExporterAdapter::class, "Markdown", Request::class, MethodDoc::class),
+            ApiExporterWrapper(CurlApiExporterAdapter::class, "Curl", Request::class)
         )
-
     }
 }

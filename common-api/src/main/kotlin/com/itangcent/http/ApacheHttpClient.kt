@@ -8,23 +8,30 @@ import com.itangcent.common.spi.SpiUtils
 import com.itangcent.common.utils.notNullOrEmpty
 import org.apache.http.HttpEntity
 import org.apache.http.NameValuePair
+import org.apache.http.client.config.CookieSpecs
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.client.entity.UrlEncodedFormEntity
 import org.apache.http.client.methods.RequestBuilder
 import org.apache.http.client.protocol.HttpClientContext
 import org.apache.http.config.SocketConfig
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory
 import org.apache.http.entity.ContentType
 import org.apache.http.entity.StringEntity
 import org.apache.http.entity.mime.MultipartEntityBuilder
 import org.apache.http.impl.client.BasicCookieStore
 import org.apache.http.impl.client.HttpClients
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.apache.http.impl.cookie.BasicClientCookie
 import org.apache.http.impl.cookie.BasicClientCookie2
 import org.apache.http.message.BasicNameValuePair
+import org.apache.http.ssl.SSLContextBuilder
 import org.apache.http.util.toByteArray
+import java.io.Closeable
 import java.io.File
 import java.io.FileNotFoundException
 import java.util.*
+import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.SSLContext
 
 @ScriptTypeName("httpClient")
 open class ApacheHttpClient : HttpClient {
@@ -40,14 +47,25 @@ open class ApacheHttpClient : HttpClient {
         this.apacheCookieStore = ApacheCookieStore(basicCookieStore)
         this.httpClientContext!!.cookieStore = basicCookieStore
         this.httpClient = HttpClients.custom()
-                .setDefaultSocketConfig(SocketConfig.custom()
-                        .setSoTimeout(30 * 1000)
-                        .build())
-                .setDefaultRequestConfig(RequestConfig.custom()
-                        .setConnectTimeout(30 * 1000)
-                        .setConnectionRequestTimeout(30 * 1000)
-                        .setSocketTimeout(30 * 1000)
-                        .build()).build()
+                .setConnectionManager(PoolingHttpClientConnectionManager().also {
+                    it.maxTotal = 50
+                    it.defaultMaxPerRoute = 20
+                })
+                .setDefaultSocketConfig(
+                        SocketConfig.custom()
+                                .setSoTimeout(30 * 1000)
+                                .build()
+                )
+                .setDefaultRequestConfig(
+                        RequestConfig.custom()
+                                .setConnectTimeout(30 * 1000)
+                                .setConnectionRequestTimeout(30 * 1000)
+                                .setSocketTimeout(30 * 1000)
+                                .setCookieSpec(CookieSpecs.STANDARD).build()
+                )
+                .setSSLHostnameVerifier(NOOP_HOST_NAME_VERIFIER)
+                .setSSLSocketFactory(SSLSF)
+                .build()
     }
 
     constructor(httpClient: org.apache.http.client.HttpClient) {
@@ -91,47 +109,47 @@ open class ApacheHttpClient : HttpClient {
         }
 
         if (request.method().toUpperCase() != "GET") {
-
             var requestEntity: HttpEntity? = null
             if (request.params().notNullOrEmpty()) {
-                if (request.contentType()?.startsWith("application/x-www-form-urlencoded") != true) {
-                    if (request.contentType()?.startsWith("multipart/form-data") == true) {
-                        val entityBuilder = MultipartEntityBuilder.create()
-                        for (param in request.params()!!) {
-                            if (param.type() == "file") {
-                                val filePath = param.value()
-                                if (filePath.isNullOrBlank()) {
-                                    continue
-                                }
-                                val file = File(filePath)
-                                if (!file.exists() || !file.isFile) {
-                                    throw FileNotFoundException("[$filePath] not exist")
-                                }
-                                entityBuilder.addBinaryBody(param.name(), file)
-                            } else {
-                                entityBuilder.addTextBody(param.name(), param.value())
-                            }
-                        }
-                        val boundary = com.itangcent.common.http.EntityUtils.generateBoundary()
-                        entityBuilder.setBoundary(boundary)
-                        //set boundary to header
-                        requestBuilder.setHeader("Content-type", "multipart/form-data; boundary=$boundary")
-                        requestEntity = entityBuilder.build()
-                    }
-                } else {
+                if (request.contentType()?.startsWith("application/x-www-form-urlencoded") == true) {
                     val nameValuePairs: ArrayList<NameValuePair> = ArrayList()
                     for (param in request.params()!!) {
                         nameValuePairs.add(BasicNameValuePair(param.name(), param.value()))
                     }
                     requestEntity = UrlEncodedFormEntity(nameValuePairs)
+                } else if (request.contentType()?.startsWith("multipart/form-data") == true) {
+                    val entityBuilder = MultipartEntityBuilder.create()
+                    for (param in request.params()!!) {
+                        if (param.type() == "file") {
+                            val filePath = param.value()
+                            if (filePath.isNullOrBlank()) {
+                                continue
+                            }
+                            val file = File(filePath)
+                            if (!file.exists() || !file.isFile) {
+                                throw FileNotFoundException("[$filePath] not exist")
+                            }
+                            entityBuilder.addBinaryBody(param.name(), file)
+                        } else {
+                            entityBuilder.addTextBody(param.name(), param.value())
+                        }
+                    }
+                    val boundary = com.itangcent.common.http.EntityUtils.generateBoundary()
+                    entityBuilder.setBoundary(boundary)
+                    //set boundary to header
+                    requestBuilder.setHeader("Content-type", "multipart/form-data; boundary=$boundary")
+                    requestEntity = entityBuilder.build()
                 }
             }
             if (request.body() != null) {
                 if (requestEntity != null) {
-                    SpiUtils.loadService(ILogger::class)?.warn("The request with a body should not set content-type:${request.contentType()}")
+                    SpiUtils.loadService(ILogger::class)
+                            ?.warn("The request with a body should not set content-type:${request.contentType()}")
                 }
-                requestEntity = StringEntity(request.body().toJson(),
-                        ContentType.APPLICATION_JSON)
+                requestEntity = StringEntity(
+                        request.body().toJson(),
+                        ContentType.APPLICATION_JSON
+                )
             }
             if (requestEntity != null) {
                 requestBuilder.entity = requestEntity
@@ -151,7 +169,6 @@ class ApacheHttpRequest : AbstractHttpRequest {
     constructor(apacheHttpClient: ApacheHttpClient) : super() {
         this.apacheHttpClient = apacheHttpClient
     }
-
 
     /**
      * Executes HTTP request using the [apacheHttpClient].
@@ -200,7 +217,7 @@ class ApacheCookieStore : CookieStore {
      * @param cookies the [Cookie]s to be added
      */
     override fun addCookies(cookies: Array<Cookie>?) {
-        cookies?.mapNotNull { cookie -> cookie.asApacheCookie() }
+        cookies?.map { cookie -> cookie.asApacheCookie() }
                 ?.forEach { cookieStore.addCookie(it) }
     }
 
@@ -230,8 +247,9 @@ class ApacheCookieStore : CookieStore {
  */
 @ScriptTypeName("response")
 class ApacheHttpResponse(
-        val request: HttpRequest,
-        val response: org.apache.http.HttpResponse) : AbstractHttpResponse() {
+        private val request: HttpRequest,
+        private val response: org.apache.http.HttpResponse
+) : AbstractHttpResponse() {
 
     /**
      * Obtains the status of this response.
@@ -300,6 +318,10 @@ class ApacheHttpResponse(
     override fun request(): HttpRequest {
         return request
     }
+
+    override fun close() {
+        (this.response as? Closeable)?.close()
+    }
 }
 
 /**
@@ -364,7 +386,6 @@ class ApacheCookie : Cookie {
     override fun toString(): String {
         return cookie.toString()
     }
-
 }
 
 fun Cookie.asApacheCookie(): org.apache.http.cookie.Cookie {
@@ -390,3 +411,15 @@ fun Cookie.asApacheCookie(): org.apache.http.cookie.Cookie {
     }
     return cookie
 }
+
+var SSLCONTEXT: SSLContext = SSLContextBuilder().loadTrustMaterial(null
+) { _, _ -> true }.build()
+
+/**
+ * Never authenticate the host
+ */
+val NOOP_HOST_NAME_VERIFIER: HostnameVerifier = HostnameVerifier { _, _ -> true }
+
+var SSLSF: SSLConnectionSocketFactory = SSLConnectionSocketFactory(
+        SSLCONTEXT, arrayOf("TLSv1", "TLSv1.1", "TLSv1.2"), null,
+        NOOP_HOST_NAME_VERIFIER)

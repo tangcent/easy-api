@@ -1,19 +1,21 @@
 package com.itangcent.idea.plugin.api.cache
 
 import com.google.inject.Inject
+import com.google.inject.Singleton
 import com.google.inject.name.Named
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
+import com.itangcent.cache.CacheSwitcher
 import com.itangcent.common.exception.ProcessCanceledException
 import com.itangcent.common.logger.traceError
 import com.itangcent.common.utils.notNullOrEmpty
 import com.itangcent.idea.plugin.StatusRecorder
 import com.itangcent.idea.plugin.Worker
 import com.itangcent.idea.plugin.WorkerStatus
-import com.itangcent.idea.plugin.api.export.ClassExporter
-import com.itangcent.idea.plugin.api.export.CompletedHandle
-import com.itangcent.idea.plugin.api.export.DocHandle
-import com.itangcent.idea.plugin.api.export.requestOnly
+import com.itangcent.idea.plugin.api.export.core.ClassExporter
+import com.itangcent.idea.plugin.api.export.core.CompletedHandle
+import com.itangcent.idea.plugin.api.export.core.DocHandle
+import com.itangcent.idea.plugin.api.export.core.requestOnly
 import com.itangcent.idea.psi.PsiMethodResource
 import com.itangcent.idea.psi.resourceMethod
 import com.itangcent.intellij.context.ActionContext
@@ -24,7 +26,8 @@ import com.itangcent.intellij.util.FileUtils
 import java.io.File
 import kotlin.reflect.KClass
 
-class CachedRequestClassExporter : ClassExporter, Worker {
+@Singleton
+class CachedRequestClassExporter : ClassExporter, Worker, CacheSwitcher {
 
     override fun support(docType: KClass<*>): Boolean {
         return delegateClassExporter?.support(docType) ?: false
@@ -63,7 +66,7 @@ class CachedRequestClassExporter : ClassExporter, Worker {
 
     @Inject(optional = true)
     @Named("class.exporter.read.cache")
-    private val readCache: Boolean = true
+    private var readCache: Boolean = true
 
     @Inject
     private val fileApiCacheRepository: FileApiCacheRepository? = null
@@ -83,7 +86,7 @@ class CachedRequestClassExporter : ClassExporter, Worker {
         val psiFile = cls.containingFile
         val text = psiFile.text
         val path = ActionUtils.findCurrentPath(psiFile)!!
-                .replace(File.separator, "_")
+            .replace(File.separator, "_")
         statusRecorder.newWork()
         actionContext!!.runAsync {
             try {
@@ -92,8 +95,9 @@ class CachedRequestClassExporter : ClassExporter, Worker {
                 if (readCache) {
                     fileApiCache = fileApiCacheRepository!!.getFileApiCache(path)
                     if (fileApiCache != null
-                            && fileApiCache.lastModified!! > FileUtils.getLastModified(psiFile) ?: System.currentTimeMillis()
-                            && fileApiCache.md5 == md5) {
+                        && fileApiCache.lastModified!! > FileUtils.getLastModified(psiFile) ?: System.currentTimeMillis()
+                        && fileApiCache.md5 == md5
+                    ) {
 
                         if (fileApiCache.requests.notNullOrEmpty()) {
                             statusRecorder.newWork()
@@ -120,9 +124,11 @@ class CachedRequestClassExporter : ClassExporter, Worker {
                     try {
                         delegateClassExporter!!.export(cls, requestOnly { request ->
                             docHandle(request)
-                            requests.add(RequestWithKey(
+                            requests.add(
+                                RequestWithKey(
                                     PsiClassUtils.fullNameOfMember(cls, request.resourceMethod()!!), request
-                            ))
+                                )
+                            )
                         }, completedHandle)
                         actionContext.runAsync {
                             fileApiCache.md5 = md5
@@ -156,8 +162,10 @@ class CachedRequestClassExporter : ClassExporter, Worker {
         return true
     }
 
-    private fun readApiFromCache(cls: PsiClass, fileApiCache: FileApiCache, requestHandle: DocHandle,
-                                 completedHandle: CompletedHandle) {
+    private fun readApiFromCache(
+        cls: PsiClass, fileApiCache: FileApiCache, requestHandle: DocHandle,
+        completedHandle: CompletedHandle
+    ) {
         fileApiCache.requests?.forEach { request ->
             val method = request.key?.let { PsiClassUtils.findMethodFromFullName(it, cls as PsiElement) }
             if (method == null) {
@@ -171,5 +179,13 @@ class CachedRequestClassExporter : ClassExporter, Worker {
         }
         completedHandle(cls)
 
+    }
+
+    override fun notUserCache() {
+        this.readCache = false
+    }
+
+    override fun userCache() {
+        this.readCache = true
     }
 }

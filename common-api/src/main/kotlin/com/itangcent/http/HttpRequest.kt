@@ -6,6 +6,7 @@ import com.itangcent.common.kit.equalIgnoreCase
 import org.apache.http.Consts
 import org.apache.http.entity.ContentType
 import java.io.ByteArrayInputStream
+import java.io.Closeable
 import java.io.InputStream
 import java.nio.charset.Charset
 import java.util.*
@@ -565,9 +566,10 @@ abstract class AbstractHttpRequest : HttpRequest {
      */
     override fun headers(headerName: String): Array<String>? {
         return headers
-                ?.filter { it.name().equalIgnoreCase(headerName) }
-                ?.mapNotNull { it.value() }
-                ?.toTypedArray()
+            ?.filter { it.name().equalIgnoreCase(headerName) }
+            ?.mapNotNull { it.value() }
+            ?.takeIf { it.isNotEmpty() }
+            ?.toTypedArray()
     }
 
     /**
@@ -580,9 +582,9 @@ abstract class AbstractHttpRequest : HttpRequest {
      */
     override fun firstHeader(headerName: String): String? {
         return headers
-                ?.filter { it.name().equalIgnoreCase(headerName) }
-                ?.map { it.value() }
-                ?.first { it != null }
+            ?.filter { it.name().equalIgnoreCase(headerName) }
+            ?.map { it.value() }
+            ?.firstOrNull { it != null }
     }
 
     /**
@@ -595,9 +597,9 @@ abstract class AbstractHttpRequest : HttpRequest {
      */
     override fun lastHeader(headerName: String): String? {
         return headers
-                ?.filter { it.name().equalIgnoreCase(headerName) }
-                ?.map { it.value() }
-                ?.last { it != null }
+            ?.filter { it.name().equalIgnoreCase(headerName) }
+            ?.map { it.value() }
+            ?.lastOrNull { it != null }
     }
 
     /**
@@ -802,8 +804,8 @@ abstract class AbstractHttpRequest : HttpRequest {
      */
     override fun params(paramName: String): Array<HttpParam>? {
         return form
-                ?.filter { it.name() == paramName }
-                ?.toTypedArray()
+            ?.filter { it.name() == paramName }
+            ?.toTypedArray()
     }
 
     /**
@@ -818,11 +820,11 @@ abstract class AbstractHttpRequest : HttpRequest {
      */
     override fun paramValues(paramName: String): Array<String>? {
         return form
-                ?.filter { it.name() == paramName }
-                ?.map { it.value() }
-                ?.filter { it != null }
-                ?.map { it as String }
-                ?.toTypedArray()
+            ?.filter { it.name() == paramName }
+            ?.map { it.value() }
+            ?.filter { it != null }
+            ?.map { it as String }
+            ?.toTypedArray()
     }
 
     override fun firstParam(paramName: String): HttpParam? {
@@ -831,9 +833,9 @@ abstract class AbstractHttpRequest : HttpRequest {
 
     override fun firstParamValue(paramName: String): String? {
         return form
-                ?.filter { it.name() == paramName }
-                ?.map { it.value() }
-                ?.first { it != null }
+            ?.filter { it.name() == paramName }
+            ?.map { it.value() }
+            ?.first { it != null }
     }
 
     override fun lastParam(paramName: String): HttpParam? {
@@ -842,9 +844,9 @@ abstract class AbstractHttpRequest : HttpRequest {
 
     override fun lastParamValue(paramName: String): String? {
         return form
-                ?.filter { it.name() == paramName }
-                ?.map { it.value() }
-                ?.last { it != null }
+            ?.filter { it.name() == paramName }
+            ?.map { it.value() }
+            ?.last { it != null }
     }
 
     /**
@@ -881,7 +883,7 @@ abstract class AbstractHttpRequest : HttpRequest {
 }
 
 @ScriptTypeName("response")
-interface HttpResponse {
+interface HttpResponse : Closeable {
 
     /**
      * Obtains the status of this response.
@@ -995,7 +997,7 @@ fun HttpResponse.getHeaderFileName(): String? {
     val candidates = fileName.split("; ")
     for (candidate in candidates) {
         fileName = candidate.substringAfter("filename=")
-                .removeSurrounding("\"")
+            .removeSurrounding("\"")
         if (fileName.isNotBlank()) return fileName
     }
 
@@ -1040,11 +1042,9 @@ abstract class AbstractHttpResponse : HttpResponse {
      */
     override fun headers(headerName: String): Array<String>? {
         return headers()
-                ?.filter { it.name().equalIgnoreCase(headerName) }
-                ?.map { it.value() }
-                ?.filter { it != null }
-                ?.map { it as String }
-                ?.toTypedArray()
+            ?.filter { it.name().equalIgnoreCase(headerName) }
+            ?.mapNotNull { it.value() }
+            ?.toTypedArray()
     }
 
     /**
@@ -1057,9 +1057,9 @@ abstract class AbstractHttpResponse : HttpResponse {
      */
     override fun firstHeader(headerName: String): String? {
         return headers()
-                ?.filter { it.name().equalIgnoreCase(headerName) }
-                ?.map { it.value() }
-                ?.first { it != null }
+            ?.filter { it.name().equalIgnoreCase(headerName) }
+            ?.map { it.value() }
+            ?.firstOrNull { it != null }
     }
 
     /**
@@ -1072,9 +1072,9 @@ abstract class AbstractHttpResponse : HttpResponse {
      */
     override fun lastHeader(headerName: String): String? {
         return headers()
-                ?.filter { it.name().equalIgnoreCase(headerName) }
-                ?.map { it.value() }
-                ?.last { it != null }
+            ?.filter { it.name().equalIgnoreCase(headerName) }
+            ?.map { it.value() }
+            ?.lastOrNull { it != null }
     }
 
     /**
@@ -1085,7 +1085,7 @@ abstract class AbstractHttpResponse : HttpResponse {
      */
     override fun string(): String? {
         val charset: Charset? = KitUtils.safe { ContentType.parse(this.contentType())?.charset }
-                ?: Consts.UTF_8
+            ?: Consts.UTF_8
         return this.string(charset!!)
     }
 
