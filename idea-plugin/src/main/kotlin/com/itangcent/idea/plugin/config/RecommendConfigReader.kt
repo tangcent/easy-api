@@ -81,10 +81,13 @@ class RecommendConfigReader : ConfigReader, Initializable {
                 synchronized(this)
                 {
                     loading = Thread.currentThread()
-                    configReader.reset()
-                    module.filePath()?.let { configReader.put("module_path", it) }
-                    initDelegateAndRecommend()
-                    loading = null
+                    try {
+                        configReader.reset()
+                        module.filePath()?.let { configReader.put("module_path", it) }
+                        initDelegateAndRecommend()
+                    } finally {
+                        loading = null
+                    }
                 }
             }
         } else {

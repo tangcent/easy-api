@@ -5,6 +5,9 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMember
 import com.itangcent.annotation.script.ScriptReturn
 import com.itangcent.annotation.script.ScriptTypeName
+import com.itangcent.common.text.TemplateEvaluator
+import com.itangcent.common.text.TemplateUtils
+import com.itangcent.common.text.union
 import com.itangcent.idea.plugin.utils.LocalStorage
 import com.itangcent.idea.plugin.utils.RegexUtils
 import com.itangcent.idea.plugin.utils.SessionStorage
@@ -17,6 +20,7 @@ import com.itangcent.intellij.jvm.LinkExtractor
 import com.itangcent.intellij.jvm.LinkResolver
 import com.itangcent.intellij.util.FileUtils
 import com.itangcent.suv.http.HttpClientProvider
+import com.itangcent.utils.TemplateKit
 import java.nio.charset.Charset
 import javax.script.*
 
@@ -130,19 +134,36 @@ abstract class StandardJdkRuleParser : ScriptRuleParser() {
     class Config {
 
         @Inject
-        private val configReader: ConfigReader? = null
+        private lateinit var configReader: ConfigReader
 
         fun get(name: String): String? {
-            return configReader!!.first(name)
+            return configReader.first(name)
         }
 
         @ScriptReturn("array<string>")
         fun getValues(name: String): Collection<String>? {
-            return configReader!!.read(name)
+            return configReader.read(name)
         }
 
         fun resolveProperty(property: String): String {
-            return configReader!!.resolveProperty(property)
+            return configReader.resolveProperty(property)
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        fun resolvePropertyWith(str: String?, placeHolder: Any?, context: Map<*, *>?): String? {
+            if (str == null) {
+                return null
+            }
+            val templateEvaluator: TemplateEvaluator = if (context == null) {
+                TemplateEvaluator.from { configReader.first(it) }
+            } else {
+                TemplateEvaluator.from(context as Map<String?, *>)
+                    .union(TemplateEvaluator.from { configReader.first(it) })
+            }
+            return TemplateUtils.render(str)
+                .placeholder(TemplateKit.resolvePlaceHolder(placeHolder) ?: arrayOf('$'))
+                .templateEvaluator(templateEvaluator)
+                .render()
         }
     }
 
