@@ -6,7 +6,6 @@ import com.itangcent.common.utils.invokeMethod
 import com.itangcent.common.utils.notNullOrBlank
 import com.itangcent.idea.plugin.settings.helper.BuiltInConfigSettingsHelper
 import com.itangcent.idea.plugin.settings.helper.RecommendConfigSettingsHelper
-import com.itangcent.intellij.adaptor.ModuleAdaptor.file
 import com.itangcent.intellij.adaptor.ModuleAdaptor.filePath
 import com.itangcent.intellij.config.ConfigReader
 import com.itangcent.intellij.config.MutableConfigReader
@@ -15,7 +14,6 @@ import com.itangcent.intellij.jvm.dev.DevEnv
 import com.itangcent.intellij.logger.Logger
 import com.itangcent.intellij.psi.ContextSwitchListener
 import com.itangcent.utils.Initializable
-import java.io.File
 import java.util.concurrent.TimeUnit
 
 
@@ -84,13 +82,7 @@ class RecommendConfigReader : ConfigReader, Initializable {
                 {
                     loading = Thread.currentThread()
                     configReader.reset()
-                    val moduleFile = module.file()
-                    val modulePath = when {
-                        moduleFile == null -> module.filePath()?.substringBeforeLast(File.separator)
-                        moduleFile.isDirectory -> moduleFile.path
-                        else -> moduleFile.parent.path
-                    }
-                    modulePath?.let { configReader.put("module_path", it) }
+                    module.filePath()?.let { configReader.put("module_path", it) }
                     initDelegateAndRecommend()
                     loading = null
                 }
@@ -120,10 +112,10 @@ class RecommendConfigReader : ConfigReader, Initializable {
 
                 if (recommendConfig.isEmpty()) {
                     logger!!.info(
-                            "Even useRecommendConfig was true, but no recommend config be selected!\n" +
-                                    "\n" +
-                                    "If you need to enable the built-in recommended configuration." +
-                                    "Go to [Preference -> Other Setting -> EasyApi -> Recommend]"
+                        "Even useRecommendConfig was true, but no recommend config be selected!\n" +
+                                "\n" +
+                                "If you need to enable the built-in recommended configuration." +
+                                "Go to [Preference -> Other Setting -> EasyApi -> Recommend]"
                     )
 
                     return
