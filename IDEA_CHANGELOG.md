@@ -1,3 +1,17 @@
+* 2.1.6
+
+	* test: add test case of ApiCaller [(#412)](https://github.com/tangcent/easy-api/pull/412)
+
+	* feat: new event rules [(#411)](https://github.com/tangcent/easy-api/pull/411)
+
+	* feat: [ScriptExecutor] explicit class [(#410)](https://github.com/tangcent/easy-api/pull/410)
+
+	* fix: resolve Object as {} [(#409)](https://github.com/tangcent/easy-api/pull/409)
+
+	* feat: change action groups [(#408)](https://github.com/tangcent/easy-api/pull/408)
+
+	* feat: recommend configs of Jackson JsonNaming(namingStrategy) [(#407)](https://github.com/tangcent/easy-api/pull/407)
+
 * 2.1.5
 
 	* opti: add the specified sqlite dependency [(#402)](https://github.com/tangcent/easy-api/pull/402)
