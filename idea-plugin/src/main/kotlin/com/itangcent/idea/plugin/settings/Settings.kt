@@ -11,6 +11,8 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
 
     override var genericEnable: Boolean = false
 
+    override var feignEnable: Boolean = false
+
     //postman
 
     override var pullNewestDataBefore: Boolean = false
@@ -87,6 +89,7 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
         if (pullNewestDataBefore != other.pullNewestDataBefore) return false
         if (methodDocEnable != other.methodDocEnable) return false
         if (genericEnable != other.genericEnable) return false
+        if (feignEnable != other.feignEnable) return false
         if (postmanToken != other.postmanToken) return false
         if (postmanWorkspace != other.postmanWorkspace) return false
         if (postmanExportMode != other.postmanExportMode) return false
@@ -117,6 +120,7 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
         var result = pullNewestDataBefore.hashCode()
         result = 31 * result + methodDocEnable.hashCode()
         result = 31 * result + genericEnable.hashCode()
+        result = 31 * result + feignEnable.hashCode()
         result = 31 * result + (postmanToken?.hashCode() ?: 0)
         result = 31 * result + (postmanWorkspace?.hashCode() ?: 0)
         result = 31 * result + (postmanExportMode?.hashCode() ?: 0)

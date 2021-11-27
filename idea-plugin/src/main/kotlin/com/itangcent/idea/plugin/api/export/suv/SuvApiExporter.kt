@@ -418,12 +418,7 @@ open class SuvApiExporter {
             builder.bindInstance(ExportChannel::class, ExportChannel.of("postman"))
             builder.bindInstance(ExportDoc::class, ExportDoc.of("request"))
 
-            builder.bind(RequestBuilderListener::class) { it.with(ComponentRequestBuilderListener::class).singleton() }
-            builder.bindInstance(
-                "AVAILABLE_REQUEST_BUILDER_LISTENER",
-                arrayOf<Any>(DefaultRequestBuilderListener::class, PostmanRequestBuilderListener::class)
-            )
-
+            builder.bind(RequestBuilderListener::class) { it.with(CompositeRequestBuilderListener::class).singleton() }
             //always not read api from cache
             builder.bindInstance("class.exporter.read.cache", false)
 
