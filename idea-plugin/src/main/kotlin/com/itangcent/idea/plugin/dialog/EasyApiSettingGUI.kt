@@ -109,6 +109,8 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
 
     private var feignEnableCheckBox: JCheckBox? = null
 
+    private var quarkusEnableCheckBox: JCheckBox? = null
+
     private var globalCacheSizeLabel: JLabel? = null
 
     private var projectCacheSizeLabel: JLabel? = null
@@ -253,6 +255,9 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
 
         autoComputer.bind(feignEnableCheckBox!!)
             .mutual(this, "settingsInstance.feignEnable")
+
+        autoComputer.bind(quarkusEnableCheckBox!!)
+            .mutual(this, "settingsInstance.quarkusEnable")
 
         autoComputer.bind(inferEnableCheckBox!!)
             .mutual(this, "settingsInstance.inferEnable")
@@ -539,7 +544,7 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
     }
 
     private fun readPostmanCollections(settings: Settings) {
-        if(!postmanCollectionInit){
+        if (!postmanCollectionInit) {
             return
         }
         val collectionModel = postmanCollectionTableModel ?: return
@@ -637,6 +642,7 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
         settings.methodDocEnable = from.methodDocEnable
         settings.genericEnable = from.genericEnable
         settings.feignEnable = from.feignEnable
+        settings.quarkusEnable = from.quarkusEnable
         settings.queryExpanded = from.queryExpanded
         settings.formExpanded = from.formExpanded
         settings.readGetter = from.readGetter
