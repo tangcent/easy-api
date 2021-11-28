@@ -9,7 +9,9 @@ import com.itangcent.common.constant.HttpMethod
 import com.itangcent.common.kit.KitUtils
 import com.itangcent.common.model.Request
 import com.itangcent.common.model.URL
-import com.itangcent.common.utils.*
+import com.itangcent.common.utils.notNullOrBlank
+import com.itangcent.idea.plugin.api.export.Orders
+import com.itangcent.idea.plugin.api.export.condition.ConditionOnSimple
 import com.itangcent.idea.plugin.api.export.core.*
 import com.itangcent.idea.plugin.api.export.generic.GenericClassExportRuleKeys.HTTP_METHOD
 import com.itangcent.idea.plugin.api.export.generic.GenericClassExportRuleKeys.HTTP_PATH
@@ -22,35 +24,23 @@ import com.itangcent.idea.plugin.api.export.generic.GenericClassExportRuleKeys.P
 import com.itangcent.idea.plugin.api.export.generic.GenericClassExportRuleKeys.PARAM_HEADER
 import com.itangcent.idea.plugin.api.export.generic.GenericClassExportRuleKeys.PARAM_NAME
 import com.itangcent.idea.plugin.api.export.generic.GenericClassExportRuleKeys.PARAM_PATH_VAR
-import com.itangcent.idea.plugin.settings.helper.SupportSettingsHelper
+import com.itangcent.idea.plugin.condition.ConditionOnSetting
 import com.itangcent.intellij.config.rule.computer
 import com.itangcent.intellij.util.hasFile
-import kotlin.reflect.KClass
+import com.itangcent.order.Order
 
 /**
  * A generic [RequestClassExporter] that exports [Request]
  * from any ordinary method
  * Depends on [GenericClassExportRuleKeys]
  */
+@Order(Orders.GENERIC)
+@ConditionOnSimple(false)
+@ConditionOnSetting("genericEnable")
 open class GenericRequestClassExporter : RequestClassExporter() {
 
     @Inject
-    protected lateinit var supportSettingsHelper: SupportSettingsHelper
-
-    @Inject
     protected val commentResolver: CommentResolver? = null
-
-    override fun support(docType: KClass<*>): Boolean {
-        return supportSettingsHelper.genericEnable() && super.support(docType)
-    }
-
-    override fun export(cls: Any, docHandle: DocHandle, completedHandle: CompletedHandle): Boolean {
-        if (!supportSettingsHelper.genericEnable()) {
-            completedHandle(cls)
-            return false
-        }
-        return super.export(cls, docHandle, completedHandle)
-    }
 
     override fun processClass(cls: PsiClass, classExportContext: ClassExportContext) {
         val pathAndMethodOfClass = findPathAndMethod(cls)
@@ -144,7 +134,7 @@ open class GenericRequestClassExporter : RequestClassExporter() {
         }
 
         if (parameterExportContext.required() == null) {
-            ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.parameter)?.let {
+            ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.element())?.let {
                 parameterExportContext.setRequired(it)
             }
         }
@@ -161,13 +151,13 @@ open class GenericRequestClassExporter : RequestClassExporter() {
             requestBuilderListener.appendDesc(
                 parameterExportContext,
                 request, if (parameterExportContext.required() == true) {
-                    "\nNeed cookie:$cookieName ($ultimateComment)"
+                    "Need cookie:$cookieName ($ultimateComment)"
                 } else {
                     val defaultValue = findCookieValue(parameterExportContext.psi())
                     if (defaultValue.isNullOrBlank()) {
-                        "\nCookie:$cookieName ($ultimateComment)"
+                        "Cookie:$cookieName ($ultimateComment)"
                     } else {
-                        "\nCookie:$cookieName=$defaultValue ($ultimateComment)"
+                        "Cookie:$cookieName=$defaultValue ($ultimateComment)"
                     }
                 }
             )
@@ -178,13 +168,13 @@ open class GenericRequestClassExporter : RequestClassExporter() {
         //form/body/query
         var paramType: String? = null
 
-        findParamName(parameterExportContext.psi())?.let { parameterExportContext.setName(it) }
+        findParamName(parameterExportContext.psi())?.let { parameterExportContext.setParamName(it) }
 
         if (request.method == "GET") {
             paramType = "query"
         }
 
-        val readParamDefaultValue = readParamDefaultValue(parameterExportContext.parameter)
+        val readParamDefaultValue = readParamDefaultValue(parameterExportContext.element())
 
         if (readParamDefaultValue.notNullOrBlank()) {
             parameterExportContext.setDefaultVal(readParamDefaultValue!!)
@@ -198,7 +188,7 @@ open class GenericRequestClassExporter : RequestClassExporter() {
         if (paramType.isNullOrBlank()) {
             paramType = ruleComputer.computer(
                 ClassExportRuleKeys.PARAM_HTTP_TYPE,
-                parameterExportContext.parameter
+                parameterExportContext.element()
             ) ?: "query"
         }
 
@@ -243,7 +233,7 @@ open class GenericRequestClassExporter : RequestClassExporter() {
             requestBuilderListener.addParam(
                 parameterExportContext,
                 request,
-                parameterExportContext.name(),
+                parameterExportContext.paramName(),
                 parameterExportContext.defaultVal().toString(),
                 parameterExportContext.required()
                     ?: false,
@@ -266,7 +256,7 @@ open class GenericRequestClassExporter : RequestClassExporter() {
         parameterExportContext: ParameterExportContext
     ): String {
         var ultimateComment = (paramDesc ?: "")
-        parameterExportContext.parameter.getType()?.let { duckType ->
+        parameterExportContext.element().getType()?.let { duckType ->
             commentResolver!!.resolveCommentForType(duckType, parameterExportContext.psi())?.let {
                 ultimateComment = "$ultimateComment $it"
             }
@@ -281,7 +271,6 @@ open class GenericRequestClassExporter : RequestClassExporter() {
         val basePath: URL = classExportContext?.getExt("basePath") ?: URL.nil()
         val ctrlHttpMethod: String? = classExportContext?.getExt("ctrlHttpMethod")
         val pathAndMethod = findPathAndMethod(methodExportContext.psi())
-        methodExportContext.setExt("requestMapping", pathAndMethod)
         var httpMethod = pathAndMethod.second
         if (httpMethod == HttpMethod.NO_METHOD && ctrlHttpMethod != HttpMethod.NO_METHOD) {
             httpMethod = ctrlHttpMethod!!

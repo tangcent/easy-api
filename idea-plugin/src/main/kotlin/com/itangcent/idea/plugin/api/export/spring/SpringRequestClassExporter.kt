@@ -11,23 +11,35 @@ import com.itangcent.common.model.Header
 import com.itangcent.common.model.Request
 import com.itangcent.common.model.URL
 import com.itangcent.common.utils.*
+import com.itangcent.idea.condition.annotation.ConditionOnClass
+import com.itangcent.idea.plugin.api.export.condition.ConditionOnSimple
 import com.itangcent.idea.plugin.api.export.core.*
 import com.itangcent.intellij.config.rule.computer
 import com.itangcent.intellij.jvm.AnnotationHelper
 import com.itangcent.intellij.util.hasFile
 
+/**
+ * Support export apis from spring controllers.
+ *
+ * @author tangcent
+ */
 @Singleton
+@ConditionOnSimple(false)
+@ConditionOnClass(SpringClassName.REQUEST_MAPPING_ANNOTATION)
 open class SpringRequestClassExporter : RequestClassExporter() {
 
     @Inject
-    private val annotationHelper: AnnotationHelper? = null
+    protected val annotationHelper: AnnotationHelper? = null
 
     @Inject
     protected val commentResolver: CommentResolver? = null
 
+    @Inject
+    protected lateinit var springRequestMappingResolver: SpringRequestMappingResolver
+
     override fun processClass(cls: PsiClass, classExportContext: ClassExportContext) {
 
-        val ctrlRequestMappingAnn = findRequestMapping(cls)
+        val ctrlRequestMappingAnn = findRequestMappingInAnn(cls)
         var basePath: URL = findHttpPath(ctrlRequestMappingAnn)
         val prefixPath = ruleComputer.computer(ClassExportRuleKeys.CLASS_PREFIX_PATH, cls)
         if (prefixPath.notNullOrBlank()) {
@@ -43,7 +55,7 @@ open class SpringRequestClassExporter : RequestClassExporter() {
     override fun hasApi(psiClass: PsiClass): Boolean {
         return SpringClassName.SPRING_CONTROLLER_ANNOTATION.any {
             annotationHelper!!.hasAnn(psiClass, it)
-        } || (ruleComputer.computer(ClassExportRuleKeys.IS_CTRL, psiClass) ?: false)
+        } || (ruleComputer.computer(ClassExportRuleKeys.IS_SPRING_CTRL, psiClass) ?: false)
     }
 
     override fun isApi(psiMethod: PsiMethod): Boolean {
@@ -74,7 +86,7 @@ open class SpringRequestClassExporter : RequestClassExporter() {
                     parameterExportContext, request,
                     ruleComputer.computer(
                         ClassExportRuleKeys.METHOD_DEFAULT_HTTP_METHOD,
-                        parameterExportContext.parameter.containMethod()
+                        parameterExportContext.element().containMethod()
                     )
                         ?: HttpMethod.POST
                 )
@@ -88,7 +100,7 @@ open class SpringRequestClassExporter : RequestClassExporter() {
         }
 
         var ultimateComment = (paramDesc ?: "")
-        parameterExportContext.parameter.getType()?.let { duckType ->
+        parameterExportContext.type()?.let { duckType ->
             commentResolver!!.resolveCommentForType(duckType, parameterExportContext.psi())?.let {
                 ultimateComment = "$ultimateComment $it"
             }
@@ -98,15 +110,17 @@ open class SpringRequestClassExporter : RequestClassExporter() {
         val requestHeaderAnn = findRequestHeader(parameterExportContext.psi())
         if (requestHeaderAnn != null) {
 
-            var headName = requestHeaderAnn.any("value", "name")
-            if (headName.anyIsNullOrEmpty()) {
+            var headName = requestHeaderAnn.any("value", "name")?.toString()
+            if (headName.isNullOrEmpty()) {
                 headName = parameterExportContext.name()
+            } else {
+                parameterExportContext.setParamName(headName)
             }
 
             var required = findRequired(requestHeaderAnn)
             if (!required && ruleComputer.computer(
                     ClassExportRuleKeys.PARAM_REQUIRED,
-                    parameterExportContext.parameter
+                    parameterExportContext.element()
                 ) == true
             ) {
                 required = true
@@ -115,7 +129,7 @@ open class SpringRequestClassExporter : RequestClassExporter() {
             val defaultValue = findDefaultValue(requestHeaderAnn) ?: ""
 
             val header = Header()
-            header.name = headName?.toString()
+            header.name = headName
             header.value = defaultValue
             header.desc = ultimateComment
             header.required = required
@@ -131,6 +145,8 @@ open class SpringRequestClassExporter : RequestClassExporter() {
 
             if (pathName == null) {
                 pathName = parameterExportContext.name()
+            } else {
+                parameterExportContext.setParamName(pathName)
             }
 
             requestBuilderListener.addPathParam(parameterExportContext, request, pathName, ultimateComment)
@@ -145,12 +161,15 @@ open class SpringRequestClassExporter : RequestClassExporter() {
 
             if (cookieName == null) {
                 cookieName = parameterExportContext.name()
+            } else {
+                parameterExportContext.setParamName(cookieName)
             }
+
 
             var required = findRequired(cookieValueAnn)
             if (!required && ruleComputer.computer(
                     ClassExportRuleKeys.PARAM_REQUIRED,
-                    parameterExportContext.parameter
+                    parameterExportContext.element()
                 ) == true
             ) {
                 required = true
@@ -159,13 +178,13 @@ open class SpringRequestClassExporter : RequestClassExporter() {
             requestBuilderListener.appendDesc(
                 parameterExportContext,
                 request, if (required) {
-                    "\nNeed cookie:$cookieName ($ultimateComment)"
+                    "Need cookie:$cookieName ($ultimateComment)"
                 } else {
                     val defaultValue = findDefaultValue(cookieValueAnn)
                     if (defaultValue.isNullOrBlank()) {
-                        "\nCookie:$cookieName ($ultimateComment)"
+                        "Cookie:$cookieName ($ultimateComment)"
                     } else {
-                        "\nCookie:$cookieName=$defaultValue ($ultimateComment)"
+                        "Cookie:$cookieName=$defaultValue ($ultimateComment)"
                     }
                 }
             )
@@ -180,7 +199,7 @@ open class SpringRequestClassExporter : RequestClassExporter() {
         val requestParamAnn = findRequestParam(parameterExportContext.psi())
 
         if (requestParamAnn != null) {
-            findParamName(requestParamAnn)?.let { parameterExportContext.setName(it) }
+            findParamName(requestParamAnn)?.let { parameterExportContext.setParamName(it) }
             parameterExportContext.setRequired(findRequired(requestParamAnn))
             findDefaultValue(requestParamAnn)?.let { parameterExportContext.setDefaultVal(it) }
 
@@ -189,14 +208,14 @@ open class SpringRequestClassExporter : RequestClassExporter() {
             }
         }
 
-        val readParamDefaultValue = readParamDefaultValue(parameterExportContext.parameter)
+        val readParamDefaultValue = readParamDefaultValue(parameterExportContext.element())
 
         if (readParamDefaultValue.notNullOrBlank()) {
             parameterExportContext.setDefaultVal(readParamDefaultValue!!)
         }
 
         if (parameterExportContext.required() == null) {
-            ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.parameter)?.let {
+            ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.element())?.let {
                 parameterExportContext.setRequired(it)
             }
         }
@@ -209,7 +228,7 @@ open class SpringRequestClassExporter : RequestClassExporter() {
         if (paramType.isNullOrBlank()) {
             paramType = ruleComputer.computer(
                 ClassExportRuleKeys.PARAM_HTTP_TYPE,
-                parameterExportContext.parameter
+                parameterExportContext.element()
             ) ?: "query"
         }
 
@@ -254,7 +273,7 @@ open class SpringRequestClassExporter : RequestClassExporter() {
             requestBuilderListener.addParam(
                 parameterExportContext,
                 request,
-                parameterExportContext.name(),
+                parameterExportContext.paramName(),
                 parameterExportContext.defaultVal().toString(),
                 parameterExportContext.required()
                     ?: false,
@@ -281,8 +300,11 @@ open class SpringRequestClassExporter : RequestClassExporter() {
         val requestMapping = findRequestMappingInAnn(methodExportContext.psi())
         methodExportContext.setExt("requestMapping", requestMapping)
         var httpMethod = findHttpMethod(requestMapping)
-        if (httpMethod == HttpMethod.NO_METHOD && ctrlHttpMethod != HttpMethod.NO_METHOD) {
-            httpMethod = ctrlHttpMethod!!
+        if (httpMethod == HttpMethod.NO_METHOD
+            && ctrlHttpMethod != null
+            && ctrlHttpMethod != HttpMethod.NO_METHOD
+        ) {
+            httpMethod = ctrlHttpMethod
         }
         request.method = httpMethod
 
@@ -291,7 +313,7 @@ open class SpringRequestClassExporter : RequestClassExporter() {
     }
 
     override fun processCompleted(methodExportContext: MethodExportContext, request: Request) {
-        val requestMapping: Pair<Map<String, Any?>, String>? = methodExportContext.getExt("requestMapping")
+        val requestMapping: Map<String, Any?>? = methodExportContext.getExt("requestMapping")
         requestMapping?.let {
             resolveParamInRequestMapping(methodExportContext, request, it)
             resolveHeaderInRequestMapping(methodExportContext, request, it)
@@ -302,9 +324,8 @@ open class SpringRequestClassExporter : RequestClassExporter() {
 
     //region process spring annotation-------------------------------------------------------------------
 
-    private fun findHttpPath(requestMappingAnn: Pair<Map<String, Any?>, String>?): URL {
-        val path = requestMappingAnn?.first.any("path", "value")
-        return when (path) {
+    private fun findHttpPath(requestMappingAnn: Map<String, Any?>?): URL {
+        return when (val path = requestMappingAnn?.any("path", "value")) {
             null -> URL.nil()
             is Array<*> -> URL.of(path.mapNotNull { it?.toString() })
             else -> URL.of(path.toString())
@@ -313,9 +334,9 @@ open class SpringRequestClassExporter : RequestClassExporter() {
 
     protected open fun resolveParamInRequestMapping(
         methodExportContext: MethodExportContext,
-        request: Request, requestMappingAnn: Pair<Map<String, Any?>, String>
+        request: Request, requestMappingAnn: Map<String, Any?>
     ) {
-        val params = requestMappingAnn.first["params"] ?: return
+        val params = requestMappingAnn["params"] ?: return
         if (params is Array<*>) {
             params.stream()
                 .map { it.tinyString() }
@@ -383,9 +404,9 @@ open class SpringRequestClassExporter : RequestClassExporter() {
 
     protected open fun resolveHeaderInRequestMapping(
         methodExportContext: MethodExportContext,
-        request: Request, requestMappingAnn: Pair<Map<String, Any?>, String>
+        request: Request, requestMappingAnn: Map<String, Any?>
     ) {
-        val headers = requestMappingAnn.first["headers"] ?: return
+        val headers = requestMappingAnn["headers"] ?: return
         if (headers is Array<*>) {
             headers.stream()
                 .map { it.tinyString() }
@@ -414,7 +435,7 @@ open class SpringRequestClassExporter : RequestClassExporter() {
                 if (header == null) {
                     requestBuilderListener.appendDesc(
                         methodExportContext,
-                        request, "\nheader [$name] " +
+                        request, "header [$name] " +
                                 "should not equal to [$value]"
                     )
                 } else {
@@ -443,54 +464,30 @@ open class SpringRequestClassExporter : RequestClassExporter() {
         }
     }
 
-    private fun findHttpMethod(requestMappingAnn: Pair<Map<String, Any?>, String>?): String {
-        if (requestMappingAnn != null) {
-            when (requestMappingAnn.second) {
-                SpringClassName.REQUEST_MAPPING_ANNOTATION -> {
-                    var method = requestMappingAnn.first["method"].tinyString() ?: return HttpMethod.NO_METHOD
-                    if (method.contains(",")) {
-                        method = method.substringBefore(",")
-                    }
-                    return when {
-                        method.isBlank() -> {
-                            HttpMethod.NO_METHOD
-                        }
-                        method.startsWith("RequestMethod.") -> {
-                            method.removePrefix("RequestMethod.")
-                        }
-                        method.contains("RequestMethod.") -> {
-                            method.substringAfterLast("RequestMethod.")
-                        }
-                        else -> method
-                    }
-                }
-                SpringClassName.GET_MAPPING -> return HttpMethod.GET
-                SpringClassName.POST_MAPPING -> return HttpMethod.POST
-                SpringClassName.DELETE_MAPPING -> return HttpMethod.DELETE
-                SpringClassName.PATCH_MAPPING -> return HttpMethod.PATCH
-                SpringClassName.PUT_MAPPING -> return HttpMethod.PUT
+    private fun findHttpMethod(requestMappingAnn: Map<String, Any?>?): String {
+        if (requestMappingAnn == null) {
+            return HttpMethod.NO_METHOD
+        }
+        var method = requestMappingAnn["method"].tinyString() ?: return HttpMethod.NO_METHOD
+        if (method.contains(",")) {
+            method = method.substringBefore(",")
+        }
+        return when {
+            method.isBlank() -> {
+                HttpMethod.NO_METHOD
             }
+            method.startsWith("RequestMethod.") -> {
+                method.removePrefix("RequestMethod.")
+            }
+            method.contains("RequestMethod.") -> {
+                method.substringAfterLast("RequestMethod.")
+            }
+            else -> method
         }
-        return HttpMethod.NO_METHOD
     }
 
-    private fun findRequestMapping(psiClass: PsiClass): Pair<Map<String, Any?>, String>? {
-        val requestMappingAnn = findRequestMappingInAnn(psiClass)
-        if (requestMappingAnn != null) return requestMappingAnn
-        var superCls = psiClass.superClass
-        while (superCls != null) {
-            val requestMappingAnnInSuper = findRequestMappingInAnn(superCls)
-            if (requestMappingAnnInSuper != null) return requestMappingAnnInSuper
-            superCls = superCls.superClass
-        }
-        return null
-    }
-
-    private fun findRequestMappingInAnn(ele: PsiElement): Pair<Map<String, Any?>, String>? {
-        return SpringClassName.SPRING_REQUEST_MAPPING_ANNOTATIONS
-            .stream()
-            .map { ann -> annotationHelper!!.findAnnMap(ele, ann)?.to(ann) }
-            .firstOrNull { it != null }
+    private fun findRequestMappingInAnn(ele: PsiElement): Map<String, Any?>? {
+        return springRequestMappingResolver.resolveRequestMapping(ele)
     }
 
     protected fun isRequestBody(parameter: PsiParameter): Boolean {

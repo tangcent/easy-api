@@ -14,8 +14,14 @@ object ClassExportRuleKeys {
         BooleanRuleMode.ANY
     )
 
-    val IS_CTRL: RuleKey<Boolean> = SimpleRuleKey(
-        "class.is.ctrl",
+    val IS_SPRING_CTRL: RuleKey<Boolean> = SimpleRuleKey(
+        "class.is.spring.ctrl",
+        arrayOf("class.is.ctrl"),
+        BooleanRuleMode.ANY
+    )
+
+    val IS_QUARKUS_CTRL: RuleKey<Boolean> = SimpleRuleKey(
+        "class.is.quarkus.ctrl",
         BooleanRuleMode.ANY
     )
 
@@ -285,6 +291,11 @@ object ClassExportRuleKeys {
     val JSON_METHOD_PARSE_AFTER: RuleKey<Boolean> = SimpleRuleKey(
         "json.method.parse.after", arrayOf("method.parse.after"),
         EventRuleMode.THROW_IN_ERROR
+    )
+
+    val JSON_ADDITIONAL_FIELD: RuleKey<String> = SimpleRuleKey(
+        "json.additional.field",
+        StringRuleMode.MERGE_DISTINCT
     )
 
     //region api parse - event

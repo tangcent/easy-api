@@ -14,11 +14,14 @@ import com.itangcent.idea.plugin.Worker
 import com.itangcent.idea.plugin.WorkerStatus
 import com.itangcent.idea.plugin.api.ClassApiExporterHelper
 import com.itangcent.idea.plugin.api.MethodInferHelper
-import com.itangcent.idea.plugin.api.export.MethodFilter
+import com.itangcent.idea.plugin.api.export.core.MethodFilter
+import com.itangcent.idea.plugin.api.export.Orders
+import com.itangcent.idea.plugin.api.export.condition.ConditionOnDoc
+import com.itangcent.idea.plugin.api.export.condition.ConditionOnSimple
 import com.itangcent.idea.plugin.api.export.core.*
 import com.itangcent.idea.plugin.api.export.core.LinkResolver
+import com.itangcent.idea.plugin.condition.ConditionOnSetting
 import com.itangcent.idea.plugin.settings.helper.IntelligentSettingsHelper
-import com.itangcent.idea.plugin.settings.helper.SupportSettingsHelper
 import com.itangcent.idea.psi.PsiMethodResource
 import com.itangcent.intellij.config.rule.RuleComputer
 import com.itangcent.intellij.config.rule.computer
@@ -30,8 +33,13 @@ import com.itangcent.intellij.jvm.element.ExplicitParameter
 import com.itangcent.intellij.logger.Logger
 import com.itangcent.intellij.psi.JsonOption
 import com.itangcent.intellij.psi.PsiClassUtils
+import com.itangcent.order.Order
 import kotlin.reflect.KClass
 
+@Order(Orders.GENERIC + Orders.METHOD_DOC)
+@ConditionOnSimple(false)
+@ConditionOnDoc("methodDoc")
+@ConditionOnSetting("genericEnable", "methodDocEnable")
 open class GenericMethodDocClassExporter : ClassExporter, Worker {
 
     @Inject
@@ -47,7 +55,7 @@ open class GenericMethodDocClassExporter : ClassExporter, Worker {
     private val linkResolver: LinkResolver? = null
 
     override fun support(docType: KClass<*>): Boolean {
-        return docType == MethodDoc::class && methodDocEnable()
+        return docType == MethodDoc::class
     }
 
     private var statusRecorder: StatusRecorder = StatusRecorder()
@@ -74,9 +82,6 @@ open class GenericMethodDocClassExporter : ClassExporter, Worker {
     protected lateinit var methodDocBuilderListener: MethodDocBuilderListener
 
     @Inject
-    protected lateinit var supportSettingsHelper: SupportSettingsHelper
-
-    @Inject
     protected lateinit var intelligentSettingsHelper: IntelligentSettingsHelper
 
     @Inject
@@ -101,10 +106,6 @@ open class GenericMethodDocClassExporter : ClassExporter, Worker {
     private lateinit var classApiExporterHelper: ClassApiExporterHelper
 
     override fun export(cls: Any, docHandle: DocHandle, completedHandle: CompletedHandle): Boolean {
-        if (!methodDocEnable()) {
-            completedHandle(cls)
-            return false
-        }
         if (cls !is PsiClass) {
             completedHandle(cls)
             return false
@@ -173,7 +174,7 @@ open class GenericMethodDocClassExporter : ClassExporter, Worker {
 
     @Suppress("UNUSED")
     protected open fun shouldIgnore(psiElement: PsiElement): Boolean {
-        if (ruleComputer!!.computer(ClassExportRuleKeys.IGNORE, psiElement) == true) {
+        if (ruleComputer.computer(ClassExportRuleKeys.IGNORE, psiElement) == true) {
             return true
         }
 
@@ -223,7 +224,7 @@ open class GenericMethodDocClassExporter : ClassExporter, Worker {
         methodExportContext: MethodExportContext,
         methodDoc: MethodDoc
     ) {
-        apiHelper!!.nameAndAttrOfApi(methodExportContext.method, {
+        apiHelper!!.nameAndAttrOfApi(methodExportContext.element(), {
             methodDocBuilderListener.setName(methodExportContext, methodDoc, it)
         }, {
             methodDocBuilderListener.appendDesc(methodExportContext, methodDoc, it)
@@ -236,7 +237,7 @@ open class GenericMethodDocClassExporter : ClassExporter, Worker {
 
     protected open fun processRet(methodExportContext: MethodExportContext, methodDoc: MethodDoc) {
 
-        val returnType = methodExportContext.method.getReturnType()
+        val returnType = methodExportContext.element().getReturnType()
         if (returnType != null) {
             try {
                 val typedResponse = parseResponseBody(methodExportContext, returnType)
@@ -246,9 +247,9 @@ open class GenericMethodDocClassExporter : ClassExporter, Worker {
                 val descOfReturn = docHelper!!.findDocByTag(methodExportContext.psi(), "return")
 
                 if (descOfReturn.notNullOrBlank()) {
-                    val methodReturnMain = ruleComputer!!.computer(
+                    val methodReturnMain = ruleComputer.computer(
                         ClassExportRuleKeys.METHOD_RETURN_MAIN,
-                        methodExportContext.method
+                        methodExportContext.element()
                     )
                     if (methodReturnMain.isNullOrBlank()) {
                         methodDocBuilderListener.appendRetDesc(
@@ -321,7 +322,7 @@ open class GenericMethodDocClassExporter : ClassExporter, Worker {
 
     private fun processMethodParameters(methodExportContext: MethodExportContext, methodDoc: MethodDoc) {
 
-        val params = methodExportContext.method.getParameters()
+        val params = methodExportContext.element().getParameters()
 
         if (params.isNotEmpty()) {
 
@@ -329,7 +330,7 @@ open class GenericMethodDocClassExporter : ClassExporter, Worker {
 
             for (param in params) {
 
-                if (ruleComputer!!.computer(ClassExportRuleKeys.PARAM_IGNORE, param) == true) {
+                if (ruleComputer.computer(ClassExportRuleKeys.PARAM_IGNORE, param) == true) {
                     continue
                 }
 
@@ -363,7 +364,7 @@ open class GenericMethodDocClassExporter : ClassExporter, Worker {
             param.name(),
             typeObject,
             paramDesc,
-            ruleComputer!!.computer(ClassExportRuleKeys.PARAM_REQUIRED, param) == true
+            ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, param) == true
         )
     }
 
@@ -388,11 +389,7 @@ open class GenericMethodDocClassExporter : ClassExporter, Worker {
     }
 
     protected open fun readParamDoc(explicitParameter: ExplicitParameter): String? {
-        return ruleComputer!!.computer(ClassExportRuleKeys.PARAM_DOC, explicitParameter)
-    }
-
-    private fun methodDocEnable(): Boolean {
-        return supportSettingsHelper.methodDocEnable()
+        return ruleComputer.computer(ClassExportRuleKeys.PARAM_DOC, explicitParameter)
     }
 
     private fun needInfer(): Boolean {

@@ -1,21 +1,20 @@
 package com.itangcent.idea.plugin.api.export.spring
 
 import com.google.inject.Inject
+import com.google.inject.Singleton
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMethod
 import com.itangcent.common.logger.traceError
 import com.itangcent.common.model.Request
-import com.itangcent.common.utils.firstOrNull
 import com.itangcent.common.utils.stream
+import com.itangcent.idea.condition.annotation.ConditionOnClass
 import com.itangcent.idea.plugin.StatusRecorder
 import com.itangcent.idea.plugin.Worker
 import com.itangcent.idea.plugin.WorkerStatus
-import com.itangcent.idea.plugin.api.export.core.ApiHelper
-import com.itangcent.idea.plugin.api.export.core.ClassExportRuleKeys
-import com.itangcent.idea.plugin.api.export.core.ClassExporter
-import com.itangcent.idea.plugin.api.export.core.CompletedHandle
-import com.itangcent.idea.plugin.api.export.core.DocHandle
+import com.itangcent.idea.plugin.api.export.condition.ConditionOnDoc
+import com.itangcent.idea.plugin.api.export.condition.ConditionOnSimple
+import com.itangcent.idea.plugin.api.export.core.*
 import com.itangcent.idea.psi.PsiMethodResource
 import com.itangcent.intellij.config.rule.RuleComputer
 import com.itangcent.intellij.context.ActionContext
@@ -27,13 +26,20 @@ import kotlin.reflect.KClass
 /**
  * only parse name
  */
+@Singleton
+@ConditionOnSimple
+@ConditionOnClass(SpringClassName.REQUEST_MAPPING_ANNOTATION)
+@ConditionOnDoc("request")
 open class SimpleSpringRequestClassExporter : ClassExporter, Worker {
 
     @Inject
-    private val annotationHelper: AnnotationHelper? = null
+    protected val annotationHelper: AnnotationHelper? = null
 
     @Inject
     protected val jvmClassHelper: JvmClassHelper? = null
+
+    @Inject
+    protected lateinit var springRequestMappingResolver: SpringRequestMappingResolver
 
     override fun support(docType: KClass<*>): Boolean {
         return docType == Request::class
@@ -101,10 +107,10 @@ open class SimpleSpringRequestClassExporter : ClassExporter, Worker {
         return true
     }
 
-    private fun isCtrl(psiClass: PsiClass): Boolean {
+    protected open fun isCtrl(psiClass: PsiClass): Boolean {
         return psiClass.annotations.any {
             SpringClassName.SPRING_CONTROLLER_ANNOTATION.contains(it.qualifiedName)
-        } || (ruleComputer!!.computer(ClassExportRuleKeys.IS_CTRL, psiClass) ?: false)
+        } || (ruleComputer!!.computer(ClassExportRuleKeys.IS_SPRING_CTRL, psiClass) ?: false)
     }
 
     private fun shouldIgnore(psiElement: PsiElement): Boolean {
@@ -124,19 +130,16 @@ open class SimpleSpringRequestClassExporter : ClassExporter, Worker {
     }
 
     private fun findRequestMappingInAnn(ele: PsiElement): Map<String, Any?>? {
-        return SpringClassName.SPRING_REQUEST_MAPPING_ANNOTATIONS
-                .stream()
-                .map { annotationHelper!!.findAnnMap(ele, it) }
-                .firstOrNull { it != null }
+        return springRequestMappingResolver.resolveRequestMapping(ele)
     }
 
     private fun foreachMethod(cls: PsiClass, handle: (PsiMethod) -> Unit) {
         jvmClassHelper!!.getAllMethods(cls)
-                .stream()
-                .filter { !jvmClassHelper.isBasicMethod(it.name) }
-                .filter { !it.hasModifierProperty("static") }
-                .filter { !it.isConstructor }
-                .filter { !shouldIgnore(it) }
-                .forEach(handle)
+            .stream()
+            .filter { !jvmClassHelper.isBasicMethod(it.name) }
+            .filter { !it.hasModifierProperty("static") }
+            .filter { !it.isConstructor }
+            .filter { !shouldIgnore(it) }
+            .forEach(handle)
     }
 }

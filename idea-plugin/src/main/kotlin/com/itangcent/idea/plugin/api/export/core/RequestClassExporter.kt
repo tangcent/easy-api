@@ -8,7 +8,10 @@ import com.itangcent.common.exception.ProcessCanceledException
 import com.itangcent.common.kit.KVUtils
 import com.itangcent.common.kit.KitUtils
 import com.itangcent.common.logger.traceError
-import com.itangcent.common.model.*
+import com.itangcent.common.model.Request
+import com.itangcent.common.model.Response
+import com.itangcent.common.model.getContentType
+import com.itangcent.common.model.hasBodyOrForm
 import com.itangcent.common.utils.*
 import com.itangcent.http.RequestUtils
 import com.itangcent.idea.plugin.StatusRecorder
@@ -16,7 +19,7 @@ import com.itangcent.idea.plugin.Worker
 import com.itangcent.idea.plugin.WorkerStatus
 import com.itangcent.idea.plugin.api.ClassApiExporterHelper
 import com.itangcent.idea.plugin.api.MethodInferHelper
-import com.itangcent.idea.plugin.api.export.MethodFilter
+import com.itangcent.idea.plugin.api.export.condition.ConditionOnDoc
 import com.itangcent.idea.plugin.api.export.rule.RequestRuleWrap
 import com.itangcent.idea.plugin.api.export.spring.SpringClassName
 import com.itangcent.idea.plugin.settings.helper.IntelligentSettingsHelper
@@ -26,8 +29,8 @@ import com.itangcent.intellij.config.rule.computer
 import com.itangcent.intellij.context.ActionContext
 import com.itangcent.intellij.jvm.*
 import com.itangcent.intellij.jvm.duck.DuckType
+import com.itangcent.intellij.jvm.element.ExplicitElement
 import com.itangcent.intellij.jvm.element.ExplicitMethod
-import com.itangcent.intellij.jvm.element.ExplicitParameter
 import com.itangcent.intellij.logger.Logger
 import com.itangcent.intellij.psi.ContextSwitchListener
 import com.itangcent.intellij.psi.JsonOption
@@ -39,6 +42,7 @@ import kotlin.reflect.KClass
  * An abstract implementation of  [ClassExporter]
  * that exports [Request] from code.
  */
+@ConditionOnDoc("request")
 abstract class RequestClassExporter : ClassExporter, Worker {
 
     @Inject
@@ -81,7 +85,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
     protected lateinit var intelligentSettingsHelper: IntelligentSettingsHelper
 
     @Inject
-    protected val duckTypeHelper: DuckTypeHelper? = null
+    protected lateinit var duckTypeHelper: DuckTypeHelper
 
     @Inject
     protected val methodReturnInferHelper: MethodInferHelper? = null
@@ -211,25 +215,25 @@ abstract class RequestClassExporter : ClassExporter, Worker {
         request: Request
     ) {
 
-        apiHelper!!.nameAndAttrOfApi(methodExportContext.method, {
+        apiHelper!!.nameAndAttrOfApi(methodExportContext.element(), {
             requestBuilderListener.setName(methodExportContext, request, it)
         }, {
             requestBuilderListener.appendDesc(methodExportContext, request, it)
         })
 
         //computer content-type.
-        ruleComputer.computer(ClassExportRuleKeys.METHOD_CONTENT_TYPE, methodExportContext.method)
+        ruleComputer.computer(ClassExportRuleKeys.METHOD_CONTENT_TYPE, methodExportContext.element())
             ?.let {
                 requestBuilderListener.setContentType(methodExportContext, request, it)
             }
 
     }
 
-    protected open fun readParamDoc(explicitParameter: ExplicitParameter): String? {
+    protected open fun readParamDoc(explicitParameter: ExplicitElement<*>): String? {
         return ruleComputer.computer(ClassExportRuleKeys.PARAM_DOC, explicitParameter)
     }
 
-    protected open fun readParamDefaultValue(param: ExplicitParameter): String? {
+    protected open fun readParamDefaultValue(param: ExplicitElement<*>): String? {
         return ruleComputer.computer(ClassExportRuleKeys.PARAM_DEFAULT_VALUE, param)
     }
 
@@ -237,7 +241,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
         //parse additionalHeader by config
         val additionalHeader = ruleComputer.computer(
             ClassExportRuleKeys.METHOD_ADDITIONAL_HEADER,
-            methodExportContext.method
+            methodExportContext.element()
         )
         if (additionalHeader.notNullOrEmpty()) {
             val additionalHeaders = additionalHeader!!.lines()
@@ -263,7 +267,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
 
         //parse additionalParam by config
         val additionalParam =
-            ruleComputer.computer(ClassExportRuleKeys.METHOD_ADDITIONAL_PARAM, methodExportContext.method)
+            ruleComputer.computer(ClassExportRuleKeys.METHOD_ADDITIONAL_PARAM, methodExportContext.element())
         if (additionalParam.notNullOrEmpty()) {
             val additionalParams = additionalParam!!.lines()
             for (paramStr in additionalParams) {
@@ -289,7 +293,10 @@ abstract class RequestClassExporter : ClassExporter, Worker {
         //parse additionalResponseHeader by config
         if (request.response.notNullOrEmpty()) {
             val additionalResponseHeader =
-                ruleComputer.computer(ClassExportRuleKeys.METHOD_ADDITIONAL_RESPONSE_HEADER, methodExportContext.method)
+                ruleComputer.computer(
+                    ClassExportRuleKeys.METHOD_ADDITIONAL_RESPONSE_HEADER,
+                    methodExportContext.element()
+                )
             if (additionalResponseHeader.notNullOrEmpty()) {
                 val additionalHeaders = additionalResponseHeader!!.lines()
                 for (headerStr in additionalHeaders) {
@@ -319,7 +326,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
         }
 
         //fire AFTER_EXPORT
-        ruleComputer.computer(ClassExportRuleKeys.AFTER_EXPORT, methodExportContext.method) {
+        ruleComputer.computer(ClassExportRuleKeys.AFTER_EXPORT, methodExportContext.element()) {
             it.setExt("api", RequestRuleWrap(methodExportContext, request))
         }
     }
@@ -328,16 +335,16 @@ abstract class RequestClassExporter : ClassExporter, Worker {
 
         var returnType: DuckType? = null
         var fromRule = false
-        val returnTypeByRule = ruleComputer.computer(ClassExportRuleKeys.METHOD_RETURN, methodExportContext.method)
+        val returnTypeByRule = ruleComputer.computer(ClassExportRuleKeys.METHOD_RETURN, methodExportContext.element())
         if (returnTypeByRule.notNullOrBlank()) {
-            val resolvedReturnType = duckTypeHelper!!.resolve(returnTypeByRule!!.trim(), methodExportContext.psi())
+            val resolvedReturnType = duckTypeHelper.resolve(returnTypeByRule!!.trim(), methodExportContext.psi())
             if (resolvedReturnType != null) {
                 returnType = resolvedReturnType
                 fromRule = true
             }
         }
         if (!fromRule) {
-            returnType = methodExportContext.method.getReturnType()
+            returnType = methodExportContext.type()
         }
 
         if (returnType != null) {
@@ -349,12 +356,12 @@ abstract class RequestClassExporter : ClassExporter, Worker {
                     response, 200
                 )
 
-                val typedResponse = parseResponseBody(returnType, fromRule, methodExportContext.method)
+                val typedResponse = parseResponseBody(returnType, fromRule, methodExportContext.element())
 
                 val descOfReturn = docHelper!!.findDocByTag(methodExportContext.psi(), "return")
                 if (descOfReturn.notNullOrBlank()) {
                     val methodReturnMain =
-                        ruleComputer.computer(ClassExportRuleKeys.METHOD_RETURN_MAIN, methodExportContext.method)
+                        ruleComputer.computer(ClassExportRuleKeys.METHOD_RETURN_MAIN, methodExportContext.element())
                     if (methodReturnMain.isNullOrBlank()) {
                         requestBuilderListener.appendResponseBodyDesc(
                             methodExportContext,
@@ -454,7 +461,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
 
     private fun processMethodParameters(methodExportContext: MethodExportContext, request: Request) {
 
-        val params = methodExportContext.method.getParameters()
+        val params = methodExportContext.element().getParameters()
 
         if (params.isNotEmpty()) {
 
@@ -492,7 +499,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
                 } else if (request.method == null || request.method == HttpMethod.NO_METHOD) {
                     request.method = ruleComputer.computer(
                         ClassExportRuleKeys.METHOD_DEFAULT_HTTP_METHOD,
-                        methodExportContext.method
+                        methodExportContext.element()
                     ) ?: HttpMethod.POST
                 }
                 requestBuilderListener.addHeader(
@@ -502,17 +509,17 @@ abstract class RequestClassExporter : ClassExporter, Worker {
             }
 
             for (parameterExportContext in parsedParams) {
-                ruleComputer.computer(ClassExportRuleKeys.API_PARAM_BEFORE, parameterExportContext.parameter)
+                ruleComputer.computer(ClassExportRuleKeys.API_PARAM_BEFORE, parameterExportContext.element())
 
                 try {
                     processMethodParameter(
                         request,
                         parameterExportContext,
                         KVUtils.getUltimateComment(paramDocComment, parameterExportContext.name())
-                            .append(readParamDoc(parameterExportContext.parameter))
+                            .append(readParamDoc(parameterExportContext.element()))
                     )
                 } finally {
-                    ruleComputer.computer(ClassExportRuleKeys.API_PARAM_AFTER, parameterExportContext.parameter)
+                    ruleComputer.computer(ClassExportRuleKeys.API_PARAM_AFTER, parameterExportContext.element())
                 }
             }
         }
@@ -520,7 +527,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
         if (request.method == null || request.method == HttpMethod.NO_METHOD) {
             val defaultHttpMethod = ruleComputer.computer(
                 ClassExportRuleKeys.METHOD_DEFAULT_HTTP_METHOD,
-                methodExportContext.method
+                methodExportContext.element()
             )
             requestBuilderListener.setMethod(
                 methodExportContext,
@@ -560,7 +567,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
 
     @Suppress("UNCHECKED_CAST")
     protected open fun addParamAsQuery(
-        parameterExportContext: ParameterExportContext,
+        parameterExportContext: VariableExportContext,
         request: Request, typeObject: Any?, paramDesc: String? = null
     ) {
         try {
@@ -569,9 +576,9 @@ abstract class RequestClassExporter : ClassExporter, Worker {
             if (typeObject == Magics.FILE_STR) {
                 requestBuilderListener.addFormFileParam(
                     parameterExportContext,
-                    request, parameterExportContext.name(),
+                    request, parameterExportContext.paramName(),
                     parameterExportContext.required()
-                        ?: ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.parameter)
+                        ?: ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.element())
                         ?: false, paramDesc
                 )
                 return
@@ -581,10 +588,10 @@ abstract class RequestClassExporter : ClassExporter, Worker {
                 requestBuilderListener.addParam(
                     parameterExportContext,
                     request,
-                    parameterExportContext.name(),
+                    parameterExportContext.paramName(),
                     tinyQueryParam(parameterExportContext.defaultVal() ?: typeObject?.toString()),
                     parameterExportContext.required()
-                        ?: ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.parameter)
+                        ?: ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.element())
                         ?: false,
                     paramDesc
                 )
@@ -642,7 +649,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
         } catch (e: Exception) {
             logger.traceError(
                 "error to parse [${
-                    parameterExportContext.parameter.getType()?.canonicalText()
+                    parameterExportContext.type()?.canonicalText()
                 }] as Queries", e
             )
         }
@@ -650,7 +657,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
 
     @Suppress("UNCHECKED_CAST")
     protected open fun addParamAsForm(
-        parameterExportContext: ParameterExportContext,
+        parameterExportContext: VariableExportContext,
         request: Request, typeObject: Any?, paramDesc: String? = null
     ) {
 
@@ -658,10 +665,10 @@ abstract class RequestClassExporter : ClassExporter, Worker {
             if (typeObject == Magics.FILE_STR) {
                 requestBuilderListener.addFormFileParam(
                     parameterExportContext,
-                    request, parameterExportContext.name(),
+                    request, parameterExportContext.paramName(),
                     ruleComputer.computer(
                         ClassExportRuleKeys.PARAM_REQUIRED,
-                        parameterExportContext.parameter
+                        parameterExportContext.element()
                     )
                         ?: false, paramDesc
                 )
@@ -730,15 +737,15 @@ abstract class RequestClassExporter : ClassExporter, Worker {
             } else {
                 requestBuilderListener.addFormParam(
                     parameterExportContext,
-                    request, parameterExportContext.name(), tinyQueryParam(typeObject?.toString()),
+                    request, parameterExportContext.paramName(), tinyQueryParam(typeObject?.toString()),
                     parameterExportContext.required()
-                        ?: ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.parameter)
+                        ?: ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.element())
                         ?: false, paramDesc
                 )
             }
         } catch (e: Exception) {
             logger.traceError(
-                "error to parse[" + parameterExportContext.parameter.getType()?.canonicalText() + "] as ModelAttribute",
+                "error to parse[" + parameterExportContext.type()?.canonicalText() + "] as ModelAttribute",
                 e
             )
         }
@@ -757,7 +764,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
                 duckType, method.psi(),
                 this.intelligentSettingsHelper.jsonOptionForOutput(JsonOption.READ_COMMENT)
             )
-            this.intelligentSettingsHelper.inferEnable() && !duckTypeHelper!!.isQualified(duckType)
+            this.intelligentSettingsHelper.inferEnable() && !duckTypeHelper.isQualified(duckType)
             -> {
                 logger.info("try infer return type of method[" + PsiClassUtils.fullNameOfMethod(method.psi()) + "]")
                 methodReturnInferHelper!!.inferReturn(method.psi())
@@ -789,35 +796,35 @@ abstract class RequestClassExporter : ClassExporter, Worker {
     }
 
     //region extent of ParameterExportContext
-    fun ParameterExportContext.setName(name: String) {
+    fun VariableExportContext.setParamName(name: String) {
         this.setExt("param_name", name)
     }
 
-    fun ParameterExportContext.name(): String {
-        return this.getExt<String>("param_name") ?: this.parameter.name()
+    fun VariableExportContext.paramName(): String {
+        return this.getExt<String>("param_name") ?: this.name()
     }
 
-    fun ParameterExportContext.setRequired(name: Boolean) {
+    fun ExportContext.setRequired(name: Boolean) {
         this.setExt("required", name)
     }
 
-    fun ParameterExportContext.required(): Boolean? {
+    fun ExportContext.required(): Boolean? {
         return this.getExt<Boolean>("required")
     }
 
-    fun ParameterExportContext.setDefaultVal(defaultVal: String) {
+    fun ExportContext.setDefaultVal(defaultVal: String) {
         this.setExt("defaultVal", defaultVal)
     }
 
-    fun ParameterExportContext.defaultVal(): String? {
+    fun ExportContext.defaultVal(): String? {
         return this.getExt<String>("defaultVal")
     }
 
-    fun ParameterExportContext.raw(): Any? {
+    fun VariableExportContext.raw(): Any? {
         return this.cache("raw") {
-            val paramType = this.parameter.getType() ?: return@cache null
+            val paramType = this.type() ?: return@cache null
             val typeObject = psiClassHelper!!.getTypeObject(
-                paramType, parameter.psi(),
+                paramType, this.psi(),
                 this@RequestClassExporter.intelligentSettingsHelper.jsonOptionForInput(JsonOption.READ_COMMENT)
             )
             this.setExt("raw", typeObject)
@@ -825,7 +832,7 @@ abstract class RequestClassExporter : ClassExporter, Worker {
         }
     }
 
-    fun ParameterExportContext.unbox(): Any? {
+    fun VariableExportContext.unbox(): Any? {
         return this.cache("unbox") {
             return@cache raw().unbox()
         }

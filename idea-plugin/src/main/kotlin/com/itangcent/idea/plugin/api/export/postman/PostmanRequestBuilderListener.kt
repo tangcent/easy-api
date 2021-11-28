@@ -3,6 +3,7 @@ package com.itangcent.idea.plugin.api.export.postman
 import com.google.inject.Inject
 import com.itangcent.common.model.*
 import com.itangcent.common.utils.notNullOrBlank
+import com.itangcent.idea.plugin.api.export.condition.ConditionOnChannel
 import com.itangcent.idea.plugin.api.export.core.ClassExportRuleKeys
 import com.itangcent.idea.plugin.api.export.core.ExportContext
 import com.itangcent.idea.plugin.api.export.core.MethodExportContext
@@ -11,11 +12,12 @@ import com.itangcent.intellij.config.rule.RuleComputer
 import com.itangcent.intellij.config.rule.computer
 
 /**
- * 1.support rule:[com.itangcent.idea.plugin.api.export.ClassExportRuleKeys.POST_PRE_REQUEST]
- * 2.support rule:[com.itangcent.idea.plugin.api.export.ClassExportRuleKeys.POST_TEST]
+ * 1.support rule:[com.itangcent.idea.plugin.api.export.core.ClassExportRuleKeys.POST_PRE_REQUEST]
+ * 2.support rule:[com.itangcent.idea.plugin.api.export.core.ClassExportRuleKeys.POST_TEST]
  *
  * @see [https://learning.postman.com/docs/writing-scripts/intro-to-scripts/]
  */
+@ConditionOnChannel("postman")
 class PostmanRequestBuilderListener : RequestBuilderListener {
 
     @Inject
@@ -94,12 +96,12 @@ class PostmanRequestBuilderListener : RequestBuilderListener {
     }
 
     override fun processCompleted(methodExportContext: MethodExportContext, request: Request) {
-        val preRequest = ruleComputer.computer(ClassExportRuleKeys.POST_PRE_REQUEST, methodExportContext.method)
+        val preRequest = ruleComputer.computer(ClassExportRuleKeys.POST_PRE_REQUEST, methodExportContext.element())
         if (preRequest.notNullOrBlank()) {
             request.setExt(ClassExportRuleKeys.POST_PRE_REQUEST.name(), preRequest)
         }
 
-        val test = ruleComputer.computer(ClassExportRuleKeys.POST_TEST, methodExportContext.method)
+        val test = ruleComputer.computer(ClassExportRuleKeys.POST_TEST, methodExportContext.element())
         if (test.notNullOrBlank()) {
             request.setExt(ClassExportRuleKeys.POST_TEST.name(), test)
         }
