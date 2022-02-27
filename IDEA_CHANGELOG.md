@@ -1,3 +1,7 @@
+* 2.1.7
+
+	* feat: pick features from easy-yapi [(#415)](https://github.com/tangcent/easy-api/pull/415)&[(#414)](https://github.com/tangcent/easy-api/pull/414)
+
 * 2.1.6
 
 	* test: add test case of ApiCaller [(#412)](https://github.com/tangcent/easy-api/pull/412)
