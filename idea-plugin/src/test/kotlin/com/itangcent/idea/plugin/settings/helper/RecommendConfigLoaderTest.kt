@@ -36,7 +36,9 @@ internal class RecommendConfigLoaderTest {
                     "#Support spring file\n" +
                     "type.is_file=groovy:it.isExtend(\"org.springframework.web.multipart.MultipartFile\")\n" +
                     "#ignore serialVersionUID\n" +
-                    "constant.field.ignore=groovy:it.name()==\"serialVersionUID\"",
+                    "constant.field.ignore=groovy:it.name()==\"serialVersionUID\"\n" +
+                    "# @ConfigurationProperties\n" +
+                    "properties.prefix=@org.springframework.boot.context.properties.ConfigurationProperties#prefix",
             RecommendConfigLoader.buildRecommendConfig("-Jackson_JsonIgnoreProperties,-converts,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped)")
                 .toUnixString()
         )
@@ -96,7 +98,7 @@ internal class RecommendConfigLoaderTest {
     @Test
     fun testCodes() {
         assertEquals(
-            "[module, ignore, deprecated_java, deprecated_kotlin, Jackson, Jackson_JsonIgnoreProperties, Jackson_JsonUnwrapped, Gson, ignore_transient_field, converts, spring_Entity, spring_webflux, spring.validations, spring.ui, javax.validation, javax.validation(grouped), is_file, import_spring_properties, resolve_spring_properties, ignore_serialVersionUID, private_protected_field_only, not_ignore_static_final_field, Jackson_JsonNaming, Jackson_UpperCamelCaseStrategy, Jackson_SnakeCaseStrategy, Jackson_LowerCaseStrategy, Jackson_KebabCaseStrategy, Jackson_LowerDotCaseStrategy]",
+            "[module, ignore, deprecated_java, deprecated_kotlin, Jackson, Jackson_JsonIgnoreProperties, Jackson_JsonUnwrapped, Gson, ignore_transient_field, converts, spring_Entity, spring_webflux, spring.validations, spring.ui, javax.validation, javax.validation(grouped), is_file, import_spring_properties, resolve_spring_properties, ignore_serialVersionUID, private_protected_field_only, not_ignore_static_final_field, Jackson_JsonNaming, Jackson_UpperCamelCaseStrategy, Jackson_SnakeCaseStrategy, Jackson_LowerCaseStrategy, Jackson_KebabCaseStrategy, Jackson_LowerDotCaseStrategy, properties]",
             RecommendConfigLoader.codes().contentToString()
         )
 
@@ -105,8 +107,8 @@ internal class RecommendConfigLoaderTest {
     @Test
     fun testSelectedCodes() {
         assertEquals(
-            "[module, ignore, Jackson, Gson, ignore_transient_field, spring.validations, is_file, import_spring_properties, ignore_serialVersionUID]",
-            RecommendConfigLoader.selectedCodes("-Jackson_JsonIgnoreProperties,-converts,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),import_spring_properties")
+            "[module, ignore, Jackson, Gson, ignore_transient_field, spring.validations, is_file, import_spring_properties, ignore_serialVersionUID, properties]",
+            RecommendConfigLoader.selectedCodes("-Jackson_JsonIgnoreProperties,-converts,-yapi_tag,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties")
                 .contentToString()
         )
     }
@@ -114,7 +116,7 @@ internal class RecommendConfigLoaderTest {
     @Test
     fun testDefaultCodes() {
         assertEquals(
-            "module,ignore,deprecated_java,deprecated_kotlin,Jackson,Gson,ignore_transient_field,converts,spring_Entity,spring.validations,spring.ui,javax.validation,is_file,ignore_serialVersionUID",
+            "module,ignore,deprecated_java,deprecated_kotlin,Jackson,Gson,ignore_transient_field,converts,spring_Entity,spring.validations,spring.ui,javax.validation,is_file,ignore_serialVersionUID,properties",
             RecommendConfigLoader.defaultCodes()
         )
     }

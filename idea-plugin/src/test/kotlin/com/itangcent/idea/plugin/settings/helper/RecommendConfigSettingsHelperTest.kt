@@ -46,7 +46,9 @@ internal class RecommendConfigSettingsHelperTest : SettingsHelperTest() {
                     "#Support spring file\n" +
                     "type.is_file=groovy:it.isExtend(\"org.springframework.web.multipart.MultipartFile\")\n" +
                     "#ignore serialVersionUID\n" +
-                    "constant.field.ignore=groovy:it.name()==\"serialVersionUID\"",
+                    "constant.field.ignore=groovy:it.name()==\"serialVersionUID\"\n" +
+                    "# @ConfigurationProperties\n" +
+                    "properties.prefix=@org.springframework.boot.context.properties.ConfigurationProperties#prefix",
             recommendConfigSettingsHelper.loadRecommendConfig().toUnixString()
         )
     }
