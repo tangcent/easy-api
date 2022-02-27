@@ -30,7 +30,7 @@ class RecommendConfigReader : ConfigReader, Initializable {
     private val recommendConfigSettingsHelper: RecommendConfigSettingsHelper? = null
 
     @Inject
-    private val contextSwitchListener: ContextSwitchListener? = null
+    private lateinit var contextSwitchListener: ContextSwitchListener
 
     @Inject
     private val logger: Logger? = null
@@ -76,7 +76,6 @@ class RecommendConfigReader : ConfigReader, Initializable {
     override fun init() {
 
         if (configReader is MutableConfigReader) {
-            contextSwitchListener!!.clear()
             contextSwitchListener.onModuleChange { module ->
                 synchronized(this)
                 {

@@ -14,6 +14,11 @@ object ClassExportRuleKeys {
         BooleanRuleMode.ANY
     )
 
+    val IS_FEIGN_CTRL: RuleKey<Boolean> = SimpleRuleKey(
+        "class.is.feign.ctrl",
+        BooleanRuleMode.ANY
+    )
+
     val IS_SPRING_CTRL: RuleKey<Boolean> = SimpleRuleKey(
         "class.is.spring.ctrl",
         arrayOf("class.is.ctrl"),
@@ -180,12 +185,12 @@ object ClassExportRuleKeys {
     )
 
     val HTTP_CLIENT_BEFORE_CALL: RuleKey<Boolean> = SimpleRuleKey(
-        "http.call.before", EventRule::class,
+        "http.call.before",
         EventRuleMode.IGNORE_ERROR
     )
 
     val HTTP_CLIENT_AFTER_CALL: RuleKey<Boolean> = SimpleRuleKey(
-        "http.call.after", EventRule::class,
+        "http.call.after",
         EventRuleMode.IGNORE_ERROR
     )
 
@@ -259,7 +264,7 @@ object ClassExportRuleKeys {
     )
 
     val AFTER_EXPORT: RuleKey<String> = SimpleRuleKey(
-        "export.after", EventRule::class,
+        "export.after",
         EventRuleMode.IGNORE_ERROR
     )
 
@@ -325,4 +330,10 @@ object ClassExportRuleKeys {
         EventRuleMode.IGNORE_ERROR
     )
     //endregion
+
+
+    val PROPERTIES_PREFIX: RuleKey<String> = SimpleRuleKey(
+        "properties.prefix",
+        StringRuleMode.SINGLE
+    )
 }
