@@ -1,3 +1,15 @@
+* 2.1.8
+
+	* chore: update swagger.config [(#421)](https://github.com/tangcent/easy-api/pull/421)
+
+	* fix: resolve mapping annotation for feign client [(#420)](https://github.com/tangcent/easy-api/pull/420)
+
+	* feat: export apis from implements [(#419)](https://github.com/tangcent/easy-api/pull/419)
+
+	* feat:  support change log charset by settings [(#418)](https://github.com/tangcent/easy-api/pull/418)
+
+	* test: DefaultFileSaveHelperTest [(#417)](https://github.com/tangcent/easy-api/pull/417)
+
 * 2.1.7
 
 	* feat: pick features from easy-yapi [(#415)](https://github.com/tangcent/easy-api/pull/415)&[(#414)](https://github.com/tangcent/easy-api/pull/414)
