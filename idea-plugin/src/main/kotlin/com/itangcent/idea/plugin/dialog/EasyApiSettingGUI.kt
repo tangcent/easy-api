@@ -583,4 +583,4 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
     }
 }
 
-private val LOG = org.apache.log4j.Logger.getLogger(EasyApiSettingGUI::class.java)
+private val LOG = com.intellij.openapi.diagnostic.Logger.getInstance(EasyApiSettingGUI::class.java)
