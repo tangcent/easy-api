@@ -13,7 +13,7 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
 
     override var feignEnable: Boolean = false
 
-    override var quarkusEnable: Boolean = true
+    override var jaxrsEnable: Boolean = true
 
     //postman
 
@@ -96,11 +96,11 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
 
         other as Settings
 
-        if (pullNewestDataBefore != other.pullNewestDataBefore) return false
         if (methodDocEnable != other.methodDocEnable) return false
         if (genericEnable != other.genericEnable) return false
         if (feignEnable != other.feignEnable) return false
-        if (quarkusEnable != other.quarkusEnable) return false
+        if (jaxrsEnable != other.jaxrsEnable) return false
+        if (pullNewestDataBefore != other.pullNewestDataBefore) return false
         if (postmanToken != other.postmanToken) return false
         if (postmanWorkspace != other.postmanWorkspace) return false
         if (postmanExportMode != other.postmanExportMode) return false
@@ -115,6 +115,7 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
         if (inferEnable != other.inferEnable) return false
         if (inferMaxDeep != other.inferMaxDeep) return false
         if (httpTimeOut != other.httpTimeOut) return false
+        if (!trustHosts.contentEquals(other.trustHosts)) return false
         if (useRecommendConfig != other.useRecommendConfig) return false
         if (recommendConfigs != other.recommendConfigs) return false
         if (logLevel != other.logLevel) return false
@@ -123,17 +124,16 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
         if (outputCharset != other.outputCharset) return false
         if (markdownFormatType != other.markdownFormatType) return false
         if (builtInConfig != other.builtInConfig) return false
-        if (!trustHosts.contentEquals(other.trustHosts)) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = pullNewestDataBefore.hashCode()
-        result = 31 * result + methodDocEnable.hashCode()
+        var result = methodDocEnable.hashCode()
         result = 31 * result + genericEnable.hashCode()
         result = 31 * result + feignEnable.hashCode()
-        result = 31 * result + quarkusEnable.hashCode()
+        result = 31 * result + jaxrsEnable.hashCode()
+        result = 31 * result + pullNewestDataBefore.hashCode()
         result = 31 * result + (postmanToken?.hashCode() ?: 0)
         result = 31 * result + (postmanWorkspace?.hashCode() ?: 0)
         result = 31 * result + (postmanExportMode?.hashCode() ?: 0)
@@ -148,6 +148,7 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
         result = 31 * result + inferEnable.hashCode()
         result = 31 * result + inferMaxDeep
         result = 31 * result + httpTimeOut
+        result = 31 * result + trustHosts.contentHashCode()
         result = 31 * result + useRecommendConfig.hashCode()
         result = 31 * result + recommendConfigs.hashCode()
         result = 31 * result + logLevel
@@ -155,13 +156,12 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
         result = 31 * result + outputDemo.hashCode()
         result = 31 * result + outputCharset.hashCode()
         result = 31 * result + markdownFormatType.hashCode()
-        result = 31 * result + builtInConfig.hashCode()
-        result = 31 * result + trustHosts.hashCode()
+        result = 31 * result + (builtInConfig?.hashCode() ?: 0)
         return result
     }
 
     override fun toString(): String {
-        return "Settings(methodDocEnable=$methodDocEnable, genericEnable=$genericEnable, feignEnable=$feignEnable, quarkusEnable=$quarkusEnable, pullNewestDataBefore=$pullNewestDataBefore, postmanToken=$postmanToken, postmanWorkspace=$postmanWorkspace, postmanExportMode=$postmanExportMode, postmanCollections=$postmanCollections, wrapCollection=$wrapCollection, autoMergeScript=$autoMergeScript, postmanJson5FormatType='$postmanJson5FormatType', queryExpanded=$queryExpanded, formExpanded=$formExpanded, readGetter=$readGetter, readSetter=$readSetter, inferEnable=$inferEnable, inferMaxDeep=$inferMaxDeep, httpTimeOut=$httpTimeOut, trustHosts=${trustHosts.contentToString()}, useRecommendConfig=$useRecommendConfig, recommendConfigs='$recommendConfigs', logLevel=$logLevel, logCharset='$logCharset', outputDemo=$outputDemo, outputCharset='$outputCharset', markdownFormatType='$markdownFormatType', builtInConfig=$builtInConfig)"
+        return "Settings(methodDocEnable=$methodDocEnable, genericEnable=$genericEnable, feignEnable=$feignEnable, jaxrsEnable=$jaxrsEnable, pullNewestDataBefore=$pullNewestDataBefore, postmanToken=$postmanToken, postmanWorkspace=$postmanWorkspace, postmanExportMode=$postmanExportMode, postmanCollections=$postmanCollections, wrapCollection=$wrapCollection, autoMergeScript=$autoMergeScript, postmanJson5FormatType='$postmanJson5FormatType', queryExpanded=$queryExpanded, formExpanded=$formExpanded, readGetter=$readGetter, readSetter=$readSetter, inferEnable=$inferEnable, inferMaxDeep=$inferMaxDeep, httpTimeOut=$httpTimeOut, trustHosts=${trustHosts.contentToString()}, useRecommendConfig=$useRecommendConfig, recommendConfigs='$recommendConfigs', logLevel=$logLevel, logCharset='$logCharset', outputDemo=$outputDemo, outputCharset='$outputCharset', markdownFormatType='$markdownFormatType', builtInConfig=$builtInConfig)"
     }
 
     companion object {
