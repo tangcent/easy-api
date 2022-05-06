@@ -121,6 +121,7 @@ internal class CurlFormatterTest : PluginContextLightCodeInsightFixtureTestCase(
         classExporter.export(userCtrlPsiClass, requestOnly {
             requests.add(it)
         })
+        (classExporter as Worker).waitCompleted()
         classExporter.export(testCtrlPsiClass, requestOnly {
             requests.add(it)
         })

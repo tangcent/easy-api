@@ -10,10 +10,12 @@ import com.itangcent.idea.plugin.api.export.core.ClassExportRuleKeys
 import com.itangcent.idea.plugin.api.export.core.LinkResolver
 import com.itangcent.intellij.config.rule.RuleComputer
 import com.itangcent.intellij.config.rule.computer
+import com.itangcent.intellij.context.ActionContext
 import com.itangcent.intellij.jvm.*
 import com.itangcent.intellij.jvm.element.ExplicitElement
 import com.itangcent.intellij.jvm.element.ExplicitMethod
-import java.util.*
+import com.itangcent.utils.disposable
+import kotlin.streams.toList
 
 @Singleton
 open class ClassApiExporterHelper {
@@ -55,7 +57,7 @@ open class ClassApiExporterHelper {
                     override fun linkToPsiElement(plainText: String, linkTo: Any?): String? {
 
                         psiClassHelper!!.resolveEnumOrStatic(plainText, psiMethod, name)
-                                ?.let { options.addAll(it) }
+                            ?.let { options.addAll(it) }
 
                         return super.linkToPsiElement(plainText, linkTo)
                     }
@@ -94,15 +96,37 @@ open class ClassApiExporterHelper {
         return methodParamComment
     }
 
-    fun foreachMethod(cls: PsiClass, handle: (ExplicitMethod) -> Unit) {
-        duckTypeHelper!!.explicit(cls)
+    fun foreachMethod(
+        cls: PsiClass, handle: (ExplicitMethod) -> Unit,
+        onCompleted: () -> Unit,
+    ) {
+        val f = onCompleted.disposable()
+        try {
+            val methods = duckTypeHelper!!.explicit(cls)
                 .methods()
                 .stream()
                 .filter { !jvmClassHelper!!.isBasicMethod(it.psi().name) }
                 .filter { !it.psi().hasModifierProperty("static") }
                 .filter { !it.psi().isConstructor }
                 .filter { !shouldIgnore(it) }
-                .forEach(handle)
+                .toList()
+            val context = ActionContext.getContext()!!
+            context.runAsync {
+                try {
+                    for (method in methods) {
+                        context.callInReadUI {
+                            handle(method)
+                        }
+                        Thread.sleep(200)
+                    }
+                } finally {
+                    f()
+                }
+            }
+        } catch (e: Throwable) {
+            f()
+            throw e
+        }
     }
 
     protected open fun shouldIgnore(explicitElement: ExplicitElement<*>): Boolean {
