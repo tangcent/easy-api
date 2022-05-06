@@ -48,7 +48,9 @@ internal class RecommendConfigSettingsHelperTest : SettingsHelperTest() {
                     "#ignore serialVersionUID\n" +
                     "constant.field.ignore=groovy:it.name()==\"serialVersionUID\"\n" +
                     "# @ConfigurationProperties\n" +
-                    "properties.prefix=@org.springframework.boot.context.properties.ConfigurationProperties#prefix",
+                    "properties.prefix=@org.springframework.boot.context.properties.ConfigurationProperties#prefix\n" +
+                    "#Support for Fastjson annotations\n" +
+                    "field.name=@com.alibaba.fastjson.annotation.JSONField#value",
             recommendConfigSettingsHelper.loadRecommendConfig().toUnixString()
         )
     }
