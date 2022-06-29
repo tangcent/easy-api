@@ -14,3 +14,9 @@ fun assertLinesEqualsIgnoreOrder(expected: String, actual: String) {
     assertEquals(expectedLines.size, actualLines.size)
     assertEquals(expectedLines.sorted(), actualLines.sorted())
 }
+
+fun assertLinesContain(expected: String, actual: String) {
+    val expectedLines = expected.lines()
+    val actualLines = actual.lines().toHashSet()
+    assertTrue(actualLines.containsAll(expectedLines))
+}

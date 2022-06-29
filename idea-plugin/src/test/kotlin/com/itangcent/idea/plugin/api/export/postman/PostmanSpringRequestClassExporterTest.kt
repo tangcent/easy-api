@@ -3,12 +3,12 @@ package com.itangcent.idea.plugin.api.export.postman
 import com.itangcent.common.kit.toJson
 import com.itangcent.common.model.Request
 import com.itangcent.debug.LoggerCollector
-import com.itangcent.idea.plugin.Worker
 import com.itangcent.idea.plugin.api.export.core.ClassExportRuleKeys
 import com.itangcent.idea.plugin.api.export.core.requestOnly
 import com.itangcent.idea.psi.PsiResource
 import com.itangcent.intellij.context.ActionContext
 import com.itangcent.intellij.extend.guice.with
+import com.itangcent.intellij.extend.withBoundary
 import com.itangcent.intellij.logger.Logger
 import com.itangcent.mock.toUnixString
 import com.itangcent.test.ResultLoader
@@ -42,10 +42,11 @@ internal class PostmanSpringRequestClassExporterTest : PostmanSpringClassExporte
 
     fun testExport() {
         val requests = ArrayList<Request>()
-        classExporter.export(userCtrlPsiClass, requestOnly {
-            requests.add(it)
-        })
-        (classExporter as Worker).waitCompleted()
+        actionContext.withBoundary {
+            classExporter.export(userCtrlPsiClass, requestOnly {
+                requests.add(it)
+            })
+        }
         requests[0].let { request ->
             assertEquals("say hello", request.name)
             assertEquals("not update anything", request.desc)
@@ -53,13 +54,13 @@ internal class PostmanSpringRequestClassExporterTest : PostmanSpringClassExporte
             assertEquals(userCtrlPsiClass.methods[0], (request.resource as PsiResource).resource())
 
             assertEquals(
-                "pm.environment.set(\"token\", \"123456\");",
-                request.getExt(ClassExportRuleKeys.POST_PRE_REQUEST.name())
+                    "pm.environment.set(\"token\", \"123456\");",
+                    request.getExt(ClassExportRuleKeys.POST_PRE_REQUEST.name())
             )
             assertEquals(
-                "pm.test(\"Successful POST request\", function () {\n" +
-                        "pm.expect(pm.response.code).to.be.oneOf([201,202]);\n" +
-                        "});", request.getExt(ClassExportRuleKeys.POST_TEST.name())
+                    "pm.test(\"Successful POST request\", function () {\n" +
+                            "pm.expect(pm.response.code).to.be.oneOf([201,202]);\n" +
+                            "});", request.getExt(ClassExportRuleKeys.POST_TEST.name())
             )
             assertNull(request.body)
             assertEquals("", request.response!!.first().body.toJson())
@@ -71,18 +72,18 @@ internal class PostmanSpringRequestClassExporterTest : PostmanSpringClassExporte
             assertEquals(userCtrlPsiClass.methods[1], (request.resource as PsiResource).resource())
 
             assertEquals(
-                "pm.environment.set(\"token\", \"123456\");",
-                request.getExt(ClassExportRuleKeys.POST_PRE_REQUEST.name())
+                    "pm.environment.set(\"token\", \"123456\");",
+                    request.getExt(ClassExportRuleKeys.POST_PRE_REQUEST.name())
             )
             assertEquals(
-                "pm.test(\"Successful POST request\", function () {\n" +
-                        "pm.expect(pm.response.code).to.be.oneOf([201,202]);\n" +
-                        "});", request.getExt(ClassExportRuleKeys.POST_TEST.name())
+                    "pm.test(\"Successful POST request\", function () {\n" +
+                            "pm.expect(pm.response.code).to.be.oneOf([201,202]);\n" +
+                            "});", request.getExt(ClassExportRuleKeys.POST_TEST.name())
             )
             assertNull(request.body.toJson())
             assertEquals(
-                "{\"code\":0,\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"success\",\"data\":{\"id\":0,\"@comment\":{\"id\":\"user id\",\"type\":\"user type\",\"type@options\":[{\"value\":1,\"desc\":\"administration\"},{\"value\":2,\"desc\":\"a person, an animal or a plant\"},{\"value\":3,\"desc\":\"Anonymous visitor\"}],\"name\":\"user name\",\"age\":\"user age\",\"birthDay\":\"user birthDay\",\"regtime\":\"user regtime\"},\"type\":0,\"name\":\"Tony Stark\",\"age\":45,\"sex\":0,\"birthDay\":\"\",\"regtime\":\"\"}}",
-                request.response!!.first().body.toJson()
+                    "{\"code\":0,\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"success\",\"data\":{\"id\":0,\"@comment\":{\"id\":\"user id\",\"type\":\"user type\",\"type@options\":[{\"value\":1,\"desc\":\"administration\"},{\"value\":2,\"desc\":\"a person, an animal or a plant\"},{\"value\":3,\"desc\":\"Anonymous visitor\"}],\"name\":\"user name\",\"age\":\"user age\",\"birthDay\":\"user birthDay\",\"regtime\":\"user regtime\"},\"type\":0,\"name\":\"Tony Stark\",\"age\":45,\"sex\":0,\"birthDay\":\"\",\"regtime\":\"\"}}",
+                    request.response!!.first().body.toJson()
             )
         }
         requests[2].let { request ->
@@ -92,21 +93,21 @@ internal class PostmanSpringRequestClassExporterTest : PostmanSpringClassExporte
             assertEquals(userCtrlPsiClass.methods[2], (request.resource as PsiResource).resource())
 
             assertEquals(
-                "pm.environment.set(\"token\", \"123456\");",
-                request.getExt(ClassExportRuleKeys.POST_PRE_REQUEST.name())
+                    "pm.environment.set(\"token\", \"123456\");",
+                    request.getExt(ClassExportRuleKeys.POST_PRE_REQUEST.name())
             )
             assertEquals(
-                "pm.test(\"Successful POST request\", function () {\n" +
-                        "pm.expect(pm.response.code).to.be.oneOf([201,202]);\n" +
-                        "});", request.getExt(ClassExportRuleKeys.POST_TEST.name())
+                    "pm.test(\"Successful POST request\", function () {\n" +
+                            "pm.expect(pm.response.code).to.be.oneOf([201,202]);\n" +
+                            "});", request.getExt(ClassExportRuleKeys.POST_TEST.name())
             )
             assertEquals(
-                "{\"id\":0,\"@comment\":{\"id\":\"user id\",\"type\":\"user type\",\"type@options\":[{\"value\":1,\"desc\":\"administration\"},{\"value\":2,\"desc\":\"a person, an animal or a plant\"},{\"value\":3,\"desc\":\"Anonymous visitor\"}],\"name\":\"user name\",\"age\":\"user age\",\"birthDay\":\"user birthDay\",\"regtime\":\"user regtime\"},\"type\":0,\"name\":\"\",\"age\":0,\"sex\":0,\"birthDay\":\"\",\"regtime\":\"\"}",
-                request.body.toJson()
+                    "{\"id\":0,\"@comment\":{\"id\":\"user id\",\"type\":\"user type\",\"type@options\":[{\"value\":1,\"desc\":\"administration\"},{\"value\":2,\"desc\":\"a person, an animal or a plant\"},{\"value\":3,\"desc\":\"Anonymous visitor\"}],\"name\":\"user name\",\"age\":\"user age\",\"birthDay\":\"user birthDay\",\"regtime\":\"user regtime\"},\"type\":0,\"name\":\"\",\"age\":0,\"sex\":0,\"birthDay\":\"\",\"regtime\":\"\"}",
+                    request.body.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"id\":0,\"@comment\":{\"id\":\"user id\",\"type\":\"user type\",\"type@options\":[{\"value\":1,\"desc\":\"administration\"},{\"value\":2,\"desc\":\"a person, an animal or a plant\"},{\"value\":3,\"desc\":\"Anonymous visitor\"}],\"name\":\"user name\",\"age\":\"user age\",\"birthDay\":\"user birthDay\",\"regtime\":\"user regtime\"},\"type\":0,\"name\":\"\",\"age\":0,\"sex\":0,\"birthDay\":\"\",\"regtime\":\"\"}}",
-                request.response!!.first().body.toJson()
+                    "{\"code\":0,\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"id\":0,\"@comment\":{\"id\":\"user id\",\"type\":\"user type\",\"type@options\":[{\"value\":1,\"desc\":\"administration\"},{\"value\":2,\"desc\":\"a person, an animal or a plant\"},{\"value\":3,\"desc\":\"Anonymous visitor\"}],\"name\":\"user name\",\"age\":\"user age\",\"birthDay\":\"user birthDay\",\"regtime\":\"user regtime\"},\"type\":0,\"name\":\"\",\"age\":0,\"sex\":0,\"birthDay\":\"\",\"regtime\":\"\"}}",
+                    request.response!!.first().body.toJson()
             )
         }
 

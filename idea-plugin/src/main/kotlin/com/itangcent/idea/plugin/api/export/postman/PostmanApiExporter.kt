@@ -2,30 +2,24 @@ package com.itangcent.idea.plugin.api.export.postman
 
 import com.google.inject.Inject
 import com.google.inject.Singleton
-import com.intellij.openapi.ui.Messages
 import com.itangcent.cache.CacheSwitcher
 import com.itangcent.common.logger.traceError
 import com.itangcent.common.model.Request
 import com.itangcent.common.utils.*
-import com.itangcent.idea.plugin.Worker
-import com.itangcent.idea.plugin.api.export.core.ClassExporter
-import com.itangcent.idea.plugin.api.export.core.requestOnly
+import com.itangcent.idea.plugin.api.ClassApiExporterHelper
 import com.itangcent.idea.plugin.settings.PostmanExportMode
 import com.itangcent.idea.plugin.settings.helper.PostmanSettingsHelper
-import com.itangcent.idea.swing.MessagesHelper
 import com.itangcent.idea.utils.FileSaveHelper
 import com.itangcent.idea.utils.ModuleHelper
 import com.itangcent.intellij.context.ActionContext
 import com.itangcent.intellij.logger.Logger
-import com.itangcent.intellij.psi.SelectedHelper
-import com.itangcent.intellij.util.ActionUtils
-import com.itangcent.intellij.util.FileType
-import java.util.*
-import kotlin.collections.HashMap
 
 
 @Singleton
 class PostmanApiExporter {
+
+    @Inject
+    private lateinit var actionContext: ActionContext
 
     @Inject
     private lateinit var logger: Logger
@@ -37,70 +31,32 @@ class PostmanApiExporter {
     private lateinit var postmanSettingsHelper: PostmanSettingsHelper
 
     @Inject
-    private val actionContext: ActionContext? = null
-
-    @Inject
-    private val classExporter: ClassExporter? = null
-
-    @Inject
     private val fileSaveHelper: FileSaveHelper? = null
 
     @Inject
     private lateinit var postmanFormatter: PostmanFormatter
 
     @Inject
-    private lateinit var messagesHelper: MessagesHelper
-
-    @Inject
     private val moduleHelper: ModuleHelper? = null
 
+    @Inject
+    private val classApiExporterHelper: ClassApiExporterHelper? = null
+
     fun export() {
-        logger.info("Start find apis...")
-        val requests: MutableList<Request> = Collections.synchronizedList(ArrayList<Request>())
-
-        SelectedHelper.Builder()
-            .dirFilter { dir, callBack ->
-                actionContext!!.runInSwingUI {
-                    try {
-                        val yes = messagesHelper.showYesNoDialog(
-                            "Export the api in directory [${ActionUtils.findCurrentPath(dir)}]?",
-                            "Confirm",
-                            Messages.getQuestionIcon()
-                        )
-                        if (yes == Messages.YES) {
-                            callBack(true)
-                        } else {
-                            logger.debug("Cancel the operation export api from [${ActionUtils.findCurrentPath(dir)}]!")
-                            callBack(false)
-                        }
-                    } catch (e: Exception) {
-                        callBack(false)
-                    }
-                }
+        try {
+            val requests = classApiExporterHelper!!.export().mapNotNull { it as? Request }
+            if (requests.isEmpty()) {
+                logger.info("No api be found to export!")
+            } else {
+                export(requests)
+                logger.info("Apis exported completed")
             }
-            .fileFilter { file -> FileType.acceptable(file.name) }
-            .classHandle {
-                classExporter!!.export(it, requestOnly { request -> requests.add(request) })
-            }
-            .onCompleted {
-                try {
-                    if (classExporter is Worker) {
-                        classExporter.waitCompleted()
-                    }
-                    export(requests)
-                } catch (e: Exception) {
-                    logger.traceError("Apis save failed", e)
-
-                }
-            }
-            .traversal()
+        } catch (e: Exception) {
+            logger.traceError("Apis exported failed", e)
+        }
     }
 
-    fun export(requests: MutableList<Request>) {
-        if (requests.isEmpty()) {
-            logger.info("No api be found to export!")
-            return
-        }
+    fun export(requests: List<Request>) {
 
         //no privateToken be found
         if (!postmanSettingsHelper.hasPrivateToken()) {
@@ -142,8 +98,8 @@ class PostmanApiExporter {
     }
 
     private fun createCollection(
-        requests: MutableList<Request>,
-        workspaceId: String?
+        requests: List<Request>,
+        workspaceId: String?,
     ) {
         val postman = postmanFormatter.parseRequests(requests)
         val createdCollection = postmanApiHelper.createCollection(postman, workspaceId)
@@ -170,7 +126,7 @@ class PostmanApiExporter {
         return
     }
 
-    private fun updateRequestsToPostman(requests: MutableList<Request>) {
+    private fun updateRequestsToPostman(requests: List<Request>) {
         val moduleGroupedMap = HashMap<String, ArrayList<Request>>()
         requests.forEach {
             val module = moduleHelper!!.findModule(it.resource!!) ?: "easy-api"

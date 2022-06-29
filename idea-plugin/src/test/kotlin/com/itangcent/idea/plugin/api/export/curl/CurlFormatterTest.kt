@@ -3,13 +3,13 @@ package com.itangcent.idea.plugin.api.export.curl
 import com.google.inject.Inject
 import com.intellij.psi.PsiClass
 import com.itangcent.common.model.Request
-import com.itangcent.idea.plugin.Worker
 import com.itangcent.idea.plugin.api.export.core.ClassExporter
 import com.itangcent.idea.plugin.api.export.core.requestOnly
 import com.itangcent.idea.plugin.api.export.spring.SpringRequestClassExporter
 import com.itangcent.intellij.context.ActionContext
 import com.itangcent.intellij.extend.guice.singleton
 import com.itangcent.intellij.extend.guice.with
+import com.itangcent.intellij.extend.withBoundary
 import com.itangcent.test.ResultLoader
 import com.itangcent.testFramework.PluginContextLightCodeInsightFixtureTestCase
 import java.time.LocalDate
@@ -87,45 +87,47 @@ internal class CurlFormatterTest : PluginContextLightCodeInsightFixtureTestCase(
 
     fun testParseRequest() {
         val requests = ArrayList<Request>()
-        classExporter.export(userCtrlPsiClass, requestOnly {
-            requests.add(it)
-        })
-        (classExporter as Worker).waitCompleted()
+        actionContext.withBoundary {
+            classExporter.export(userCtrlPsiClass, requestOnly {
+                requests.add(it)
+            })
+        }
 
 
         assertEquals("curl -X GET http://localhost:8080/user/greeting", curlFormatter.parseRequest(requests[0]))
         assertEquals(
-            "curl -X GET -H 'token: ' http://localhost:8080/user/get/{id}?id=0",
-            curlFormatter.parseRequest(requests[1])
+                "curl -X GET -H 'token: ' http://localhost:8080/user/get/{id}?id=0",
+                curlFormatter.parseRequest(requests[1])
         )
         assertEquals(
-            "curl -X POST -H 'Content-Type: application/json' -H 'token: ' -d '{\n" +
-                    "  \"id\": 0,\n" +
-                    "  \"type\": 0,\n" +
-                    "  \"name\": \"\",\n" +
-                    "  \"age\": 0,\n" +
-                    "  \"sex\": 0,\n" +
-                    "  \"birthDay\": \"\",\n" +
-                    "  \"regtime\": \"\"\n" +
-                    "}' http://localhost:8080/user/add", curlFormatter.parseRequest(requests[2])
+                "curl -X POST -H 'Content-Type: application/json' -H 'token: ' -d '{\n" +
+                        "  \"id\": 0,\n" +
+                        "  \"type\": 0,\n" +
+                        "  \"name\": \"\",\n" +
+                        "  \"age\": 0,\n" +
+                        "  \"sex\": 0,\n" +
+                        "  \"birthDay\": \"\",\n" +
+                        "  \"regtime\": \"\"\n" +
+                        "}' http://localhost:8080/user/add", curlFormatter.parseRequest(requests[2])
         )
         assertEquals(
-            "curl -X PUT -H 'Content-Type: multipart/form-data' -H 'token: ' -F 'id=' -F 'type=' -F 'name=' -F 'age=' -F 'sex=' -F 'birthDay=' -F 'regtime=' http://localhost:8080/user/update",
-            curlFormatter.parseRequest(requests[3])
+                "curl -X PUT -H 'Content-Type: multipart/form-data' -H 'token: ' -F 'id=' -F 'type=' -F 'name=' -F 'age=' -F 'sex=' -F 'birthDay=' -F 'regtime=' http://localhost:8080/user/update",
+                curlFormatter.parseRequest(requests[3])
         )
 
     }
 
     fun testParseRequests() {
         val requests = ArrayList<Request>()
+        val boundary = actionContext.createBoundary()
         classExporter.export(userCtrlPsiClass, requestOnly {
             requests.add(it)
         })
-        (classExporter as Worker).waitCompleted()
+        boundary.waitComplete(false)
         classExporter.export(testCtrlPsiClass, requestOnly {
             requests.add(it)
         })
-        (classExporter as Worker).waitCompleted()
+        boundary.waitComplete()
 
         assertEquals(ResultLoader.load(), curlFormatter.parseRequests(requests))
 

@@ -6,7 +6,6 @@ import com.itangcent.common.kit.toJson
 import com.itangcent.common.model.MethodDoc
 import com.itangcent.common.model.Request
 import com.itangcent.debug.LoggerCollector
-import com.itangcent.idea.plugin.Worker
 import com.itangcent.idea.plugin.api.export.core.ClassExporter
 import com.itangcent.idea.plugin.api.export.core.requestOnly
 import com.itangcent.idea.plugin.settings.SettingBinder
@@ -18,6 +17,7 @@ import com.itangcent.intellij.config.rule.RuleComputeListener
 import com.itangcent.intellij.context.ActionContext
 import com.itangcent.intellij.extend.guice.singleton
 import com.itangcent.intellij.extend.guice.with
+import com.itangcent.intellij.extend.withBoundary
 import com.itangcent.intellij.jvm.PsiClassHelper
 import com.itangcent.intellij.logger.Logger
 import com.itangcent.mock.SettingBinderAdaptor
@@ -131,10 +131,11 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
         settings.queryExpanded = true
         settings.formExpanded = true
         val requests = ArrayList<Request>()
-        classExporter.export(userCtrlPsiClass, requestOnly {
-            requests.add(it)
-        })
-        (classExporter as Worker).waitCompleted()
+        actionContext.withBoundary {
+            classExporter.export(userCtrlPsiClass, requestOnly {
+                requests.add(it)
+            })
+        }
         requests[0].let { request ->
             assertEquals("say hello", request.name)
             assertEquals("not update anything", request.desc)
@@ -155,10 +156,11 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
         settings.queryExpanded = true
         settings.formExpanded = true
         val requests = ArrayList<Request>()
-        classExporter.export(testCtrlPsiClass, requestOnly {
-            requests.add(it)
-        })
-        (classExporter as Worker).waitCompleted()
+        actionContext.withBoundary {
+            classExporter.export(testCtrlPsiClass, requestOnly {
+                requests.add(it)
+            })
+        }
         requests[0].let { request ->
             assertEquals(testCtrlPsiClass.methods[0], (request.resource as PsiResource).resource())
             assertEquals("test RequestHeader", request.name)
@@ -228,8 +230,8 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/return/result/Void", request.path.toString())
             assertEquals("GET", request.method)
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\"}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\"}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[7].let { request ->
@@ -238,12 +240,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/return/node", request.path.toString())
             assertEquals("POST", request.method)
             assertEquals(
-                "[{\"name\":\"id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false,\"type\":\"text\"},{\"name\":\"code\",\"value\":\"\",\"desc\":\"node code\",\"required\":false,\"type\":\"text\"},{\"name\":\"parent.id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false,\"type\":\"text\"},{\"name\":\"parent.code\",\"value\":\"\",\"desc\":\"node code\",\"required\":false,\"type\":\"text\"},{\"name\":\"sub[0].id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false,\"type\":\"text\"},{\"name\":\"sub[0].code\",\"value\":\"\",\"desc\":\"node code\",\"required\":false,\"type\":\"text\"},{\"name\":\"siblings[0].id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false,\"type\":\"text\"},{\"name\":\"siblings[0].code\",\"value\":\"\",\"desc\":\"node code\",\"required\":false,\"type\":\"text\"}]",
-                request.formParams.toJson()
+                    "[{\"name\":\"id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false,\"type\":\"text\"},{\"name\":\"code\",\"value\":\"\",\"desc\":\"node code\",\"required\":false,\"type\":\"text\"},{\"name\":\"parent.id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false,\"type\":\"text\"},{\"name\":\"parent.code\",\"value\":\"\",\"desc\":\"node code\",\"required\":false,\"type\":\"text\"},{\"name\":\"sub[0].id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false,\"type\":\"text\"},{\"name\":\"sub[0].code\",\"value\":\"\",\"desc\":\"node code\",\"required\":false,\"type\":\"text\"},{\"name\":\"siblings[0].id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false,\"type\":\"text\"},{\"name\":\"siblings[0].code\",\"value\":\"\",\"desc\":\"node code\",\"required\":false,\"type\":\"text\"}]",
+                    request.formParams.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]},\"sub\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}],\"siblings\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}]}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]},\"sub\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}],\"siblings\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}]}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[8].let { request ->
@@ -252,12 +254,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/return/root", request.path.toString())
             assertEquals("GET", request.method)
             assertEquals(
-                "[{\"name\":\"id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false},{\"name\":\"children[0].id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false},{\"name\":\"children[0].code\",\"value\":\"\",\"desc\":\"node code\",\"required\":false}]",
-                request.querys.toJson()
+                    "[{\"name\":\"id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false},{\"name\":\"children[0].id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false},{\"name\":\"children[0].code\",\"value\":\"\",\"desc\":\"node code\",\"required\":false}]",
+                    request.querys.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"id\":\"\",\"@required\":{\"id\":false,\"children\":false},\"@comment\":{\"id\":\"primary key\",\"children\":\"sub nodes\"},\"children\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}]}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"id\":\"\",\"@required\":{\"id\":false,\"children\":false},\"@comment\":{\"id\":\"primary key\",\"children\":\"sub nodes\"},\"children\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}]}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[9].let { request ->
@@ -266,12 +268,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/return/customMap", request.path.toString())
             assertEquals("GET", request.method)
             assertEquals(
-                "[{\"name\":\"key\",\"value\":\"\",\"desc\":\"\",\"required\":false}]",
-                request.querys.toJson()
+                    "[{\"name\":\"key\",\"value\":\"\",\"desc\":\"\",\"required\":false}]",
+                    request.querys.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[10].let { request ->
@@ -280,12 +282,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/call/page/user", request.path.toString())
             assertEquals("GET", request.method)
             assertEquals(
-                "[{\"name\":\"size\",\"value\":\"\",\"desc\":\"\",\"required\":false},{\"name\":\"user.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false},{\"name\":\"user.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false},{\"name\":\"user.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false},{\"name\":\"user.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false},{\"name\":\"user.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false},{\"name\":\"user.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false},{\"name\":\"user.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false},{\"name\":\"users[0].id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false},{\"name\":\"users[0].type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false},{\"name\":\"users[0].name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false},{\"name\":\"users[0].age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false},{\"name\":\"users[0].sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false},{\"name\":\"users[0].birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false},{\"name\":\"users[0].regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false},{\"name\":\"t.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false},{\"name\":\"t.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false},{\"name\":\"t.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false},{\"name\":\"t.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false},{\"name\":\"t.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false},{\"name\":\"t.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false},{\"name\":\"t.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false}]",
-                request.querys.toJson()
+                    "[{\"name\":\"size\",\"value\":\"\",\"desc\":\"\",\"required\":false},{\"name\":\"user.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false},{\"name\":\"user.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false},{\"name\":\"user.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false},{\"name\":\"user.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false},{\"name\":\"user.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false},{\"name\":\"user.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false},{\"name\":\"user.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false},{\"name\":\"users[0].id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false},{\"name\":\"users[0].type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false},{\"name\":\"users[0].name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false},{\"name\":\"users[0].age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false},{\"name\":\"users[0].sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false},{\"name\":\"users[0].birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false},{\"name\":\"users[0].regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false},{\"name\":\"t.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false},{\"name\":\"t.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false},{\"name\":\"t.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false},{\"name\":\"t.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false},{\"name\":\"t.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false},{\"name\":\"t.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false},{\"name\":\"t.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false}]",
+                    request.querys.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[11].let { request ->
@@ -294,12 +296,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/call/page/user/form", request.path.toString())
             assertEquals("POST", request.method)
             assertEquals(
-                "[{\"name\":\"size\",\"value\":\"\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"}]",
-                request.formParams.toJson()
+                    "[{\"name\":\"size\",\"value\":\"\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"}]",
+                    request.formParams.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[12].let { request ->
@@ -308,12 +310,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/call/page/user/post", request.path.toString())
             assertEquals("POST", request.method)
             assertEquals(
-                "[{\"name\":\"size\",\"value\":\"\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"}]",
-                request.formParams.toJson()
+                    "[{\"name\":\"size\",\"value\":\"\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"user.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"users[0].regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false,\"type\":\"text\"},{\"name\":\"t.regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false,\"type\":\"text\"}]",
+                    request.formParams.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[13].let { request ->
@@ -322,12 +324,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/call/page/user/array", request.path.toString())
             assertEquals("GET", request.method)
             assertEquals(
-                "[{\"name\":\"id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false},{\"name\":\"type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false},{\"name\":\"name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false},{\"name\":\"age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false},{\"name\":\"sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false},{\"name\":\"birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false},{\"name\":\"regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false}]",
-                request.querys.toJson()
+                    "[{\"name\":\"id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false},{\"name\":\"type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false},{\"name\":\"name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false},{\"name\":\"age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false},{\"name\":\"sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false},{\"name\":\"birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false},{\"name\":\"regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false}]",
+                    request.querys.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":[{\"id\":0,\"@required\":{\"id\":false,\"type\":false,\"name\":false,\"age\":false,\"sex\":false,\"birthDay\":false,\"regtime\":false},\"@default\":{\"id\":\"0\",\"name\":\"tangcent\"},\"@comment\":{\"id\":\"user id\",\"type\":\"user type\",\"type@options\":[{\"value\":1,\"desc\":\"administration\"},{\"value\":2,\"desc\":\"a person, an animal or a plant\"},{\"value\":3,\"desc\":\"Anonymous visitor\"}],\"name\":\"user name\",\"age\":\"user age\",\"birthDay\":\"user birthDay\",\"regtime\":\"user regtime\"},\"type\":0,\"name\":\"tangcent\",\"age\":0,\"sex\":0,\"birthDay\":\"\",\"regtime\":\"\"}]}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":[{\"id\":0,\"@required\":{\"id\":false,\"type\":false,\"name\":false,\"age\":false,\"sex\":false,\"birthDay\":false,\"regtime\":false},\"@default\":{\"id\":\"0\",\"name\":\"tangcent\"},\"@comment\":{\"id\":\"user id\",\"type\":\"user type\",\"type@options\":[{\"value\":1,\"desc\":\"administration\"},{\"value\":2,\"desc\":\"a person, an animal or a plant\"},{\"value\":3,\"desc\":\"Anonymous visitor\"}],\"name\":\"user name\",\"age\":\"user age\",\"birthDay\":\"user birthDay\",\"regtime\":\"user regtime\"},\"type\":0,\"name\":\"tangcent\",\"age\":0,\"sex\":0,\"birthDay\":\"\",\"regtime\":\"\"}]}",
+                    request.response!![0].body.toJson()
             )
         }
 
@@ -338,10 +340,11 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
         settings.queryExpanded = false
         settings.formExpanded = false
         val requests = ArrayList<Request>()
-        classExporter.export(testCtrlPsiClass, requestOnly {
-            requests.add(it)
-        })
-        (classExporter as Worker).waitCompleted()
+        actionContext.withBoundary {
+            classExporter.export(testCtrlPsiClass, requestOnly {
+                requests.add(it)
+            })
+        }
         requests[0].let { request ->
             assertEquals(testCtrlPsiClass.methods[0], (request.resource as PsiResource).resource())
             assertEquals("test RequestHeader", request.name)
@@ -411,8 +414,8 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/return/result/Void", request.path.toString())
             assertEquals("GET", request.method)
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\"}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\"}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[7].let { request ->
@@ -421,12 +424,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/return/node", request.path.toString())
             assertEquals("POST", request.method)
             assertEquals(
-                "[{\"name\":\"id\",\"desc\":\"primary key\",\"required\":false,\"type\":\"text\"},{\"name\":\"code\",\"desc\":\"node code\",\"required\":false,\"type\":\"text\"},{\"name\":\"parent\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"sub\",\"desc\":\"sub nodes\",\"required\":false,\"type\":\"text\"},{\"name\":\"siblings\",\"desc\":\"siblings nodes\",\"required\":false,\"type\":\"text\"}]",
-                request.formParams.toJson()
+                    "[{\"name\":\"id\",\"desc\":\"primary key\",\"required\":false,\"type\":\"text\"},{\"name\":\"code\",\"desc\":\"node code\",\"required\":false,\"type\":\"text\"},{\"name\":\"parent\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"sub\",\"desc\":\"sub nodes\",\"required\":false,\"type\":\"text\"},{\"name\":\"siblings\",\"desc\":\"siblings nodes\",\"required\":false,\"type\":\"text\"}]",
+                    request.formParams.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]},\"sub\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}],\"siblings\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}]}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]},\"sub\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}],\"siblings\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}]}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[8].let { request ->
@@ -435,12 +438,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/return/root", request.path.toString())
             assertEquals("GET", request.method)
             assertEquals(
-                "[{\"name\":\"id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false},{\"name\":\"children\",\"value\":\"{\\n  \\\"id\\\": \\\"\\\",\\n  \\\"code\\\": \\\"\\\",\\n  \\\"parent\\\": {},\\n  \\\"sub\\\": [\\n    {}\\n  ],\\n  \\\"siblings\\\": [\\n    {}\\n  ]\\n}\",\"desc\":\"sub nodes\",\"required\":false}]",
-                request.querys.toJson()
+                    "[{\"name\":\"id\",\"value\":\"\",\"desc\":\"primary key\",\"required\":false},{\"name\":\"children\",\"value\":\"{\\n  \\\"id\\\": \\\"\\\",\\n  \\\"code\\\": \\\"\\\",\\n  \\\"parent\\\": {},\\n  \\\"sub\\\": [\\n    {}\\n  ],\\n  \\\"siblings\\\": [\\n    {}\\n  ]\\n}\",\"desc\":\"sub nodes\",\"required\":false}]",
+                    request.querys.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"id\":\"\",\"@required\":{\"id\":false,\"children\":false},\"@comment\":{\"id\":\"primary key\",\"children\":\"sub nodes\"},\"children\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}]}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"id\":\"\",\"@required\":{\"id\":false,\"children\":false},\"@comment\":{\"id\":\"primary key\",\"children\":\"sub nodes\"},\"children\":[{\"id\":\"\",\"@required\":{\"id\":false,\"code\":false,\"parent\":false,\"sub\":false,\"siblings\":false},\"@comment\":{\"id\":\"primary key\",\"code\":\"node code\",\"sub\":\"sub nodes\",\"siblings\":\"siblings nodes\"},\"code\":\"\",\"parent\":{},\"sub\":[{}],\"siblings\":[{}]}]}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[9].let { request ->
@@ -449,12 +452,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/return/customMap", request.path.toString())
             assertEquals("GET", request.method)
             assertEquals(
-                "[{\"name\":\"key\",\"value\":\"\",\"desc\":\"\",\"required\":false}]",
-                request.querys.toJson()
+                    "[{\"name\":\"key\",\"value\":\"\",\"desc\":\"\",\"required\":false}]",
+                    request.querys.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[10].let { request ->
@@ -463,12 +466,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/call/page/user", request.path.toString())
             assertEquals("GET", request.method)
             assertEquals(
-                "[{\"name\":\"size\",\"value\":\"\",\"desc\":\"\",\"required\":false},{\"name\":\"user\",\"value\":\"{\\n  \\\"id\\\": 0,\\n  \\\"type\\\": 0,\\n  \\\"name\\\": \\\"tangcent\\\",\\n  \\\"age\\\": 0,\\n  \\\"sex\\\": 0,\\n  \\\"birthDay\\\": \\\"\\\",\\n  \\\"regtime\\\": \\\"\\\"\\n}\",\"desc\":\"\",\"required\":false},{\"name\":\"users\",\"value\":\"{\\n  \\\"id\\\": 0,\\n  \\\"type\\\": 0,\\n  \\\"name\\\": \\\"tangcent\\\",\\n  \\\"age\\\": 0,\\n  \\\"sex\\\": 0,\\n  \\\"birthDay\\\": \\\"\\\",\\n  \\\"regtime\\\": \\\"\\\"\\n}\",\"desc\":\"\",\"required\":false},{\"name\":\"t\",\"value\":\"{\\n  \\\"id\\\": 0,\\n  \\\"type\\\": 0,\\n  \\\"name\\\": \\\"tangcent\\\",\\n  \\\"age\\\": 0,\\n  \\\"sex\\\": 0,\\n  \\\"birthDay\\\": \\\"\\\",\\n  \\\"regtime\\\": \\\"\\\"\\n}\",\"desc\":\"\",\"required\":false}]",
-                request.querys.toJson()
+                    "[{\"name\":\"size\",\"value\":\"\",\"desc\":\"\",\"required\":false},{\"name\":\"user\",\"value\":\"{\\n  \\\"id\\\": 0,\\n  \\\"type\\\": 0,\\n  \\\"name\\\": \\\"tangcent\\\",\\n  \\\"age\\\": 0,\\n  \\\"sex\\\": 0,\\n  \\\"birthDay\\\": \\\"\\\",\\n  \\\"regtime\\\": \\\"\\\"\\n}\",\"desc\":\"\",\"required\":false},{\"name\":\"users\",\"value\":\"{\\n  \\\"id\\\": 0,\\n  \\\"type\\\": 0,\\n  \\\"name\\\": \\\"tangcent\\\",\\n  \\\"age\\\": 0,\\n  \\\"sex\\\": 0,\\n  \\\"birthDay\\\": \\\"\\\",\\n  \\\"regtime\\\": \\\"\\\"\\n}\",\"desc\":\"\",\"required\":false},{\"name\":\"t\",\"value\":\"{\\n  \\\"id\\\": 0,\\n  \\\"type\\\": 0,\\n  \\\"name\\\": \\\"tangcent\\\",\\n  \\\"age\\\": 0,\\n  \\\"sex\\\": 0,\\n  \\\"birthDay\\\": \\\"\\\",\\n  \\\"regtime\\\": \\\"\\\"\\n}\",\"desc\":\"\",\"required\":false}]",
+                    request.querys.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[11].let { request ->
@@ -477,12 +480,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/call/page/user/form", request.path.toString())
             assertEquals("POST", request.method)
             assertEquals(
-                "[{\"name\":\"size\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"users\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"t\",\"desc\":\"\",\"required\":false,\"type\":\"text\"}]",
-                request.formParams.toJson()
+                    "[{\"name\":\"size\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"users\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"t\",\"desc\":\"\",\"required\":false,\"type\":\"text\"}]",
+                    request.formParams.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[12].let { request ->
@@ -491,12 +494,12 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/call/page/user/post", request.path.toString())
             assertEquals("POST", request.method)
             assertEquals(
-                "[{\"name\":\"size\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"users\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"t\",\"desc\":\"\",\"required\":false,\"type\":\"text\"}]",
-                request.formParams.toJson()
+                    "[{\"name\":\"size\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"user\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"users\",\"desc\":\"\",\"required\":false,\"type\":\"text\"},{\"name\":\"t\",\"desc\":\"\",\"required\":false,\"type\":\"text\"}]",
+                    request.formParams.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":{\"\":\"\"}}",
+                    request.response!![0].body.toJson()
             )
         }
         requests[13].let { request ->
@@ -505,25 +508,26 @@ internal class SpringRequestClassExporterTest : PluginContextLightCodeInsightFix
             assertEquals("/test/call/page/user/array", request.path.toString())
             assertEquals("GET", request.method)
             assertEquals(
-                "[{\"name\":\"id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false},{\"name\":\"type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false},{\"name\":\"name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false},{\"name\":\"age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false},{\"name\":\"sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false},{\"name\":\"birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false},{\"name\":\"regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false}]",
-                request.querys.toJson()
+                    "[{\"name\":\"id\",\"value\":\"0\",\"desc\":\"user id\",\"required\":false},{\"name\":\"type\",\"value\":\"0\",\"desc\":\"user type\\n1 :administration\\n2 :a person, an animal or a plant\\n3 :Anonymous visitor\",\"required\":false},{\"name\":\"name\",\"value\":\"tangcent\",\"desc\":\"user name\",\"required\":false},{\"name\":\"age\",\"value\":\"0\",\"desc\":\"user age\",\"required\":false},{\"name\":\"sex\",\"value\":\"0\",\"desc\":\"\",\"required\":false},{\"name\":\"birthDay\",\"value\":\"\",\"desc\":\"user birthDay\",\"required\":false},{\"name\":\"regtime\",\"value\":\"\",\"desc\":\"user regtime\",\"required\":false}]",
+                    request.querys.toJson()
             )
             assertEquals(
-                "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":[{\"id\":0,\"@required\":{\"id\":false,\"type\":false,\"name\":false,\"age\":false,\"sex\":false,\"birthDay\":false,\"regtime\":false},\"@default\":{\"id\":\"0\",\"name\":\"tangcent\"},\"@comment\":{\"id\":\"user id\",\"type\":\"user type\",\"type@options\":[{\"value\":1,\"desc\":\"administration\"},{\"value\":2,\"desc\":\"a person, an animal or a plant\"},{\"value\":3,\"desc\":\"Anonymous visitor\"}],\"name\":\"user name\",\"age\":\"user age\",\"birthDay\":\"user birthDay\",\"regtime\":\"user regtime\"},\"type\":0,\"name\":\"tangcent\",\"age\":0,\"sex\":0,\"birthDay\":\"\",\"regtime\":\"\"}]}",
-                request.response!![0].body.toJson()
+                    "{\"code\":0,\"@required\":{\"code\":false,\"msg\":false,\"data\":false},\"@comment\":{\"code\":\"response code\",\"msg\":\"message\",\"data\":\"response data\"},\"msg\":\"\",\"data\":[{\"id\":0,\"@required\":{\"id\":false,\"type\":false,\"name\":false,\"age\":false,\"sex\":false,\"birthDay\":false,\"regtime\":false},\"@default\":{\"id\":\"0\",\"name\":\"tangcent\"},\"@comment\":{\"id\":\"user id\",\"type\":\"user type\",\"type@options\":[{\"value\":1,\"desc\":\"administration\"},{\"value\":2,\"desc\":\"a person, an animal or a plant\"},{\"value\":3,\"desc\":\"Anonymous visitor\"}],\"name\":\"user name\",\"age\":\"user age\",\"birthDay\":\"user birthDay\",\"regtime\":\"user regtime\"},\"type\":0,\"name\":\"tangcent\",\"age\":0,\"sex\":0,\"birthDay\":\"\",\"regtime\":\"\"}]}",
+                    request.response!![0].body.toJson()
             )
         }
 
         assertEquals(ResultLoader.load("testExportFromTestCtrlWithOutExpanded"),
-            LoggerCollector.getLog().toUnixString())
+                LoggerCollector.getLog().toUnixString())
     }
 
     fun testExportFromUserApi() {
         val requests = ArrayList<Request>()
-        classExporter.export(userApiImplPsiClass, requestOnly {
-            requests.add(it)
-        })
-        (classExporter as Worker).waitCompleted()
+        actionContext.withBoundary {
+            classExporter.export(userApiImplPsiClass, requestOnly {
+                requests.add(it)
+            })
+        }
         requests[0].let { request ->
             assertEquals("loginAuth", request.name)
             assertEquals("user/auth/loginAuth", request.path!!.url())
