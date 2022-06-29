@@ -121,22 +121,21 @@ class CachedRequestClassExporter : ClassExporter, Worker, CacheSwitcher {
 
                 statusRecorder.newWork()
                 actionContext.runInReadUI {
-                    try {
-                        delegateClassExporter!!.export(cls, requestOnly { request ->
-                            docHandle(request)
-                            requests.add(
-                                RequestWithKey(
-                                    PsiClassUtils.fullNameOfMember(cls, request.resourceMethod()!!), request
-                                )
+                    delegateClassExporter!!.export(cls, requestOnly { request ->
+                        docHandle(request)
+                        requests.add(
+                            RequestWithKey(
+                                PsiClassUtils.fullNameOfMember(cls, request.resourceMethod()!!), request
                             )
-                        }, completedHandle)
+                        )
+                    }) {
+                        statusRecorder.endWork()
+                        completedHandle(cls)
                         actionContext.runAsync {
                             fileApiCache.md5 = md5
                             fileApiCache.lastModified = System.currentTimeMillis()
                             fileApiCacheRepository!!.saveFileApiCache(path, fileApiCache)
                         }
-                    } finally {
-                        statusRecorder.endWork()
                     }
                 }
             } catch (e: ProcessCanceledException) {
@@ -164,7 +163,7 @@ class CachedRequestClassExporter : ClassExporter, Worker, CacheSwitcher {
 
     private fun readApiFromCache(
         cls: PsiClass, fileApiCache: FileApiCache, requestHandle: DocHandle,
-        completedHandle: CompletedHandle
+        completedHandle: CompletedHandle,
     ) {
         fileApiCache.requests?.forEach { request ->
             val method = request.key?.let { PsiClassUtils.findMethodFromFullName(it, cls as PsiElement) }

@@ -34,9 +34,10 @@ import com.itangcent.intellij.jvm.element.ExplicitElement
 import com.itangcent.intellij.jvm.element.ExplicitMethod
 import com.itangcent.intellij.logger.Logger
 import com.itangcent.intellij.psi.ContextSwitchListener
-import com.itangcent.intellij.jvm.JsonOption
 import com.itangcent.intellij.psi.PsiClassUtils
 import com.itangcent.intellij.util.*
+import com.itangcent.utils.asUnit
+import com.itangcent.utils.disposable
 import kotlin.reflect.KClass
 
 /**
@@ -123,18 +124,27 @@ abstract class RequestClassExporter : ClassExporter, Worker {
             completedHandle(cls)
             return false
         }
+
         contextSwitchListener?.switchTo(cls)
+        val disposable = {
+            actionContext!!.callInReadUI {
+                ruleComputer.computer(ClassExportRuleKeys.API_CLASS_PARSE_AFTER, cls)
+            }
+            statusRecorder.endWork()
+            completedHandle(cls)
+        }.disposable()
+
         actionContext!!.checkStatus()
         statusRecorder.newWork()
         try {
             when {
                 !hasApi(cls) -> {
-                    completedHandle(cls)
+                    disposable()
                     return false
                 }
                 shouldIgnore(cls) -> {
                     logger.info("ignore class:" + cls.qualifiedName)
-                    completedHandle(cls)
+                    disposable()
                     return true
                 }
             }
@@ -144,34 +154,30 @@ abstract class RequestClassExporter : ClassExporter, Worker {
             val classExportContext = ClassExportContext(cls)
 
             ruleComputer.computer(ClassExportRuleKeys.API_CLASS_PARSE_BEFORE, cls)
-            try {
-                processClass(cls, classExportContext)
 
-                val psiMethodSet = PsiMethodSet()
+            processClass(cls, classExportContext)
 
-                classApiExporterHelper.foreachMethod(cls) { explicitMethod ->
-                    val method = explicitMethod.psi()
-                    if (isApi(method)
-                        && methodFilter?.checkMethod(method) != false
-                        && psiMethodSet.add(method)) {
-                        try {
-                            ruleComputer.computer(ClassExportRuleKeys.API_METHOD_PARSE_BEFORE, explicitMethod)
-                            exportMethodApi(cls, explicitMethod, classExportContext, docHandle)
-                        } catch (e: Exception) {
-                            logger.traceError("error to export api from method:" + method.name, e)
-                        } finally {
-                            ruleComputer.computer(ClassExportRuleKeys.API_METHOD_PARSE_AFTER, explicitMethod)
-                        }
+            val psiMethodSet = PsiMethodSet()
+
+            classApiExporterHelper.foreachMethod(cls, { explicitMethod ->
+                val method = explicitMethod.psi()
+                if (isApi(method)
+                    && methodFilter?.checkMethod(method) != false
+                    && psiMethodSet.add(method)
+                ) {
+                    try {
+                        ruleComputer.computer(ClassExportRuleKeys.API_METHOD_PARSE_BEFORE, explicitMethod)
+                        exportMethodApi(cls, explicitMethod, classExportContext, docHandle)
+                    } catch (e: Exception) {
+                        logger.traceError("error to export api from method:" + method.name, e)
+                    } finally {
+                        ruleComputer.computer(ClassExportRuleKeys.API_METHOD_PARSE_AFTER, explicitMethod)
                     }
                 }
-            } finally {
-                ruleComputer.computer(ClassExportRuleKeys.API_CLASS_PARSE_AFTER, cls)
-            }
-        } catch (e: Exception) {
+            }, disposable.asUnit())
+        } catch (e: Throwable) {
             logger.traceError("error to export api from class:" + cls.name, e)
-        } finally {
-            statusRecorder.endWork()
-            completedHandle(cls)
+            disposable()
         }
         return true
     }
