@@ -96,8 +96,8 @@ internal class CurlFormatterTest : PluginContextLightCodeInsightFixtureTestCase(
 
         assertEquals("curl -X GET http://localhost:8080/user/greeting", curlFormatter.parseRequest(requests[0]))
         assertEquals(
-                "curl -X GET -H 'token: ' http://localhost:8080/user/get/{id}?id=0",
-                curlFormatter.parseRequest(requests[1])
+            "curl -X GET -H 'token: ' http://localhost:8080/user/get/{id}?id=",
+            curlFormatter.parseRequest(requests[1])
         )
         assertEquals(
                 "curl -X POST -H 'Content-Type: application/json' -H 'token: ' -d '{\n" +
