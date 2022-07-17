@@ -7,10 +7,10 @@ import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.rootManager
 import com.intellij.psi.*
-import com.itangcent.common.kit.KitUtils
 import com.itangcent.common.model.Doc
 import com.itangcent.common.model.MethodDoc
 import com.itangcent.common.model.Request
+import com.itangcent.common.utils.safe
 import com.itangcent.common.utils.safeComputeIfAbsent
 import com.itangcent.idea.icons.EasyIcons
 import com.itangcent.idea.plugin.api.cache.CachedRequestClassExporter
@@ -282,11 +282,11 @@ abstract class AbstractApiDashboardDialog : ContextDialog() {
                     LOG.info("no api be found from module [${moduleData.module.name}]")
                     moduleNode.removeFromParent()
                 }
-                KitUtils.safe { completedHandle() }
+                safe { completedHandle() }
                 actionContext.runInSwingUI {
-                    KitUtils.safe(
-                            ArrayIndexOutOfBoundsException::class,
-                            NullPointerException::class
+                    safe(
+                        ArrayIndexOutOfBoundsException::class,
+                        NullPointerException::class
                     ) {
                         rootTreeModel.reload(moduleNode)
                     }
