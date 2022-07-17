@@ -22,6 +22,7 @@ interface ApplicationSettingsSupport {
     var readSetter: Boolean
     var inferEnable: Boolean
     var inferMaxDeep: Int
+    var selectedOnly: Boolean
 
     //unit:s
     var httpTimeOut: Int
@@ -53,6 +54,7 @@ interface ApplicationSettingsSupport {
         newSetting.readSetter = this.readSetter
         newSetting.inferEnable = this.inferEnable
         newSetting.inferMaxDeep = this.inferMaxDeep
+        newSetting.selectedOnly = this.selectedOnly
         newSetting.httpTimeOut = this.httpTimeOut
         newSetting.useRecommendConfig = this.useRecommendConfig
         newSetting.recommendConfigs = this.recommendConfigs
@@ -101,6 +103,8 @@ class ApplicationSettings : ApplicationSettingsSupport {
     override var inferEnable: Boolean = false
 
     override var inferMaxDeep: Int = Settings.DEFAULT_INFER_MAX_DEEP
+
+    override var selectedOnly: Boolean = false
 
     //endregion
 
