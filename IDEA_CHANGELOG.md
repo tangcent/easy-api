@@ -1,3 +1,55 @@
+* 2.1.9
+
+	* feat: enum auto select field by type [(#447)](https://github.com/tangcent/easy-api/pull/447)
+
+	* fix: resolve doc of fields for param annotated with @BeanParam [(#446)](https://github.com/tangcent/easy-api/pull/446)
+
+	* chore: remove DataEventCollector.getData(DataKey) [(#445)](https://github.com/tangcent/easy-api/pull/445)
+
+	* feat: resolve suspend function in kotlin [(#444)](https://github.com/tangcent/easy-api/pull/444)
+
+	* feat: get resource with timeout [(#443)](https://github.com/tangcent/easy-api/pull/443)
+
+	* chore: remove usages of KitUtils.safe [(#442)](https://github.com/tangcent/easy-api/pull/442)
+
+	* feat: support new setting 'export selected method only' [(#441)](https://github.com/tangcent/easy-api/pull/441)
+
+	* fix: not use '0' as example [(#440)](https://github.com/tangcent/easy-api/pull/440)
+
+	* fix: fix resize of ApiCallDialog [(#439)](https://github.com/tangcent/easy-api/pull/439)
+
+	* fix: fix  rule `field.default.value` [(#438)](https://github.com/tangcent/easy-api/pull/438)
+
+	* feat: not require confirmation to export apis from directory [(#437)](https://github.com/tangcent/easy-api/pull/437)
+
+	* feat: wrap script result [(#436)](https://github.com/tangcent/easy-api/pull/436)
+
+	* fix: refactor the thread model [(#435)](https://github.com/tangcent/easy-api/pull/435)
+
+	* fix: interval sleep during parsing [(#434)](https://github.com/tangcent/easy-api/pull/434)
+
+	* feat: rename module quarkus to jaxrs [(#433)](https://github.com/tangcent/easy-api/pull/433)
+
+	* chore: add Fastjson support [(#432)](https://github.com/tangcent/easy-api/pull/432)
+
+	* feat: init recommend config even if no module be switched [(#431)](https://github.com/tangcent/easy-api/pull/431)
+
+	* fix: set `readTimeout` for read resource by url [(#430)](https://github.com/tangcent/easy-api/pull/430)
+
+	* feat: new method for rule context `class` [(#429)](https://github.com/tangcent/easy-api/pull/429)
+
+	* feat: resolve RequestMapping from interfaces [(#428)](https://github.com/tangcent/easy-api/pull/428)
+
+	* feat: provide rules to customize tables in markdown [(#427)](https://github.com/tangcent/easy-api/pull/427)
+
+	* test: add test case for DataEventCollector [(#426)](https://github.com/tangcent/easy-api/pull/426)
+
+	* build: upgrade idea SDK version [(#425)](https://github.com/tangcent/easy-api/pull/425)
+
+	* test: add test case for CustomLogConfig [(#424)](https://github.com/tangcent/easy-api/pull/424)
+
+	* feat: provide rules to customize markdown [(#423)](https://github.com/tangcent/easy-api/pull/423)
+
 * 2.1.8
 
 	* chore: update swagger.config [(#421)](https://github.com/tangcent/easy-api/pull/421)
