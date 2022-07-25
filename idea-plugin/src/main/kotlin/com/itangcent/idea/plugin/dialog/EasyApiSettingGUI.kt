@@ -63,6 +63,8 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
 
     private var autoMergeScriptCheckBox: JCheckBox? = null
 
+    private var buildExampleCheckBox: JCheckBox? = null
+
     private var postmanExportModeComboBox: JComboBox<String>? = null
 
     private var postmanJson5FormatTypeComboBox: JComboBox<String>? = null
@@ -236,6 +238,7 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
         this.postmanTokenTextField!!.text = settings.postmanToken ?: ""
         this.wrapCollectionCheckBox!!.isSelected = settings.wrapCollection
         this.autoMergeScriptCheckBox!!.isSelected = settings.autoMergeScript
+        this.buildExampleCheckBox!!.isSelected = settings.postmanBuildExample
 
         this.postmanWorkspaceComboBoxModel?.selectedItem = this.selectedPostmanWorkspace
         this.logLevelComboBox!!.selectedItem = CommonSettingsHelper.CoarseLogLevel.toLevel(settings.logLevel)
@@ -542,6 +545,7 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
         settings.postmanToken = postmanTokenTextField!!.text
         settings.wrapCollection = wrapCollectionCheckBox!!.isSelected
         settings.autoMergeScript = autoMergeScriptCheckBox!!.isSelected
+        settings.postmanBuildExample = buildExampleCheckBox!!.isSelected
         postmanJson5FormatTypeComboBox!!.selected()?.let {
             settings.postmanJson5FormatType = it
         }
