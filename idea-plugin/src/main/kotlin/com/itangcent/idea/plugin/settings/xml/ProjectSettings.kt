@@ -12,10 +12,12 @@ interface ProjectSettingsSupport {
 
     var postmanCollections: String?
 
+    var postmanBuildExample: Boolean
     fun copyTo(newSetting: ProjectSettingsSupport) {
         newSetting.postmanWorkspace = this.postmanWorkspace
         newSetting.postmanExportMode = this.postmanExportMode
         newSetting.postmanCollections = this.postmanCollections
+        newSetting.postmanBuildExample = this.postmanBuildExample
     }
 }
 
@@ -62,6 +64,7 @@ class ProjectSettings : ProjectSettingsSupport {
 
     override var postmanCollections: String? = null
 
+    override var postmanBuildExample: Boolean = true
     fun copy(): ProjectSettings {
         val projectSettings = ProjectSettings()
         this.copyTo(projectSettings)
