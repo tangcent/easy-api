@@ -28,6 +28,7 @@ import com.itangcent.intellij.extend.unbox
 import com.itangcent.intellij.extend.withBoundary
 import com.itangcent.intellij.jvm.*
 import com.itangcent.intellij.jvm.duck.DuckType
+import com.itangcent.intellij.jvm.duck.SingleDuckType
 import com.itangcent.intellij.jvm.element.ExplicitElement
 import com.itangcent.intellij.jvm.element.ExplicitMethod
 import com.itangcent.intellij.logger.Logger
@@ -102,6 +103,9 @@ abstract class RequestClassExporter : ClassExporter {
     @Inject
     private lateinit var classApiExporterHelper: ClassApiExporterHelper
 
+    @Inject
+    protected lateinit var commentResolver: CommentResolver
+
     override fun export(cls: Any, docHandle: DocHandle): Boolean {
         if (cls !is PsiClass) {
             return false
@@ -138,8 +142,8 @@ abstract class RequestClassExporter : ClassExporter {
                 classApiExporterHelper.foreachMethod(cls) { explicitMethod ->
                     val method = explicitMethod.psi()
                     if (isApi(method)
-                            && methodFilter?.checkMethod(method) != false
-                            && psiMethodSet.add(method)
+                        && methodFilter?.checkMethod(method) != false
+                        && psiMethodSet.add(method)
                     ) {
                         try {
                             ruleComputer.computer(ClassExportRuleKeys.API_METHOD_PARSE_BEFORE, explicitMethod)
@@ -171,12 +175,12 @@ abstract class RequestClassExporter : ClassExporter {
     }
 
     private fun exportMethodApi(
-            psiClass: PsiClass, method: ExplicitMethod,
-            classExportContext: ClassExportContext,
-            docHandle: DocHandle,
+        psiClass: PsiClass, method: ExplicitMethod,
+        classExportContext: ClassExportContext,
+        docHandle: DocHandle,
     ) {
 
-        actionContext!!.checkStatus()
+        actionContext.checkStatus()
 
         val request = Request()
 
@@ -200,8 +204,8 @@ abstract class RequestClassExporter : ClassExporter {
     }
 
     protected open fun processMethod(
-            methodExportContext: MethodExportContext,
-            request: Request,
+        methodExportContext: MethodExportContext,
+        request: Request,
     ) {
 
         apiHelper!!.nameAndAttrOfApi(methodExportContext.element(), {
@@ -212,9 +216,9 @@ abstract class RequestClassExporter : ClassExporter {
 
         //computer content-type.
         ruleComputer.computer(ClassExportRuleKeys.METHOD_CONTENT_TYPE, methodExportContext.element())
-                ?.let {
-                    requestBuilderListener.setContentType(methodExportContext, request, it)
-                }
+            ?.let {
+                requestBuilderListener.setContentType(methodExportContext, request, it)
+            }
 
     }
 
@@ -229,8 +233,8 @@ abstract class RequestClassExporter : ClassExporter {
     protected open fun processCompleted(methodExportContext: MethodExportContext, request: Request) {
         //parse additionalHeader by config
         val additionalHeader = ruleComputer.computer(
-                ClassExportRuleKeys.METHOD_ADDITIONAL_HEADER,
-                methodExportContext.element()
+            ClassExportRuleKeys.METHOD_ADDITIONAL_HEADER,
+            methodExportContext.element()
         )
         if (additionalHeader.notNullOrEmpty()) {
             val additionalHeaders = additionalHeader!!.lines()
@@ -256,7 +260,7 @@ abstract class RequestClassExporter : ClassExporter {
 
         //parse additionalParam by config
         val additionalParam =
-                ruleComputer.computer(ClassExportRuleKeys.METHOD_ADDITIONAL_PARAM, methodExportContext.element())
+            ruleComputer.computer(ClassExportRuleKeys.METHOD_ADDITIONAL_PARAM, methodExportContext.element())
         if (additionalParam.notNullOrEmpty()) {
             val additionalParams = additionalParam!!.lines()
             for (paramStr in additionalParams) {
@@ -282,10 +286,10 @@ abstract class RequestClassExporter : ClassExporter {
         //parse additionalResponseHeader by config
         if (request.response.notNullOrEmpty()) {
             val additionalResponseHeader =
-                    ruleComputer.computer(
-                            ClassExportRuleKeys.METHOD_ADDITIONAL_RESPONSE_HEADER,
-                            methodExportContext.element()
-                    )
+                ruleComputer.computer(
+                    ClassExportRuleKeys.METHOD_ADDITIONAL_RESPONSE_HEADER,
+                    methodExportContext.element()
+                )
             if (additionalResponseHeader.notNullOrEmpty()) {
                 val additionalHeaders = additionalResponseHeader!!.lines()
                 for (headerStr in additionalHeaders) {
@@ -305,8 +309,8 @@ abstract class RequestClassExporter : ClassExporter {
                     }?.let {
                         request.response!!.forEach { response ->
                             requestBuilderListener.addResponseHeader(
-                                    methodExportContext,
-                                    response, it
+                                methodExportContext,
+                                response, it
                             )
                         }
                     }
@@ -341,72 +345,101 @@ abstract class RequestClassExporter : ClassExporter {
                 val response = Response()
 
                 requestBuilderListener.setResponseCode(
-                        methodExportContext,
-                        response, 200
+                    methodExportContext,
+                    response, 200
                 )
+
+                val ultimateComment = StringBuilder()
 
                 val typedResponse = parseResponseBody(returnType, fromRule, methodExportContext.element())
 
                 val descOfReturn = docHelper!!.findDocByTag(methodExportContext.psi(), "return")
+
+                val methodReturnMain =
+                    ruleComputer.computer(ClassExportRuleKeys.METHOD_RETURN_MAIN, methodExportContext.element())
+
+                var context: PsiElement = methodExportContext.psi()
+                val methodReturnMainType: DuckType?
+                if (methodReturnMain.isNullOrBlank()) {
+                    methodReturnMainType = methodExportContext.type()
+                } else {
+                    val explicitReturnType = duckTypeHelper.explicit(returnType.unbox() as SingleDuckType)
+                    val explicitField = explicitReturnType.fields().firstOrNull { it.name() == methodReturnMain }
+                    methodReturnMainType = explicitField?.getType()
+                    methodReturnMainType.unbox().cast(SingleDuckType::class)
+                        ?.psiClass()?.let {
+                            context = it
+                        }
+                }
+
                 if (descOfReturn.notNullOrBlank()) {
-                    val methodReturnMain =
-                            ruleComputer.computer(ClassExportRuleKeys.METHOD_RETURN_MAIN, methodExportContext.element())
+
+                    val options: ArrayList<HashMap<String, Any?>> = ArrayList()
+                    val comment = linkExtractor!!.extract(
+                        descOfReturn,
+                        context,
+                        object : AbstractLinkResolve() {
+
+                            override fun linkToPsiElement(plainText: String, linkTo: Any?): String? {
+
+                                psiClassHelper!!.resolveEnumOrStatic(plainText, context, "")
+                                    ?.let { options.addAll(it) }
+
+                                return super.linkToPsiElement(plainText, linkTo)
+                            }
+
+                            override fun linkToType(plainText: String, linkType: PsiType): String? {
+                                return jvmClassHelper!!.resolveClassInType(linkType)?.let {
+                                    linkResolver!!.linkToClass(it)
+                                }
+                            }
+
+                            override fun linkToClass(plainText: String, linkClass: PsiClass): String? {
+                                return linkResolver!!.linkToClass(linkClass)
+                            }
+
+                            override fun linkToField(plainText: String, linkField: PsiField): String? {
+                                return linkResolver!!.linkToProperty(linkField)
+                            }
+
+                            override fun linkToMethod(plainText: String, linkMethod: PsiMethod): String? {
+                                return linkResolver!!.linkToMethod(linkMethod)
+                            }
+
+                            override fun linkToUnresolved(plainText: String): String {
+                                return plainText
+                            }
+                        })
+
+                    if (comment != null) {
+                        ultimateComment.appendLine(comment)
+                    } else {
+                        ultimateComment.appendLine(descOfReturn)
+                    }
+
+                    if (options.notNullOrEmpty()) {
+                        ultimateComment.appendLine(KVUtils.getOptionDesc(options))
+                    }
+                }
+
+                if (methodReturnMainType != null) {
+                    commentResolver.resolveCommentForType(methodReturnMainType, methodExportContext.psi())?.let {
+                        ultimateComment.appendLine(it)
+                    }
+                }
+
+                val ultimateCommentStr = ultimateComment.toString().trimEnd()
+                if (ultimateCommentStr.isNotEmpty()) {
                     if (methodReturnMain.isNullOrBlank()) {
                         requestBuilderListener.appendResponseBodyDesc(
-                                methodExportContext,
-                                response, descOfReturn
+                            methodExportContext,
+                            response, ultimateCommentStr
                         )
                     } else {
-                        val options: ArrayList<HashMap<String, Any?>> = ArrayList()
-                        val comment = linkExtractor!!.extract(
-                                descOfReturn,
-                                methodExportContext.psi(),
-                                object : AbstractLinkResolve() {
-
-                                    override fun linkToPsiElement(plainText: String, linkTo: Any?): String? {
-
-                                        psiClassHelper!!.resolveEnumOrStatic(plainText, methodExportContext.psi(), "")
-                                                ?.let { options.addAll(it) }
-
-                                        return super.linkToPsiElement(plainText, linkTo)
-                                    }
-
-                                    override fun linkToType(plainText: String, linkType: PsiType): String? {
-                                        return jvmClassHelper!!.resolveClassInType(linkType)?.let {
-                                            linkResolver!!.linkToClass(it)
-                                        }
-                                    }
-
-                                    override fun linkToClass(plainText: String, linkClass: PsiClass): String? {
-                                        return linkResolver!!.linkToClass(linkClass)
-                                    }
-
-                                    override fun linkToField(plainText: String, linkField: PsiField): String? {
-                                        return linkResolver!!.linkToProperty(linkField)
-                                    }
-
-                                    override fun linkToMethod(plainText: String, linkMethod: PsiMethod): String? {
-                                        return linkResolver!!.linkToMethod(linkMethod)
-                                    }
-
-                                    override fun linkToUnresolved(plainText: String): String {
-                                        return plainText
-                                    }
-                                })
-
-                        if (comment.notNullOrBlank()) {
-                            if (!KVUtils.addKeyComment(typedResponse, methodReturnMain, comment!!)) {
-                                requestBuilderListener.appendResponseBodyDesc(methodExportContext, response, comment)
-                            }
-                        }
-                        if (options.notNullOrEmpty()) {
-                            if (!KVUtils.addKeyOptions(typedResponse, methodReturnMain, options)) {
-                                requestBuilderListener.appendResponseBodyDesc(
-                                        methodExportContext,
-                                        response,
-                                        KVUtils.getOptionDesc(options)
-                                )
-                            }
+                        if (!KVUtils.addKeyComment(typedResponse, methodReturnMain, ultimateCommentStr)) {
+                            requestBuilderListener.appendResponseBodyDesc(methodExportContext,
+                                response,
+                                ultimateCommentStr)
                         }
                     }
                 }
@@ -414,10 +447,10 @@ abstract class RequestClassExporter : ClassExporter {
                 requestBuilderListener.setResponseBody(methodExportContext, response, "raw", typedResponse)
 
                 requestBuilderListener.addResponseHeader(
-                        methodExportContext,
-                        response,
-                        "content-type",
-                        "application/json;charset=UTF-8"
+                    methodExportContext,
+                    response,
+                    "content-type",
+                    "application/json;charset=UTF-8"
                 )
 
                 requestBuilderListener.addResponse(methodExportContext, request, response)
@@ -480,13 +513,13 @@ abstract class RequestClassExporter : ClassExporter {
                     logger.warn("file param in `GET` API [${request.path}]")
                 } else if (request.method == null || request.method == HttpMethod.NO_METHOD) {
                     request.method = ruleComputer.computer(
-                            ClassExportRuleKeys.METHOD_DEFAULT_HTTP_METHOD,
-                            methodExportContext.element()
+                        ClassExportRuleKeys.METHOD_DEFAULT_HTTP_METHOD,
+                        methodExportContext.element()
                     ) ?: HttpMethod.POST
                 }
                 requestBuilderListener.addHeader(
-                        methodExportContext,
-                        request, "Content-Type", "multipart/form-data"
+                    methodExportContext,
+                    request, "Content-Type", "multipart/form-data"
                 )
             }
 
@@ -495,10 +528,10 @@ abstract class RequestClassExporter : ClassExporter {
 
                 try {
                     processMethodParameter(
-                            request,
-                            parameterExportContext,
-                            KVUtils.getUltimateComment(paramDocComment, parameterExportContext.name())
-                                    .append(readParamDoc(parameterExportContext.element()))
+                        request,
+                        parameterExportContext,
+                        KVUtils.getUltimateComment(paramDocComment, parameterExportContext.name())
+                            .append(readParamDoc(parameterExportContext.element()))
                     )
                 } finally {
                     ruleComputer.computer(ClassExportRuleKeys.API_PARAM_AFTER, parameterExportContext.element())
@@ -508,60 +541,60 @@ abstract class RequestClassExporter : ClassExporter {
 
         if (request.method == null || request.method == HttpMethod.NO_METHOD) {
             val defaultHttpMethod = ruleComputer.computer(
-                    ClassExportRuleKeys.METHOD_DEFAULT_HTTP_METHOD,
-                    methodExportContext.element()
+                ClassExportRuleKeys.METHOD_DEFAULT_HTTP_METHOD,
+                methodExportContext.element()
             )
             requestBuilderListener.setMethod(
-                    methodExportContext,
-                    request, defaultHttpMethod ?: HttpMethod.GET
+                methodExportContext,
+                request, defaultHttpMethod ?: HttpMethod.GET
             )
         }
 
         if (request.hasBodyOrForm()) {
             requestBuilderListener.addHeaderIfMissed(
-                    methodExportContext,
-                    request, "Content-Type", "application/x-www-form-urlencoded"
+                methodExportContext,
+                request, "Content-Type", "application/x-www-form-urlencoded"
             )
         }
 
     }
 
     abstract fun processMethodParameter(
-            request: Request,
-            parameterExportContext: ParameterExportContext,
-            paramDesc: String?,
+        request: Request,
+        parameterExportContext: ParameterExportContext,
+        paramDesc: String?,
     )
 
     protected fun setRequestBody(
-            exportContext: ExportContext,
-            request: Request, typeObject: Any?, paramDesc: String?,
+        exportContext: ExportContext,
+        request: Request, typeObject: Any?, paramDesc: String?,
     ) {
         requestBuilderListener.setMethodIfMissed(exportContext, request, HttpMethod.POST)
         requestBuilderListener.addHeader(exportContext, request, "Content-Type", "application/json")
         requestBuilderListener.setJsonBody(
-                exportContext,
-                request,
-                typeObject,
-                paramDesc
+            exportContext,
+            request,
+            typeObject,
+            paramDesc
         )
         return
     }
 
     @Suppress("UNCHECKED_CAST")
     protected open fun addParamAsQuery(
-            parameterExportContext: VariableExportContext,
-            request: Request, typeObject: Any?, paramDesc: String? = null,
+        parameterExportContext: VariableExportContext,
+        request: Request, typeObject: Any?, paramDesc: String? = null,
     ) {
         try {
             parameterExportContext.setExt("paramTypeObject", typeObject)
 
             if (typeObject == Magics.FILE_STR) {
                 requestBuilderListener.addFormFileParam(
-                        parameterExportContext,
-                        request, parameterExportContext.paramName(),
-                        parameterExportContext.required()
-                                ?: ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.element())
-                                ?: false, paramDesc
+                    parameterExportContext,
+                    request, parameterExportContext.paramName(),
+                    parameterExportContext.required()
+                        ?: ruleComputer.computer(ClassExportRuleKeys.PARAM_REQUIRED, parameterExportContext.element())
+                        ?: false, paramDesc
                 )
                 return
             }
@@ -581,8 +614,8 @@ abstract class RequestClassExporter : ClassExporter {
             }
 
             if (request.hasBodyOrForm()
-                    && request.formParams.isNullOrEmpty()
-                    && typeObject.isComplex()
+                && request.formParams.isNullOrEmpty()
+                && typeObject.isComplex()
             ) {
                 requestBuilderListener.setMethodIfMissed(parameterExportContext, request, HttpMethod.POST)
                 addParamAsForm(parameterExportContext, request, typeObject, paramDesc)
@@ -634,37 +667,37 @@ abstract class RequestClassExporter : ClassExporter {
             }
         } catch (e: Exception) {
             logger.traceError(
-                    "error to parse [${
-                        parameterExportContext.type()?.canonicalText()
-                    }] as Queries", e
+                "error to parse [${
+                    parameterExportContext.type()?.canonicalText()
+                }] as Queries", e
             )
         }
     }
 
     @Suppress("UNCHECKED_CAST")
     protected open fun addParamAsForm(
-            parameterExportContext: VariableExportContext,
-            request: Request, typeObject: Any?, paramDesc: String? = null,
+        parameterExportContext: VariableExportContext,
+        request: Request, typeObject: Any?, paramDesc: String? = null,
     ) {
 
         try {
             if (typeObject == Magics.FILE_STR) {
                 requestBuilderListener.addFormFileParam(
-                        parameterExportContext,
-                        request, parameterExportContext.paramName(),
-                        ruleComputer.computer(
-                                ClassExportRuleKeys.PARAM_REQUIRED,
-                                parameterExportContext.element()
-                        )
-                                ?: false, paramDesc
+                    parameterExportContext,
+                    request, parameterExportContext.paramName(),
+                    ruleComputer.computer(
+                        ClassExportRuleKeys.PARAM_REQUIRED,
+                        parameterExportContext.element()
+                    )
+                        ?: false, paramDesc
                 )
                 return
             }
 
             if (typeObject != null && typeObject is Map<*, *>) {
                 requestBuilderListener.addHeaderIfMissed(
-                        parameterExportContext,
-                        request, "Content-Type", "multipart/form-data"
+                    parameterExportContext,
+                    request, "Content-Type", "multipart/form-data"
                 )
                 if (this.intelligentSettingsHelper.formExpanded()) {
                     typeObject.flatValid(object : FieldConsumer {
@@ -675,10 +708,10 @@ abstract class RequestClassExporter : ClassExporter {
                             val fv = deepComponent(value)
                             if (fv == Magics.FILE_STR) {
                                 requestBuilderListener.addFormFileParam(
-                                        parameterExportContext,
-                                        request, path,
-                                        parent?.getAs<Boolean>(Attrs.REQUIRED_ATTR, key) ?: false,
-                                        KVUtils.getUltimateComment(parent?.getAs(Attrs.COMMENT_ATTR), key)
+                                    parameterExportContext,
+                                    request, path,
+                                    parent?.getAs<Boolean>(Attrs.REQUIRED_ATTR, key) ?: false,
+                                    KVUtils.getUltimateComment(parent?.getAs(Attrs.COMMENT_ATTR), key)
                                 )
                             } else {
                                 requestBuilderListener.addFormParam(
@@ -700,8 +733,8 @@ abstract class RequestClassExporter : ClassExporter {
                     val required = fields.getAsKv(Attrs.REQUIRED_ATTR)
                     val defaultVal = fields.getAsKv(Attrs.DEFAULT_VALUE_ATTR)
                     requestBuilderListener.addHeaderIfMissed(
-                            parameterExportContext,
-                            request, "Content-Type", "application/x-www-form-urlencoded"
+                        parameterExportContext,
+                        request, "Content-Type", "application/x-www-form-urlencoded"
                     )
                     parameterExportContext.setExt("parent", fields)
                     fields.forEachValid { filedName, fieldVal ->
@@ -709,10 +742,10 @@ abstract class RequestClassExporter : ClassExporter {
                         val fv = deepComponent(defaultVal?.get(filedName) ?: fieldVal)
                         if (fv == Magics.FILE_STR) {
                             requestBuilderListener.addFormFileParam(
-                                    parameterExportContext,
-                                    request, filedName,
-                                    required?.getAs(filedName) ?: false,
-                                    KVUtils.getUltimateComment(comment, filedName)
+                                parameterExportContext,
+                                request, filedName,
+                                required?.getAs(filedName) ?: false,
+                                KVUtils.getUltimateComment(comment, filedName)
                             )
                         } else {
                             requestBuilderListener.addFormParam(
@@ -735,8 +768,8 @@ abstract class RequestClassExporter : ClassExporter {
             }
         } catch (e: Exception) {
             logger.traceError(
-                    "error to parse[" + parameterExportContext.type()?.canonicalText() + "] as ModelAttribute",
-                    e
+                "error to parse[" + parameterExportContext.type()?.canonicalText() + "] as ModelAttribute",
+                e
             )
         }
 
@@ -751,8 +784,8 @@ abstract class RequestClassExporter : ClassExporter {
 
         return when {
             fromRule -> psiClassHelper!!.getTypeObject(
-                    duckType, method.psi(),
-                    this.intelligentSettingsHelper.jsonOptionForOutput(JsonOption.READ_COMMENT)
+                duckType, method.psi(),
+                this.intelligentSettingsHelper.jsonOptionForOutput(JsonOption.READ_COMMENT)
             )
             this.intelligentSettingsHelper.inferEnable() && !duckTypeHelper.isQualified(duckType)
             -> {
@@ -761,8 +794,8 @@ abstract class RequestClassExporter : ClassExporter {
 //                actionContext!!.callWithTimeout(20000) { methodReturnInferHelper.inferReturn(method) }
             }
             else -> psiClassHelper!!.getTypeObject(
-                    duckType, method.psi(),
-                    this.intelligentSettingsHelper.jsonOptionForOutput(JsonOption.READ_COMMENT)
+                duckType, method.psi(),
+                this.intelligentSettingsHelper.jsonOptionForOutput(JsonOption.READ_COMMENT)
             )
         }
     }
@@ -814,8 +847,8 @@ abstract class RequestClassExporter : ClassExporter {
         return this.cache("raw") {
             val paramType = this.type() ?: return@cache null
             val typeObject = psiClassHelper!!.getTypeObject(
-                    paramType, this.psi(),
-                    this@RequestClassExporter.intelligentSettingsHelper.jsonOptionForInput(JsonOption.READ_COMMENT)
+                paramType, this.psi(),
+                this@RequestClassExporter.intelligentSettingsHelper.jsonOptionForInput(JsonOption.READ_COMMENT)
             )
             this.setExt("raw", typeObject)
             return@cache typeObject
