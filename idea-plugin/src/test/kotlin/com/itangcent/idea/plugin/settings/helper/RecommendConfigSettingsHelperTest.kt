@@ -51,7 +51,7 @@ internal class RecommendConfigSettingsHelperTest : SettingsHelperTest() {
                     "properties.prefix=@org.springframework.boot.context.properties.ConfigurationProperties#prefix\n" +
                     "#Support for Fastjson annotations\n" +
                     "field.name=@com.alibaba.fastjson.annotation.JSONField#value\n" +
-                    "#enum auto select field by type\n" +
+                    "#Auto map enum to a type matched field in it\n" +
                     "enum.use.by.type=true",
             recommendConfigSettingsHelper.loadRecommendConfig().toUnixString()
         )
