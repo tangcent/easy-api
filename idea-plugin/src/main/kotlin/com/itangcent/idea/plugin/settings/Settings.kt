@@ -35,7 +35,7 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
 
     override var postmanJson5FormatType: String = PostmanJson5FormatType.EXAMPLE_ONLY.name
 
-    //region intelligent
+    //region intelligent--------------------------
 
     override var queryExpanded: Boolean = true
 
@@ -62,7 +62,9 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
 
     //endregion
 
-    //enable to use recommend config
+    /**
+     * enable to use recommend config
+     */
     override var useRecommendConfig: Boolean = true
 
     override var recommendConfigs: String = RecommendConfigLoader.defaultCodes()

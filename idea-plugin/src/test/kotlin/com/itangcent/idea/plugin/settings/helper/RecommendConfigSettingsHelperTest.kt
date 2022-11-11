@@ -52,7 +52,8 @@ internal class RecommendConfigSettingsHelperTest : SettingsHelperTest() {
                     "#Support for Fastjson annotations\n" +
                     "field.name=@com.alibaba.fastjson.annotation.JSONField#value\n" +
                     "#Auto map enum to a type matched field in it\n" +
-                    "enum.use.by.type=true",
+                    "enum.use.by.type=true\n" +
+                    "json.rule.enum.convert=~#name()",
             recommendConfigSettingsHelper.loadRecommendConfig().toUnixString()
         )
     }

@@ -14,10 +14,7 @@ import com.itangcent.idea.plugin.api.export.postman.PostmanCachedApiHelper
 import com.itangcent.idea.plugin.api.export.postman.PostmanUrls.INTEGRATIONS_DASHBOARD
 import com.itangcent.idea.plugin.api.export.postman.PostmanWorkspace
 import com.itangcent.idea.plugin.configurable.AbstractEasyApiSettingGUI
-import com.itangcent.idea.plugin.settings.MarkdownFormatType
-import com.itangcent.idea.plugin.settings.PostmanExportMode
-import com.itangcent.idea.plugin.settings.PostmanJson5FormatType
-import com.itangcent.idea.plugin.settings.Settings
+import com.itangcent.idea.plugin.settings.*
 import com.itangcent.idea.plugin.settings.helper.*
 import com.itangcent.idea.plugin.settings.xml.postmanCollectionsAsPairs
 import com.itangcent.idea.plugin.settings.xml.setPostmanCollectionsPairs
