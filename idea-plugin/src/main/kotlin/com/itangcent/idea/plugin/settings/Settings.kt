@@ -15,6 +15,8 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
 
     override var jaxrsEnable: Boolean = true
 
+    override var actuatorEnable: Boolean = false
+
     //postman
 
     override var pullNewestDataBefore: Boolean = false
@@ -106,6 +108,7 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
         if (genericEnable != other.genericEnable) return false
         if (feignEnable != other.feignEnable) return false
         if (jaxrsEnable != other.jaxrsEnable) return false
+        if (actuatorEnable != other.actuatorEnable) return false
         if (pullNewestDataBefore != other.pullNewestDataBefore) return false
         if (postmanToken != other.postmanToken) return false
         if (postmanWorkspace != other.postmanWorkspace) return false
@@ -141,6 +144,7 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
         result = 31 * result + genericEnable.hashCode()
         result = 31 * result + feignEnable.hashCode()
         result = 31 * result + jaxrsEnable.hashCode()
+        result = 31 * result + actuatorEnable.hashCode()
         result = 31 * result + pullNewestDataBefore.hashCode()
         result = 31 * result + (postmanToken?.hashCode() ?: 0)
         result = 31 * result + (postmanWorkspace?.hashCode() ?: 0)

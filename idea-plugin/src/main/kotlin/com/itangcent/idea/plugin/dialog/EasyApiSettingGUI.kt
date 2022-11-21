@@ -114,6 +114,8 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
 
     private var jaxrsEnableCheckBox: JCheckBox? = null
 
+    private var actuatorEnableCheckBox: JCheckBox? = null
+
     private var globalCacheSizeLabel: JLabel? = null
 
     private var projectCacheSizeLabel: JLabel? = null
@@ -249,6 +251,7 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
         this.genericEnableCheckBox!!.isSelected = settings.genericEnable
         this.feignEnableCheckBox!!.isSelected = settings.feignEnable
         this.jaxrsEnableCheckBox!!.isSelected = settings.jaxrsEnable
+        this.actuatorEnableCheckBox!!.isSelected = settings.actuatorEnable
         this.inferEnableCheckBox!!.isSelected = settings.inferEnable
         this.selectedOnlyCheckBox!!.isSelected = settings.selectedOnly
         this.readGetterCheckBox!!.isSelected = settings.readGetter
@@ -551,6 +554,7 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
         settings.genericEnable = genericEnableCheckBox!!.isSelected
         settings.feignEnable = feignEnableCheckBox!!.isSelected
         settings.jaxrsEnable = jaxrsEnableCheckBox!!.isSelected
+        settings.actuatorEnable = actuatorEnableCheckBox!!.isSelected
         settings.queryExpanded = queryExpandedCheckBox!!.isSelected
         settings.formExpanded = formExpandedCheckBox!!.isSelected
         settings.readGetter = readGetterCheckBox!!.isSelected
