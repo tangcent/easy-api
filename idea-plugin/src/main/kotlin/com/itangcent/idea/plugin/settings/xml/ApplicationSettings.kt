@@ -11,6 +11,7 @@ interface ApplicationSettingsSupport {
     var genericEnable: Boolean
     var feignEnable: Boolean
     var jaxrsEnable: Boolean
+    var actuatorEnable: Boolean
     var pullNewestDataBefore: Boolean
     var postmanToken: String?
     var wrapCollection: Boolean
@@ -48,6 +49,7 @@ interface ApplicationSettingsSupport {
         newSetting.genericEnable = this.genericEnable
         newSetting.feignEnable = this.feignEnable
         newSetting.jaxrsEnable = this.jaxrsEnable
+        newSetting.actuatorEnable = this.actuatorEnable
         newSetting.queryExpanded = this.queryExpanded
         newSetting.formExpanded = this.formExpanded
         newSetting.readGetter = this.readGetter
@@ -77,6 +79,8 @@ class ApplicationSettings : ApplicationSettingsSupport {
     override var feignEnable: Boolean = false
 
     override var jaxrsEnable: Boolean = true
+
+    override var actuatorEnable: Boolean = false
 
     //postman
 
