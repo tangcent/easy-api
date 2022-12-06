@@ -7,6 +7,7 @@ import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.rootManager
 import com.intellij.psi.*
+import com.itangcent.common.logger.Log
 import com.itangcent.common.model.Doc
 import com.itangcent.common.model.MethodDoc
 import com.itangcent.common.model.Request
@@ -541,6 +542,7 @@ abstract class AbstractApiDashboardDialog : ContextDialog() {
                             psiResource.resource() as PsiMethod
                     )
                 }\n${(doc as Request).method}:${(doc as Request).path}"
+
                 else -> "${
                     PsiClassUtils.fullNameOfMethod(
                             psiResource.resourceClass()!!,
@@ -648,6 +650,6 @@ abstract class AbstractApiDashboardDialog : ContextDialog() {
             return super.createTransferable(component)
         }
     }
-}
 
-private val LOG = com.intellij.openapi.diagnostic.Logger.getInstance(AbstractApiDashboardDialog::class.java)
+    companion object : Log()
+}
