@@ -1,3 +1,41 @@
+* 2.2.1
+
+	* fix: fix the icons and buttons disappeared [(#466)](https://github.com/tangcent/easy-api/pull/466)
+
+	* fix: check group with `javax.validation.groups.Default` [(#468)](https://github.com/tangcent/easy-api/pull/468)
+
+	* amend: group actions in pop [(#467)](https://github.com/tangcent/easy-api/pull/467)
+
+	* fix: remove invalid attributes for create postman collections [(#465)](https://github.com/tangcent/easy-api/pull/465)
+
+	* fix: open FileChooser at AWT Thread [(#464)](https://github.com/tangcent/easy-api/pull/464)
+
+	* polish: remove usage of AutoComputer in ApiCallDialog [(#463)](https://github.com/tangcent/easy-api/pull/463)
+
+	* polish: update icons [(#462)](https://github.com/tangcent/easy-api/pull/462)
+
+	* feat: highlight new content in Settings->Recommend [(#461)](https://github.com/tangcent/easy-api/pull/461)
+
+	* feat: support remote config setting [(#460)](https://github.com/tangcent/easy-api/pull/460)
+
+	* feat: populate field from default value [(#458)](https://github.com/tangcent/easy-api/pull/458)
+
+	* amend: use :Log() instead of define [(#457)](https://github.com/tangcent/easy-api/pull/457)
+
+	* fix: parse FeignClient#path [(#456)](https://github.com/tangcent/easy-api/pull/456)
+
+	* feat: support export apis from actuator [(#454)](https://github.com/tangcent/easy-api/pull/454)
+
+	* amend: update config [(#453)](https://github.com/tangcent/easy-api/pull/453)
+
+	* feat: asks how to convert enum on the first use [(#452)](https://github.com/tangcent/easy-api/pull/452)
+
+	* fix: resolve desc of return type [(#451)](https://github.com/tangcent/easy-api/pull/451)
+
+	* fix: support parse apis in several modules to one collection [(#450)](https://github.com/tangcent/easy-api/pull/450)
+
+	* feat: new setting  `Postman > build example` [(#449)](https://github.com/tangcent/easy-api/pull/449)
+
 * 2.1.9
 
 	* feat: enum auto select field by type [(#447)](https://github.com/tangcent/easy-api/pull/447)
