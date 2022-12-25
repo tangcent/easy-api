@@ -1,3 +1,11 @@
+* 2.2.2
+
+	* fix: support ConfigurationProperties("prefix") [(#472)](https://github.com/tangcent/easy-api/pull/472)
+
+	* fix: Gson no longer always parse number to double [(#471)](https://github.com/tangcent/easy-api/pull/471)
+
+	* chore: update pluginDescription [(#470)](https://github.com/tangcent/easy-api/pull/470)
+
 * 2.2.1
 
 	* fix: fix the icons and buttons disappeared [(#466)](https://github.com/tangcent/easy-api/pull/466)
