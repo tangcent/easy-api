@@ -9,6 +9,7 @@ field.required=@org.springframework.lang.NonNull
 param.ignore=groovy:it.type().isExtend("org.springframework.validation.BindingResult")
 type.is_file=groovy:it.isExtend("org.springframework.web.multipart.MultipartFile")
 constant.field.ignore=groovy:it.name()=="serialVersionUID"
+properties.prefix=@org.springframework.boot.context.properties.ConfigurationProperties
 properties.prefix=@org.springframework.boot.context.properties.ConfigurationProperties#prefix
 field.name=@com.alibaba.fastjson.annotation.JSONField#value
 enum.use.by.type=true
