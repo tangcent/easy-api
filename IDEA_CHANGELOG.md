@@ -1,3 +1,15 @@
+* 2.2.3
+
+	* fix: fix helper.resolveLink(s) [(#478)](https://github.com/tangcent/easy-api/pull/478)
+
+	* feat: new script method `class.toObject` [(#477)](https://github.com/tangcent/easy-api/pull/477)
+
+	* feat: support swagger3 [(#476)](https://github.com/tangcent/easy-api/pull/476)
+
+	* feat: refresh button in [EasyApi > Remote] [(#475)](https://github.com/tangcent/easy-api/pull/475)
+
+	* fix: wrap annotation array parameter in script rule execute [(#474)](https://github.com/tangcent/easy-api/pull/474)
+
 * 2.2.2
 
 	* fix: support ConfigurationProperties("prefix") [(#472)](https://github.com/tangcent/easy-api/pull/472)
