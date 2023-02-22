@@ -5,9 +5,6 @@ ignore=#ignore
 #Support for Jackson annotations
 field.name=@com.fasterxml.jackson.annotation.JsonProperty#value
 field.ignore=@com.fasterxml.jackson.annotation.JsonIgnore#value
-field.mock[@com.fasterxml.jackson.annotation.JsonFormat]=groovy:```
-    return "@datetime(\"" + it.ann("com.fasterxml.jackson.annotation.JsonFormat","pattern") + "\")"
-```
 #Support for Gson annotations
 field.name=@com.google.gson.annotations.SerializedName#value
 field.ignore=!@com.google.gson.annotations.Expose#serialize
@@ -16,9 +13,13 @@ field.ignore=groovy:it.hasModifier("transient")
 #Support spring.validations
 field.required=@org.springframework.lang.NonNull
 param.ignore=groovy:it.type().isExtend("org.springframework.validation.BindingResult")
-field.mock[@org.springframework.format.annotation.DateTimeFormat]=groovy:```
-    return "@datetime(\"" + it.ann("org.springframework.format.annotation.DateTimeFormat","pattern") + "\")"
-```
+#Support for jakarta.validation annotations
+param.required=@jakarta.validation.constraints.NotBlank
+field.required=@jakarta.validation.constraints.NotBlank
+param.required=@jakarta.validation.constraints.NotNull
+field.required=@jakarta.validation.constraints.NotNull
+param.required=@jakarta.validation.constraints.NotEmpty
+field.required=@jakarta.validation.constraints.NotEmpty
 #Support spring file
 type.is_file=groovy:it.isExtend("org.springframework.web.multipart.MultipartFile")
 #yapi tag for kotlin
@@ -28,7 +29,6 @@ api.tag[groovy:it.containingClass().hasAnn("kotlin.Deprecated")]=deprecated
 api.status[#undone]=undone
 api.status[#todo]=undone
 #yapi mock
-field.mock=#mock
 #ignore serialVersionUID
 constant.field.ignore=groovy:it.name()=="serialVersionUID"
 # @ConfigurationProperties
