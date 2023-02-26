@@ -54,13 +54,13 @@ object EasyIcons : Log() {
         "/notification/close.png",
         "/actions/close.png"
     )
-        ?: tryLoadByUrl(URL("https://raw.githubusercontent.com/tangcent/easy-yapi/blob/master/assets/close.png"))
+        ?: tryLoadByUrl(URL("https://raw.githubusercontent.com/tangcent/easy-api/blob/master/assets/close.png"))
 
     val OK = tryLoad(
         "/general/inspectionsOK.png",
         "/process/state/GreenOK.png"
     )
-        ?: tryLoadByUrl(URL("https://raw.githubusercontent.com/tangcent/easy-yapi/blob/master/assets/ok.png"))
+        ?: tryLoadByUrl(URL("https://raw.githubusercontent.com/tangcent/easy-api/blob/master/assets/ok.png"))
 
     val Export = tryLoad(
         "/toolbarDecorator/export.svg",

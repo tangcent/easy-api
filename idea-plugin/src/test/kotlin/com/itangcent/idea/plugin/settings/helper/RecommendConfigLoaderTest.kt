@@ -20,7 +20,7 @@ internal class RecommendConfigLoaderTest {
     fun testBuildRecommendConfig() {
         assertEquals(
             ResultLoader.load(),
-            RecommendConfigLoader.buildRecommendConfig("-Jackson_JsonIgnoreProperties,-converts,-yapi_tag,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation")
+            RecommendConfigLoader.buildRecommendConfig("-Jackson_JsonIgnoreProperties,-converts,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation")
                 .toUnixString()
         )
     }
@@ -28,23 +28,23 @@ internal class RecommendConfigLoaderTest {
     @Test
     fun testAddSelectedConfig() {
         assertEquals(
-            "-deprecated_java,-yapi_tag,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,import_spring_properties,-Jackson_JsonIgnoreProperties,-converts,-support_mock_for_javax_validation,-support_mock_for_general",
+            "-deprecated_java,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,import_spring_properties,-Jackson_JsonIgnoreProperties,-converts,-support_mock_for_javax_validation,-support_mock_for_general",
             RecommendConfigLoader.addSelectedConfig(
-                "-Jackson_JsonIgnoreProperties,-converts,-yapi_tag,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
+                "-Jackson_JsonIgnoreProperties,-converts,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
                 "import_spring_properties"
             )
         )
         assertEquals(
-            "-import_spring_properties,-deprecated_java,module,-yapi_tag,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,import_spring_properties,-Jackson_JsonIgnoreProperties,-converts,-support_mock_for_javax_validation,-support_mock_for_general",
+            "-import_spring_properties,-deprecated_java,module,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,import_spring_properties,-Jackson_JsonIgnoreProperties,-converts,-support_mock_for_javax_validation,-support_mock_for_general",
             RecommendConfigLoader.addSelectedConfig(
-                "-Jackson_JsonIgnoreProperties,-converts,-yapi_tag,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
+                "-Jackson_JsonIgnoreProperties,-converts,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
                 "module"
             )
         )
         assertEquals(
-            "-import_spring_properties,support_mock_for_javax_validation,-deprecated_java,-yapi_tag,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,import_spring_properties,-Jackson_JsonIgnoreProperties,-converts,-support_mock_for_general",
+            "-import_spring_properties,support_mock_for_javax_validation,-deprecated_java,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,import_spring_properties,-Jackson_JsonIgnoreProperties,-converts,-support_mock_for_general",
             RecommendConfigLoader.addSelectedConfig(
-                "-Jackson_JsonIgnoreProperties,-converts,-yapi_tag,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
+                "-Jackson_JsonIgnoreProperties,-converts,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
                 "support_mock_for_javax_validation"
             )
         )
@@ -54,23 +54,23 @@ internal class RecommendConfigLoaderTest {
     @Test
     fun testRemoveSelectedConfig() {
         assertEquals(
-            "-import_spring_properties,-deprecated_java,-yapi_tag,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,-Jackson_JsonIgnoreProperties,-converts,-support_mock_for_javax_validation,-support_mock_for_general",
+            "-import_spring_properties,-deprecated_java,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,-Jackson_JsonIgnoreProperties,-converts,-support_mock_for_javax_validation,-support_mock_for_general",
             RecommendConfigLoader.removeSelectedConfig(
-                "-Jackson_JsonIgnoreProperties,-converts,-yapi_tag,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
+                "-Jackson_JsonIgnoreProperties,-converts,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
                 "import_spring_properties"
             )
         )
         assertEquals(
-            "-import_spring_properties,-deprecated_java,-yapi_tag,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,import_spring_properties,-Jackson_JsonIgnoreProperties,-module,-converts,-support_mock_for_javax_validation,-support_mock_for_general",
+            "-import_spring_properties,-deprecated_java,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,import_spring_properties,-Jackson_JsonIgnoreProperties,-module,-converts,-support_mock_for_javax_validation,-support_mock_for_general",
             RecommendConfigLoader.removeSelectedConfig(
-                "-Jackson_JsonIgnoreProperties,-converts,-yapi_tag,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
+                "-Jackson_JsonIgnoreProperties,-converts,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
                 "module"
             )
         )
         assertEquals(
-            "-import_spring_properties,-deprecated_java,-yapi_tag,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,import_spring_properties,-Jackson_JsonIgnoreProperties,-converts,-support_mock_for_javax_validation,-support_mock_for_general",
+            "-import_spring_properties,-deprecated_java,-javax.validation(grouped),-deprecated_kotlin,-spring_webflux,-spring.ui,-spring_Entity,-javax.validation,import_spring_properties,-Jackson_JsonIgnoreProperties,-converts,-support_mock_for_javax_validation,-support_mock_for_general",
             RecommendConfigLoader.removeSelectedConfig(
-                "-Jackson_JsonIgnoreProperties,-converts,-yapi_tag,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
+                "-Jackson_JsonIgnoreProperties,-converts,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties",
                 "support_mock_for_javax_validation"
             )
         )
@@ -90,7 +90,7 @@ internal class RecommendConfigLoaderTest {
     fun testSelectedCodes() {
         assertEquals(
             "[module, ignore, Jackson, Gson, ignore_transient_field, spring.validations, jakarta.validation, is_file, import_spring_properties, ignore_serialVersionUID, properties, Fastjson, enum_auto_select_field_by_type]",
-            RecommendConfigLoader.selectedCodes("-Jackson_JsonIgnoreProperties,-converts,-yapi_tag,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties")
+            RecommendConfigLoader.selectedCodes("-Jackson_JsonIgnoreProperties,-converts,-spring.ui,-import_spring_properties,-support_mock_for_general,-deprecated_java,-deprecated_kotlin,-spring_Entity,-spring_webflux,-javax.validation,-javax.validation(grouped),-support_mock_for_javax_validation,import_spring_properties")
                 .contentToString()
         )
     }

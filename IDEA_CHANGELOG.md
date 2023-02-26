@@ -122,7 +122,7 @@
 
 * 2.1.7
 
-	* feat: pick features from easy-yapi [(#415)](https://github.com/tangcent/easy-api/pull/415)&[(#414)](https://github.com/tangcent/easy-api/pull/414)
+	* feat: pick features from easy-api [(#415)](https://github.com/tangcent/easy-api/pull/415)&[(#414)](https://github.com/tangcent/easy-api/pull/414)
 
 * 2.1.6
 
@@ -295,7 +295,7 @@
     
     * feat: handle annotation `CookieValue` [(#300)](https://github.com/tangcent/easy-api/pull/300)
      
-    * feat: Support Postman export "Path Variables"  [(#213)](https://github.com/tangcent/easy-yapi/pull/213)
+    * feat: Support Postman export "Path Variables"  [(#213)](https://github.com/tangcent/easy-api/pull/213)
     
     * opti: resolve relative path. [(#53)](https://github.com/Earth-1610/intellij-kotlin/pull/53)
     
