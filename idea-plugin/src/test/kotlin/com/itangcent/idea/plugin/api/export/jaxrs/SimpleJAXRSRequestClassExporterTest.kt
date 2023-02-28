@@ -91,7 +91,6 @@ internal class SimpleJAXRSRequestClassExporterTest : PluginContextLightCodeInsig
                 "field.required=@javax.validation.constraints.NotBlank\n" +
                 "field.required=@javax.validation.constraints.NotNull\n" +
                 "field.default.value=#default\n" +
-                "field.mock=#mock\n" +
                 "field.demo=#demo\n" +
                 "#[converts]*\n" +
                 "#The ObjectId and Date will be parsed as strings\n" +

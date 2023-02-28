@@ -43,6 +43,13 @@ internal class RecommendConfigSettingsHelperTest : SettingsHelperTest() {
                     "#Support spring.validations\n" +
                     "field.required=@org.springframework.lang.NonNull\n" +
                     "param.ignore=groovy:it.type().isExtend(\"org.springframework.validation.BindingResult\")\n" +
+                    "#Support for jakarta.validation annotations\n" +
+                    "param.required=@jakarta.validation.constraints.NotBlank\n" +
+                    "field.required=@jakarta.validation.constraints.NotBlank\n" +
+                    "param.required=@jakarta.validation.constraints.NotNull\n" +
+                    "field.required=@jakarta.validation.constraints.NotNull\n" +
+                    "param.required=@jakarta.validation.constraints.NotEmpty\n" +
+                    "field.required=@jakarta.validation.constraints.NotEmpty\n" +
                     "#Support spring file\n" +
                     "type.is_file=groovy:it.isExtend(\"org.springframework.web.multipart.MultipartFile\")\n" +
                     "#ignore serialVersionUID\n" +

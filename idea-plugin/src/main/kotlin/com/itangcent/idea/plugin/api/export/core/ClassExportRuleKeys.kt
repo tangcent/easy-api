@@ -175,11 +175,6 @@ object ClassExportRuleKeys {
         StringRuleMode.SINGLE
     )
 
-    val FIELD_MOCK: RuleKey<String> = SimpleRuleKey(
-        "field.mock",
-        StringRuleMode.SINGLE
-    )
-
     val FIELD_DEFAULT_VALUE: RuleKey<String> = SimpleRuleKey(
         "field.default.value",
         StringRuleMode.SINGLE

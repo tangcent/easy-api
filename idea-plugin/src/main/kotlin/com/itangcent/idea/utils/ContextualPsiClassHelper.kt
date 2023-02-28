@@ -18,7 +18,6 @@ import com.itangcent.intellij.config.rule.computer
 import com.itangcent.intellij.extend.guice.PostConstruct
 import com.itangcent.intellij.jvm.JsonOption
 import com.itangcent.intellij.jvm.JsonOption.has
-import com.itangcent.intellij.jvm.dev.DevEnv
 import com.itangcent.intellij.jvm.duck.DuckType
 import com.itangcent.intellij.jvm.duck.SingleDuckType
 import com.itangcent.intellij.jvm.element.ExplicitClass
@@ -61,13 +60,18 @@ open class ContextualPsiClassHelper : DefaultPsiClassHelper() {
         super.beforeParseClass(psiClass, resolveContext, kv)
     }
 
-    override fun beforeParseType(psiClass: PsiClass, duckType: SingleDuckType, resolveContext: ResolveContext, kv: KV<String, Any?>) {
+    override fun beforeParseType(
+        psiClass: PsiClass,
+        duckType: SingleDuckType,
+        resolveContext: ResolveContext,
+        kv: KV<String, Any?>,
+    ) {
         tryInitParseContext()
         ruleComputer.computer(ClassExportRuleKeys.JSON_CLASS_PARSE_BEFORE, duckType, psiClass)
         super.beforeParseType(psiClass, duckType, resolveContext, kv)
     }
 
-    override fun afterParseClass(psiClass: PsiClass, resolveContext: ResolveContext,kv: KV<String, Any?>) {
+    override fun afterParseClass(psiClass: PsiClass, resolveContext: ResolveContext, kv: KV<String, Any?>) {
         try {
             super.afterParseClass(psiClass, resolveContext, kv)
             computeAdditionalField(psiClass, resolveContext, kv)
@@ -77,7 +81,12 @@ open class ContextualPsiClassHelper : DefaultPsiClassHelper() {
         }
     }
 
-    override fun afterParseType(psiClass: PsiClass, duckType: SingleDuckType, resolveContext: ResolveContext, kv: KV<String, Any?>) {
+    override fun afterParseType(
+        psiClass: PsiClass,
+        duckType: SingleDuckType,
+        resolveContext: ResolveContext,
+        kv: KV<String, Any?>,
+    ) {
         try {
             super.afterParseType(psiClass, duckType, resolveContext, kv)
             computeAdditionalField(psiClass, resolveContext, kv)
@@ -260,7 +269,6 @@ open class ContextualPsiClassHelper : DefaultPsiClassHelper() {
             ClassRuleKeys.FIELD_NAME,
             ClassRuleKeys.FIELD_NAME_PREFIX,
             ClassRuleKeys.FIELD_NAME_SUFFIX,
-            ClassExportRuleKeys.FIELD_MOCK,
             ClassExportRuleKeys.FIELD_DEFAULT_VALUE,
             ClassRuleKeys.JSON_UNWRAPPED,
             ClassExportRuleKeys.JSON_FIELD_PARSE_BEFORE,
