@@ -185,7 +185,7 @@ open class JAXRSRequestClassExporter : RequestClassExporter() {
             //todo:
             logger.info(
                 "@MatrixParam not be supported.\n" +
-                        "Create a feature quest issue? 👉🏻https://github.com/tangcent/easy-yapi/issues/new/"
+                        "Create a feature quest issue? 👉🏻https://github.com/tangcent/easy-api/issues/new/"
             )
             return
         }

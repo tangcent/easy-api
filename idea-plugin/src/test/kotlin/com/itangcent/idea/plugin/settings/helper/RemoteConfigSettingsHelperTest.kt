@@ -23,26 +23,26 @@ internal class RemoteConfigSettingsHelperTest : SettingsHelperTest() {
 
         val resourceResolver = mock<ResourceResolver> {
             this.on {
-                it.resolve(eq("https://github.com/tangcent/easy-yapi/raw/master/third/a.config"))
+                it.resolve(eq("https://github.com/tangcent/easy-api/raw/master/third/a.config"))
             }.thenReturn(
                 StringResource(
-                    "https://github.com/tangcent/easy-yapi/raw/master/third/a.config",
+                    "https://github.com/tangcent/easy-api/raw/master/third/a.config",
                     "a=1"
                 )
             )
             this.on {
-                it.resolve(eq("https://github.com/tangcent/easy-yapi/raw/master/third/b.config"))
+                it.resolve(eq("https://github.com/tangcent/easy-api/raw/master/third/b.config"))
             }.thenReturn(
                 StringResource(
-                    "https://github.com/tangcent/easy-yapi/raw/master/third/b.config",
+                    "https://github.com/tangcent/easy-api/raw/master/third/b.config",
                     "b=2"
                 )
             )
             this.on {
-                it.resolve(eq("https://github.com/tangcent/easy-yapi/raw/master/third/c.config"))
+                it.resolve(eq("https://github.com/tangcent/easy-api/raw/master/third/c.config"))
             }.thenReturn(
                 StringResource(
-                    "https://github.com/tangcent/easy-yapi/raw/master/third/c.config",
+                    "https://github.com/tangcent/easy-api/raw/master/third/c.config",
                     "c=3"
                 )
             )
@@ -54,9 +54,9 @@ internal class RemoteConfigSettingsHelperTest : SettingsHelperTest() {
     fun remoteConfigContent() {
         assertEquals("", remoteConfigSettingsHelper.remoteConfigContent())
         settings.remoteConfig = arrayOf(
-            "https://github.com/tangcent/easy-yapi/raw/master/third/a.config",
-            "!https://github.com/tangcent/easy-yapi/raw/master/third/b.config",
-            "https://github.com/tangcent/easy-yapi/raw/master/third/c.config"
+            "https://github.com/tangcent/easy-api/raw/master/third/a.config",
+            "!https://github.com/tangcent/easy-api/raw/master/third/b.config",
+            "https://github.com/tangcent/easy-api/raw/master/third/c.config"
         )
         assertEquals(
             "a=1\n" +
@@ -68,22 +68,22 @@ internal class RemoteConfigSettingsHelperTest : SettingsHelperTest() {
     fun loadConfig() {
         assertEquals(
             "a=1",
-            remoteConfigSettingsHelper.loadConfig("https://github.com/tangcent/easy-yapi/raw/master/third/a.config")
+            remoteConfigSettingsHelper.loadConfig("https://github.com/tangcent/easy-api/raw/master/third/a.config")
         )
     }
 
     @Test
     fun testRemoteConfig() {
         val config = arrayOf(
-            "https://github.com/tangcent/easy-yapi/raw/master/third/a.config",
-            "!https://github.com/tangcent/easy-yapi/raw/master/third/b.config",
-            "https://github.com/tangcent/easy-yapi/raw/master/third/c.config"
+            "https://github.com/tangcent/easy-api/raw/master/third/a.config",
+            "!https://github.com/tangcent/easy-api/raw/master/third/b.config",
+            "https://github.com/tangcent/easy-api/raw/master/third/c.config"
         ).parse()
         assertEquals(
             listOf(
-                true to "https://github.com/tangcent/easy-yapi/raw/master/third/a.config",
-                false to "https://github.com/tangcent/easy-yapi/raw/master/third/b.config",
-                true to "https://github.com/tangcent/easy-yapi/raw/master/third/c.config"
+                true to "https://github.com/tangcent/easy-api/raw/master/third/a.config",
+                false to "https://github.com/tangcent/easy-api/raw/master/third/b.config",
+                true to "https://github.com/tangcent/easy-api/raw/master/third/c.config"
             ),
             config
         )
@@ -94,18 +94,18 @@ internal class RemoteConfigSettingsHelperTest : SettingsHelperTest() {
 
         assertEquals(
             listOf(
-                false to "https://github.com/tangcent/easy-yapi/raw/master/third/a.config",
-                true to "https://github.com/tangcent/easy-yapi/raw/master/third/b.config",
-                true to "https://github.com/tangcent/easy-yapi/raw/master/third/c.config"
+                false to "https://github.com/tangcent/easy-api/raw/master/third/a.config",
+                true to "https://github.com/tangcent/easy-api/raw/master/third/b.config",
+                true to "https://github.com/tangcent/easy-api/raw/master/third/c.config"
             ),
             config
         )
 
         assertContentEquals(
             arrayOf(
-                "!https://github.com/tangcent/easy-yapi/raw/master/third/a.config",
-                "https://github.com/tangcent/easy-yapi/raw/master/third/b.config",
-                "https://github.com/tangcent/easy-yapi/raw/master/third/c.config"
+                "!https://github.com/tangcent/easy-api/raw/master/third/a.config",
+                "https://github.com/tangcent/easy-api/raw/master/third/b.config",
+                "https://github.com/tangcent/easy-api/raw/master/third/c.config"
             ),
             config.toConfig()
         )
