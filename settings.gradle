@@ -1,4 +1,0 @@
-rootProject.name = 'easy-api'
-include 'idea-plugin'
-include 'common-api'
-
