@@ -4,7 +4,6 @@ import com.google.inject.Inject
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMethod
 import com.itangcent.common.logger.traceError
 import com.itangcent.common.model.Doc
@@ -162,7 +161,7 @@ open class SuvApiExporter {
         }
     }
 
-    fun DocWrapper.resourceMethod(): PsiMethod? {
+    private fun DocWrapper.resourceMethod(): PsiMethod? {
         return (this.resource as? PsiResource)?.resource() as? PsiMethod
     }
 
@@ -481,7 +480,7 @@ open class SuvApiExporter {
                 logger!!.info("Start parse apis")
                 val apiInfo = markdownFormatter!!.parseRequests(docs)
                 docs.clear()
-                actionContext!!.runAsync {
+                actionContext.runAsync {
                     try {
                         fileSaveHelper!!.saveOrCopy(apiInfo, markdownSettingsHelper.outputCharset(), {
                             logger!!.info("Exported data are copied to clipboard,you can paste to a md file now")
