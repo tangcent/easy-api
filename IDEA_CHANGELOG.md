@@ -1,3 +1,25 @@
+* 2.2.4
+
+	* chore: update version of intellij-kotlin to 1.4.9 [(#490)](https://github.com/tangcent/easy-api/pull/490)
+
+	* feat: add several icons to resources [(#489)](https://github.com/tangcent/easy-api/pull/489)
+
+	* feat: new script methods for 'runtime' [(#488)](https://github.com/tangcent/easy-api/pull/488)
+
+	* build: use Kotlin DSL script build project [(#487)](https://github.com/tangcent/easy-api/pull/487)
+
+	* feat: support config ignore_irregular_api_method [(#486)](https://github.com/tangcent/easy-api/pull/486)
+
+	* feat: provide aliases for several rule tools [(#485)](https://github.com/tangcent/easy-api/pull/485)
+
+	* fix: fix api response in postman [(#484)](https://github.com/tangcent/easy-api/pull/484)
+
+	* feat: new rule tool: runtime [(#483)](https://github.com/tangcent/easy-api/pull/483)
+
+	* feat: support jakarta.validation [(#482)](https://github.com/tangcent/easy-api/pull/482)
+
+	* feat: support export apis from groovy [(#481)](https://github.com/tangcent/easy-api/pull/481)
+
 * 2.2.3
 
 	* fix: fix helper.resolveLink(s) [(#478)](https://github.com/tangcent/easy-api/pull/478)
