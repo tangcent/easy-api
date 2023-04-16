@@ -180,6 +180,11 @@ object ClassExportRuleKeys {
         StringRuleMode.SINGLE
     )
 
+    val FIELD_DEMO: RuleKey<String> = SimpleRuleKey(
+        "field.demo",
+        StringRuleMode.SINGLE
+    )
+
     val POST_MAN_HOST: RuleKey<String> = SimpleRuleKey(
         "postman.host",
         StringRuleMode.SINGLE
