@@ -47,7 +47,7 @@ open class ContextualPsiClassHelper : DefaultPsiClassHelper() {
     private lateinit var additionalParseHelper: AdditionalParseHelper
 
     private val parseContext: ThreadLocal<Deque<String>> = ThreadLocal()
-    private val parseScriptContext = ParseScriptContext()
+    private val parseScriptContext = ParseScriptContextImpl()
 
     @PostConstruct
     fun initRuleComputeListener() {
@@ -227,12 +227,12 @@ open class ContextualPsiClassHelper : DefaultPsiClassHelper() {
         }
     }
 
-    inner class ParseScriptContext {
-        fun path(): String {
+    inner class ParseScriptContextImpl : ParseScriptContext {
+        override fun path(): String {
             return parseContext.get()?.joinToString(".") ?: ""
         }
 
-        fun property(property: String): String {
+        override fun property(property: String): String {
             val context = parseContext.get()
             return if (context.isNullOrEmpty()) {
                 property
@@ -269,11 +269,17 @@ open class ContextualPsiClassHelper : DefaultPsiClassHelper() {
             ClassRuleKeys.FIELD_NAME,
             ClassRuleKeys.FIELD_NAME_PREFIX,
             ClassRuleKeys.FIELD_NAME_SUFFIX,
-            ClassExportRuleKeys.FIELD_DEFAULT_VALUE,
             ClassRuleKeys.JSON_UNWRAPPED,
+            ClassExportRuleKeys.FIELD_DEMO,
+            ClassExportRuleKeys.FIELD_DEFAULT_VALUE,
             ClassExportRuleKeys.JSON_FIELD_PARSE_BEFORE,
             ClassExportRuleKeys.JSON_FIELD_PARSE_AFTER,
             ClassExportRuleKeys.FIELD_REQUIRED
         )
     }
+}
+
+interface ParseScriptContext {
+    fun path(): String
+    fun property(property: String): String
 }

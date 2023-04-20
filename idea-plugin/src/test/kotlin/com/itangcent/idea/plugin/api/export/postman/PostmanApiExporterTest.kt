@@ -95,7 +95,7 @@ internal abstract class PostmanApiExporterTest : PluginContextLightCodeInsightFi
     }
 
     override fun customConfig(): String {
-        return "method.additional.header[!@com.itangcent.annotation.Public]={name: \"token\",value: \"\",desc: \"auth token\",required:true, example:\"123456\"}\n" +
+        return "method.additional.header[!@com.itangcent.annotation.Public]={name: \"token\",value: \"\",desc: \"auth token\",required:true, demo:\"123456\"}\n" +
                 "#[converts]*\n" +
                 "#The ObjectId and Date will be parsed as strings\n" +
                 "json.rule.convert[org.bson.types.ObjectId]=java.lang.String\n" +
@@ -103,10 +103,6 @@ internal abstract class PostmanApiExporterTest : PluginContextLightCodeInsightFi
                 "json.rule.convert[java.sql.Timestamp]=java.lang.String\n" +
                 "json.rule.convert[java.time.LocalDateTime]=java.lang.String\n" +
                 "json.rule.convert[java.time.LocalDate]=java.lang.String"
-    }
-
-    override fun afterBind() {
-        super.afterBind()
     }
 
     class SpringPostmanApiExporterTest : PostmanApiExporterTest() {
