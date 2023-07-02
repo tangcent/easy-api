@@ -92,7 +92,9 @@ abstract class StandardJdkRuleParser : ScriptRuleParser() {
     inner class Helper(val context: PsiElement?) {
 
         fun findClass(canonicalText: String): ScriptPsiTypeContext? {
-            return context?.let { duckTypeHelper!!.findType(canonicalText, it)?.let { type -> ScriptPsiTypeContext(type) } }
+            return context?.let {
+                duckTypeHelper!!.findType(canonicalText, it)?.let { type -> ScriptPsiTypeContext(type) }
+            }
         }
 
         @ScriptReturn("array<class/method/field>")
@@ -164,7 +166,7 @@ abstract class StandardJdkRuleParser : ScriptRuleParser() {
                     .union(TemplateEvaluator.from { configReader.first(it) })
             }
             return TemplateUtils.render(str)
-                .placeholder(TemplateKit.resolvePlaceHolder(placeHolder) ?: arrayOf('$'))
+                .placeholder(TemplateKit.resolvePlaceHolder(placeHolder) ?: charArrayOf('$'))
                 .templateEvaluator(templateEvaluator)
                 .render()
         }
@@ -179,55 +181,64 @@ abstract class StandardJdkRuleParser : ScriptRuleParser() {
         /**
          * @param content provide file content with file path.
          */
-        fun saveWithUI(content: (String) -> String,
-                       defaultFileName: String?,
-                       onSaveSuccess: () -> Unit,
-                       onSaveFailed: (String?) -> Unit,
-                       onSaveCancel: () -> Unit,) {
-            saveWithUI(content,
-                    kotlin.text.Charsets.UTF_8,
-                    defaultFileName,
-                    onSaveSuccess,
-                    onSaveFailed,
-                    onSaveCancel)
+        fun saveWithUI(
+            content: (String) -> String,
+            defaultFileName: String?,
+            onSaveSuccess: () -> Unit,
+            onSaveFailed: (String?) -> Unit,
+            onSaveCancel: () -> Unit,
+        ) {
+            saveWithUI(
+                content,
+                kotlin.text.Charsets.UTF_8,
+                defaultFileName,
+                onSaveSuccess,
+                onSaveFailed,
+                onSaveCancel
+            )
         }
 
         /**
          * @param content provide file content with file path.
          */
-        fun saveWithUI(content: (String) -> String,
-                       charset: String,
-                       defaultFileName: String?,
-                       onSaveSuccess: () -> Unit,
-                       onSaveFailed: (String?) -> Unit,
-                       onSaveCancel: () -> Unit,) {
-            saveWithUI(content,
-                    Charsets.forName(charset)!!.charset(),
-                    defaultFileName,
-                    onSaveSuccess,
-                    onSaveFailed,
-                    onSaveCancel)
+        fun saveWithUI(
+            content: (String) -> String,
+            charset: String,
+            defaultFileName: String?,
+            onSaveSuccess: () -> Unit,
+            onSaveFailed: (String?) -> Unit,
+            onSaveCancel: () -> Unit,
+        ) {
+            saveWithUI(
+                content,
+                Charsets.forName(charset)!!.charset(),
+                defaultFileName,
+                onSaveSuccess,
+                onSaveFailed,
+                onSaveCancel
+            )
 
         }
 
         /**
          * @param content provide file content with file path.
          */
-        private fun saveWithUI(content: (String) -> String,
-                               charset: Charset,
-                               defaultFileName: String?,
-                               onSaveSuccess: () -> Unit,
-                               onSaveFailed: (String?) -> Unit,
-                               onSaveCancel: () -> Unit,
+        private fun saveWithUI(
+            content: (String) -> String,
+            charset: Charset,
+            defaultFileName: String?,
+            onSaveSuccess: () -> Unit,
+            onSaveFailed: (String?) -> Unit,
+            onSaveCancel: () -> Unit,
         ) {
             fileSaveHelper!!.saveBytes(
-                    {
-                        content(it).toByteArray(charset)
-                    },
-                    {
-                        defaultFileName
-                    },
-                    onSaveSuccess, onSaveFailed, onSaveCancel
+                {
+                    content(it).toByteArray(charset)
+                },
+                {
+                    defaultFileName
+                },
+                onSaveSuccess, onSaveFailed, onSaveCancel
             )
         }
 
@@ -235,16 +246,18 @@ abstract class StandardJdkRuleParser : ScriptRuleParser() {
             save(content, kotlin.text.Charsets.UTF_8, path)
         }
 
-        fun save(content: String,
-                 charset: String,
-                 path: String,
+        fun save(
+            content: String,
+            charset: String,
+            path: String,
         ) {
             save(content, Charsets.forName(charset)!!.charset(), path)
         }
 
-        private fun save(content: String,
-                         charset: Charset,
-                         path: String,
+        private fun save(
+            content: String,
+            charset: Charset,
+            path: String,
         ) {
             FileUtils.forceSave(path, content.toByteArray(charset))
         }

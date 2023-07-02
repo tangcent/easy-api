@@ -8,20 +8,22 @@ on:
 
 jobs:
   coverage:
-    name: "Generate coverage On ${{ matrix.os }}"
+    name: "Generate coverage On ${{ matrix.os }} - jdk${{ matrix.java-version }}"
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest]
+        java-version: [11]
     env:
       OS: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Java
-        uses: actions/setup-java@v1
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v2
         with:
-          java-version: 11
+          java-version: ${{ matrix.java-version }}
+          distribution: 'zulu'
       - name: Generate coverage report
         run: |
           ./gradlew check --stacktrace
