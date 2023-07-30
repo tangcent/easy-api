@@ -1,3 +1,27 @@
+* 2.2.5
+	* doc: declare Requirements & Compatibility  [#503](https://github.com/tangcent/easy-api/pull/#503)
+
+	* doc: update docs  [#502](https://github.com/tangcent/easy-api/pull/#502)
+
+	* fix: process correct class when clicking class in multi-class Kotlin file  [#501](https://github.com/tangcent/easy-api/pull/#501)
+
+	* fix: fix support for com.fasterxml.jackson.annotation.JsonUnwrapped  [#500](https://github.com/tangcent/easy-api/pull/#500)
+
+	* fix: fix swagger3.config  [#499](https://github.com/tangcent/easy-api/pull/#499)
+
+	* build: update workflows  [#498](https://github.com/tangcent/easy-api/pull/#498)
+
+	* amend: remove support of GroovyActionExt  [#497](https://github.com/tangcent/easy-api/pull/#497)
+
+	* build: update scripts  [#496](https://github.com/tangcent/easy-api/pull/#496)
+
+	* amend: clear uiWeakReference  [#495](https://github.com/tangcent/easy-api/pull/#495)
+
+	* amend: modify several parameters in RequestRuleWrap nullable  [#494](https://github.com/tangcent/easy-api/pull/#494)
+
+	* feat: output field.demo value to postman/markdown  [#493](https://github.com/tangcent/easy-api/pull/#493)
+
+	* chore: polish SettingBinder  [#492](https://github.com/tangcent/easy-api/pull/#492)
 * 2.2.4
 
 	* chore: update version of intellij-kotlin to 1.4.9 [(#490)](https://github.com/tangcent/easy-api/pull/490)
