@@ -61,7 +61,25 @@ internal class RecommendConfigSettingsHelperTest : SettingsHelperTest() {
                     "field.name=@com.alibaba.fastjson.annotation.JSONField#value\n" +
                     "#Auto map enum to a type matched field in it\n" +
                     "enum.use.by.type=true\n" +
-                    "json.rule.enum.convert=~#name()",
+                    "json.rule.enum.convert=~#name()\n" +
+                    "#ignore some common classes\n" +
+                    "ignored.classes_or_packages=```\n" +
+                    "    java.lang.Class,java.lang.ClassLoader,java.lang.Module,java.lang.module,java.lang.annotation,\n" +
+                    "    java.lang.security,java.lang.invoke,java.lang.reflect,jdk.internal,java.util.jar,java.util.function,\n" +
+                    "    java.util.stream,java.util.logging,java.util.regex,java.util.zip,java.util.concurrent.locks,\n" +
+                    "    org.jooq\n" +
+                    "```\n" +
+                    "###set resolveProperty = false\n" +
+                    "field.ignore=groovy:```\n" +
+                    "    def prefixList = it.type().name().tokenize(/[<>,]/).collect{\n" +
+                    "     it.tokenize('.').inject([]) { acc, val -> acc << (acc ? \"\${acc.last()}.\${val}\" : val) }\n" +
+                    "    }.flatten()\n" +
+                    "    def ignored = config.getValues(\"ignored.classes_or_packages\").collect{\n" +
+                    "         it.tokenize(',').collect { it.trim() }.findAll { it }\n" +
+                    "    }.flatten()\n" +
+                    "    return !prefixList.intersect(ignored).isEmpty()\n" +
+                    "```\n" +
+                    "###set resolveProperty = true",
             recommendConfigSettingsHelper.loadRecommendConfig().toUnixString()
         )
     }
