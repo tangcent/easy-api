@@ -1,3 +1,5 @@
+* 2.2.6
+	* feat: ignore some common classes  [#505](https://github.com/tangcent/easy-api/pull/#505)
 * 2.2.5
 	* doc: declare Requirements & Compatibility  [#503](https://github.com/tangcent/easy-api/pull/#503)
 
