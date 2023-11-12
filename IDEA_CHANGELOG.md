@@ -1,5 +1,33 @@
+* 2.2.7
+
+	* feat: Improve Layout and Responsiveness of Several UI Forms  [#518](https://github.com/tangcent/easy-api/pull/#518)
+
+	* feat: Support configuring doc.source.disable to disable documentation reading  [#517](https://github.com/tangcent/easy-api/pull/#517)
+
+	* feat: Add recommended configuration for Jackson JsonPropertyOrder  [#516](https://github.com/tangcent/easy-api/pull/#516)
+
+	* feat: Add new rule field.order.with  [#515](https://github.com/tangcent/easy-api/pull/#515)
+
+	* amend: remove CompensateRateLimiter  [#514](https://github.com/tangcent/easy-api/pull/#514)
+
+	* feat: add rules `postman.format.after`  [#513](https://github.com/tangcent/easy-api/pull/#513)
+
+	* feat: Apply field rules to getter and setter methods  [#512](https://github.com/tangcent/easy-api/pull/#512)
+
+	* chore: remove deprecated utils  [#511](https://github.com/tangcent/easy-api/pull/#511)
+
+	* refactor: remove usage of KV  [#510](https://github.com/tangcent/easy-api/pull/#510)
+
+	* fix: fix issue with SessionStorage not works  [#509](https://github.com/tangcent/easy-api/pull/#509)
+
+	* fix: fix thread warning  [#508](https://github.com/tangcent/easy-api/pull/#508)
+
+	* fix: added support for strict check in jakarta.validation and javax.validation  [#507](https://github.com/tangcent/easy-api/pull/#507)
+
 * 2.2.6
-	* feat: ignore some common classes  [#505](https://github.com/tangcent/easy-api/pull/#505)
+
+    * feat: ignore some common classes  [#505](https://github.com/tangcent/easy-api/pull/#505)
+
 * 2.2.5
 	* doc: declare Requirements & Compatibility  [#503](https://github.com/tangcent/easy-api/pull/#503)
 
