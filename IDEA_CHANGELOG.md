@@ -1,3 +1,11 @@
+* 2.2.8
+
+	* feat: Add support for exporting APIs as .http files  [(#522)](https://github.com/tangcent/easy-api/pull/522)
+
+	* feat: support search in several dialogs  [(#521)](https://github.com/tangcent/easy-api/pull/521)
+
+	* Refactor: Preventing runtime.channel() from throwing exceptions on missing implementations  [(#520)](https://github.com/tangcent/easy-api/pull/520)
+
 * 2.2.7
 
 	* feat: Improve Layout and Responsiveness of Several UI Forms  [#518](https://github.com/tangcent/easy-api/pull/#518)
