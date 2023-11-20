@@ -62,7 +62,7 @@ class HttpClientExporter {
         val moduleFolderRequestMap = mutableMapOf<Pair<String, String>, MutableList<Request>>()
 
         for (request in requests) {
-            val module = moduleHelper.findModule(request.resource!!) ?: "easy-yapi"
+            val module = moduleHelper.findModule(request.resource!!) ?: "easy-api"
             val folder = formatFolderHelper.resolveFolder(request.resource!!).name ?: "apis"
             val key = Pair(module, folder)
             val requestList = moduleFolderRequestMap.getOrPut(key) { mutableListOf() }

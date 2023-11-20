@@ -155,82 +155,82 @@ internal abstract class HttpClientProviderTest : AdvancedContextTest() {
         val httpClient = httpClientProvider.getHttpClient()
 
         //GET
-        httpClient.get().url("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.get().url("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("GET", it.method())
         }
-        httpClient.get("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.get("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("GET", it.method())
         }
 
         //POST
-        httpClient.post().url("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.post().url("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("POST", it.method())
         }
-        httpClient.post("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.post("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("POST", it.method())
         }
 
         //PUT
-        httpClient.put().url("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.put().url("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("PUT", it.method())
         }
-        httpClient.put("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.put("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("PUT", it.method())
         }
 
         //DELETE
-        httpClient.delete().url("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.delete().url("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("DELETE", it.method())
         }
-        httpClient.delete("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.delete("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("DELETE", it.method())
         }
 
         //OPTIONS
-        httpClient.options().url("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.options().url("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("OPTIONS", it.method())
         }
-        httpClient.options("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.options("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("OPTIONS", it.method())
         }
 
         //TRACE
-        httpClient.trace().url("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.trace().url("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("TRACE", it.method())
         }
-        httpClient.trace("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.trace("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("TRACE", it.method())
         }
 
         //PATCH
-        httpClient.patch().url("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.patch().url("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("PATCH", it.method())
         }
-        httpClient.patch("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.patch("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("PATCH", it.method())
         }
 
         //HEAD
-        httpClient.head().url("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.head().url("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("HEAD", it.method())
         }
-        httpClient.head("https://github.com/tangcent/easy-yapi/pulls").let {
-            assertEquals("https://github.com/tangcent/easy-yapi/pulls", it.url())
+        httpClient.head("https://github.com/tangcent/easy-api/pulls").let {
+            assertEquals("https://github.com/tangcent/easy-api/pulls", it.url())
             assertEquals("HEAD", it.method())
         }
 
