@@ -1,0 +1,18 @@
+field.name=@com.fasterxml.jackson.annotation.JsonProperty#value
+field.ignore=@com.fasterxml.jackson.annotation.JsonIgnore#value
+field.name=@com.google.gson.annotations.SerializedName#value
+field.ignore=!@com.google.gson.annotations.Expose#serialize
+field.ignore=groovy:it.hasModifier("transient")
+field.required=@org.springframework.lang.NonNull
+field.required=@jakarta.validation.constraints.NotBlank
+field.required=@jakarta.validation.constraints.NotNull
+field.required=@jakarta.validation.constraints.NotEmpty
+field.name=@com.alibaba.fastjson.annotation.JSONField#value
+field.ignore=groovy:
+def prefixList = it.type().name().tokenize(/[<>,]/).collect{
+it.tokenize('.').inject([]) { acc, val -> acc << (acc ? "${acc.last()}.${val}" : val) }
+}.flatten()
+def ignored = config.getValues("ignored.classes_or_packages").collect{
+it.tokenize(',').collect { it.trim() }.findAll { it }
+}.flatten()
+return !prefixList.intersect(ignored).isEmpty()
