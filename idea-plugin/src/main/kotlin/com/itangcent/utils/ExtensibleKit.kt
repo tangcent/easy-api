@@ -2,17 +2,16 @@ package com.itangcent.utils
 
 import com.itangcent.common.constant.Attrs
 import com.itangcent.common.utils.Extensible
-import com.itangcent.common.utils.mapToTypedArray
+import com.itangcent.common.utils.GsonUtils
 import com.itangcent.intellij.extend.unbox
 import kotlin.reflect.KClass
 
 object ExtensibleKit {
 
-    private val JSON_PARSER = com.google.gson.JsonParser()
     private val GSON = com.google.gson.Gson()
 
     fun <T : Extensible> KClass<T>.fromJson(json: String): T {
-        val jsonElement = JSON_PARSER.parse(json)
+        val jsonElement = GsonUtils.parseToJsonTree(json)!!
         val t = GSON.fromJson(jsonElement, this.java)
         jsonElement.asJsonObject.entrySet()
             .filter { it.key.startsWith(Attrs.PREFIX) }
@@ -24,7 +23,7 @@ object ExtensibleKit {
         val extNames = exts.toSet() +
                 exts.map { it.removePrefix(Attrs.PREFIX) } +
                 exts.map { it.addPrefix(Attrs.PREFIX) }
-        val jsonElement = JSON_PARSER.parse(json)
+        val jsonElement = GsonUtils.parseToJsonTree(json)!!
         val t = GSON.fromJson(jsonElement, this.java)
         jsonElement.asJsonObject.entrySet()
             .filter { extNames.contains(it.key) }
