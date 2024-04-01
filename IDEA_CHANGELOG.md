@@ -1,3 +1,14 @@
+* 2.3.0
+	* chore: polish docs and comments  [(#536)](https://github.com/tangcent/easy-api/pull/536)
+
+	* chore: fix compatibility issues in compatibility verification  [(#535)](https://github.com/tangcent/easy-api/pull/535)
+
+	* fix: implement error handling in remoteConfigContent function  [(#534)](https://github.com/tangcent/easy-api/pull/534)
+
+	* fix: resolve comment for custom enum field  [(#533)](https://github.com/tangcent/easy-api/pull/533)
+
+	* feat: optimize configuration loading logic for enhanced efficiency and reliability  [(#532)](https://github.com/tangcent/easy-api/pull/532)
+
 * 2.2.9
 	* feat: Enhance support for enum fields in 'field'  [(#527)](https://github.com/tangcent/easy-api/pull/527)
 
