@@ -1,6 +1,5 @@
 # easy-api
 
-[![Build Status](https://travis-ci.com/tangcent/easy-api.svg?branch=master)](https://travis-ci.com/tangcent/easy-api)
 [![CI](https://github.com/tangcent/easy-api/actions/workflows/ci.yml/badge.svg)](https://github.com/tangcent/easy-api/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/tangcent/easy-api/branch/master/graph/badge.svg?token=4DPGLAWL3Q)](https://codecov.io/gh/tangcent/easy-api)
 [![](https://img.shields.io/jetbrains/plugin/v/12211?color=blue&label=version)](https://plugins.jetbrains.com/plugin/12211-easyapi)
