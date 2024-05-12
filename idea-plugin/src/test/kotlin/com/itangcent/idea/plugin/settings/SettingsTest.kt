@@ -1,8 +1,6 @@
 package com.itangcent.idea.plugin.settings
 
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 
 /**
  * Test case of [Settings]
@@ -10,14 +8,10 @@ import kotlin.test.assertNotEquals
 internal class SettingsTest {
 
     @Test
-    fun testCEH() {
-        val settings = Settings()
-        settings.pullNewestDataBefore = true
+    fun testCETH() {
+        val original = Settings()
+        original.pullNewestDataBefore = true
 
-        val copySettings = settings.copy()
-        assertEquals(settings, copySettings)
-        assertEquals(settings.hashCode(), copySettings.hashCode())
-        settings.pullNewestDataBefore = false
-        assertNotEquals(settings.hashCode(), copySettings.hashCode())
+        ETHUtils.testCETH(original) { copy() }
     }
 }
