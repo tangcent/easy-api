@@ -1,3 +1,16 @@
+* 2.3.1
+	* fix: resolve 'module_path' property resolution issue  [(#544)](https://github.com/tangcent/easy-api/pull/544)
+
+	* feat: added functionality to choose between apache and okHttp for sending HTTP requests via settings  [(#543)](https://github.com/tangcent/easy-api/pull/543)
+
+	* feat: add rules `param.name`, `param.type`  [(#541)](https://github.com/tangcent/easy-api/pull/541)
+
+	* feat: add support for io.swagger.v3.oas.annotations.media.Schema annotation  [(#540)](https://github.com/tangcent/easy-api/pull/540)
+
+	* fix: fix issue where the configuration was not being loaded before actions were performed  [(#539)](https://github.com/tangcent/easy-api/pull/539)
+
+	* feat: Replace gson and jsoup with IntelliJ code style for JSON/XML/HTML formatting  [(#538)](https://github.com/tangcent/easy-api/pull/538)
+
 * 2.3.0
 	* chore: polish docs and comments  [(#536)](https://github.com/tangcent/easy-api/pull/536)
 
