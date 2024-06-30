@@ -1,3 +1,9 @@
+* 2.3.2
+	* fix: remove Non-extendable interface usage  [(#548)](https://github.com/tangcent/easy-api/pull/548)
+
+	* chore: polish Postman API helper classes and cache management  [(#547)](https://github.com/tangcent/easy-api/pull/547)
+
+	* fix: correct content-type for Postman API export  [(#546)](https://github.com/tangcent/easy-api/pull/546)
 * 2.3.1
 	* fix: resolve 'module_path' property resolution issue  [(#544)](https://github.com/tangcent/easy-api/pull/544)
 
