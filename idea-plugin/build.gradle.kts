@@ -106,7 +106,7 @@ intellij {
     type.set("IC")
     pluginName.set("easy-api")
     sandboxDir.set("idea-sandbox")
-    plugins.set(listOf("java"))
+    plugins.set(listOf("java", "maven", "gradle"))
 }
 
 tasks {
