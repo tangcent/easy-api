@@ -1,3 +1,13 @@
+* 2.3.3
+	* feat: support Jackson JsonView  [(#556)](https://github.com/tangcent/easy-api/pull/556)
+
+	* feat: omit content-type header when no parameters are present  [(#555)](https://github.com/tangcent/easy-api/pull/555)
+
+	* build: update IntelliJ plugin version from 1.14.2 to 1.17.1  [(#554)](https://github.com/tangcent/easy-api/pull/554)
+
+	* feat(script): add support for 'mavenId()' in 'class'  [(#553)](https://github.com/tangcent/easy-api/pull/553)
+
+	* chore: add missing space in log message for setting Postman privateToken  [(#551)](https://github.com/tangcent/easy-api/pull/551)
 * 2.3.2
 	* fix: remove Non-extendable interface usage  [(#548)](https://github.com/tangcent/easy-api/pull/548)
 
