@@ -1,3 +1,13 @@
+* 2.3.4
+	* build: update project dependencies  [(#563)](https://github.com/tangcent/easy-api/pull/563)
+
+	* chore: remove AskWithApplyAllDialog form file  [(#562)](https://github.com/tangcent/easy-api/pull/562)
+
+	* test: add unit tests for ClassApiExporterHelper  [(#560)](https://github.com/tangcent/easy-api/pull/560)
+
+	* refactor: replace nullable properties with lateinit for improved initialization in CommentResolver  [(#559)](https://github.com/tangcent/easy-api/pull/559)
+
+	* fix: update methods in ScriptRuleParser to avoid return types with parameter type erasure  [(#558)](https://github.com/tangcent/easy-api/pull/558)
 * 2.3.3
 	* feat: support Jackson JsonView  [(#556)](https://github.com/tangcent/easy-api/pull/556)
 
