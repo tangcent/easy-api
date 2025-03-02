@@ -3,7 +3,7 @@ package com.itangcent.idea.plugin.settings.helper
 import com.google.inject.Inject
 import com.intellij.openapi.ui.Messages
 import com.itangcent.idea.swing.MessagesHelper
-import com.itangcent.intellij.context.ActionContext
+import com.itangcent.intellij.context.ActionContextBuilder
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
@@ -19,8 +19,7 @@ internal class HttpSettingsHelperTest : SettingsHelperTest() {
 
     @Inject
     private lateinit var httpSettingsHelper: HttpSettingsHelper
-
-    override fun bind(builder: ActionContext.ActionContextBuilder) {
+    override fun bind(builder: ActionContextBuilder) {
         super.bind(builder)
 
         val messagesHelper = Mockito.mock(MessagesHelper::class.java)
@@ -123,7 +122,7 @@ internal class HttpSettingsHelperTest : SettingsHelperTest() {
         )
         assertEquals(
             "https://raw.githubusercontent.com/tangcent",
-            httpSettingsHelper.resolveHost("https://raw.githubusercontent.com/tangcent/easy-api/master/third/swagger.config")
+            httpSettingsHelper.resolveHost("https://raw.githubusercontent.com/tangcent/easy-yapi/master/third/swagger.config")
         )
         assertEquals(
             "https://api.getpostman.com",

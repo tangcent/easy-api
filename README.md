@@ -32,7 +32,7 @@
 
 ## Run application
 
-- `./gradlew :idea-plugin:runIde` will runs an IDEA instance with the EasyYapi installed.
+- `./gradlew :idea-plugin:runIde` will runs an IDEA instance with the EasyApi installed.
 - `./gradlew clean test` will run all test case.
 
 ## Requirements
