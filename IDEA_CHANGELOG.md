@@ -1,3 +1,9 @@
+* 2.3.5
+	* feat: Introduces a new ApiDashboardPanel for API testing  [(#567)](https://github.com/tangcent/easy-api/pull/567)
+
+	* chore: remove the usage of ThrottleHelper  [(#566)](https://github.com/tangcent/easy-api/pull/566)
+
+	* feat: Add Support for Meta-Spring Controller Annotations  [(#565)](https://github.com/tangcent/easy-api/pull/565)
 * 2.3.4
 	* build: update project dependencies  [(#563)](https://github.com/tangcent/easy-api/pull/563)
 
