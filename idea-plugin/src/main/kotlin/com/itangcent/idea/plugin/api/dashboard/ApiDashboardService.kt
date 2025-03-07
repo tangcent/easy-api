@@ -5,6 +5,8 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.project.ProjectManagerListener
 import com.intellij.openapi.project.rootManager
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.psi.*
@@ -94,7 +96,7 @@ class ApiDashboardService(private val project: Project) {
     @Inject
     private lateinit var httpContextCacheHelper: HttpContextCacheHelper
 
-    var actionContext: ActionContext
+    lateinit var actionContext: ActionContext
         private set
 
     private val requestRawInfoBinderFactory: DbBeanBinderFactory<RequestRawInfo> by lazy {
@@ -139,6 +141,19 @@ class ApiDashboardService(private val project: Project) {
 
     init {
         Setup.load(ApiDashboardService::class.java.classLoader)
+        createNewActionContext()
+        
+        // Add project dispose listener
+        project.messageBus.connect().subscribe(ProjectManager.TOPIC, object : ProjectManagerListener {
+            override fun projectClosing(project: Project) {
+                if (project == this@ApiDashboardService.project) {
+                    actionContext.stop()
+                }
+            }
+        })
+    }
+
+    fun createNewActionContext() {
         val builder = ActionContext.builder()
         builder.bindInstance(Project::class, project)
         builder.bind(ClassExporter::class) { it.with(CachedRequestClassExporter::class).singleton() }
@@ -151,6 +166,12 @@ class ApiDashboardService(private val project: Project) {
 
         actionContext = builder.build()
         actionContext.init(this)
+    }
+
+    fun ensureActionContextActive() {
+        if (!::actionContext.isInitialized || actionContext.isStopped()) {
+            createNewActionContext()
+        }
     }
 
     fun setDashboardPanel(panel: ApiDashboardPanel) {
@@ -731,6 +752,12 @@ class ApiDashboardService(private val project: Project) {
         override fun exportToHttpClient(actionContext: ActionContext) {
             val httpClientExporter = actionContext.instance(HttpClientExporter::class)
             httpClientExporter.export(listOf(request))
+        }
+    }
+
+    fun dispose() {
+        if (::actionContext.isInitialized && !actionContext.isStopped()) {
+            actionContext.stop()
         }
     }
 }
