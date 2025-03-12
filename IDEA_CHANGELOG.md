@@ -1,3 +1,5 @@
+* 2.3.7
+	* fix: several ApiExport actions cannot export method docs  [(#575)](https://github.com/tangcent/easy-api/pull/575)
 * 2.3.6
 	* feat: implement cookie persistence in ApiDashboardPanel  [(#573)](https://github.com/tangcent/easy-api/pull/573)
 
