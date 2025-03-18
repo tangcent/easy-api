@@ -340,8 +340,6 @@ open class SuvApiExporter {
             builder.bindInstance(ExportChannel::class, ExportChannel.of("postman"))
             builder.bindInstance(ExportDoc::class, ExportDoc.of("request"))
 
-            builder.bind(RequestBuilderListener::class) { it.with(CompositeRequestBuilderListener::class).singleton() }
-
             builder.bindInstance("file.save.default", "postman.json")
             builder.bindInstance("file.save.last.location.key", "com.itangcent.postman.export.path")
 

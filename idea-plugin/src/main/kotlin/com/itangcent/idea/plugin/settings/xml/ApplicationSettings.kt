@@ -49,6 +49,10 @@ interface ApplicationSettingsSupport {
     var aiEnable: Boolean
     var aiModel: String?
     var aiEnableCache: Boolean
+    
+    // API Translation
+    var aiTranslationEnabled: Boolean
+    var aiTranslationTargetLanguage: String?
 
     fun copyTo(newSetting: ApplicationSettingsSupport) {
         newSetting.postmanToken = this.postmanToken
@@ -87,6 +91,8 @@ interface ApplicationSettingsSupport {
         newSetting.aiEnable = this.aiEnable
         newSetting.aiModel = this.aiModel
         newSetting.aiEnableCache = this.aiEnableCache
+        newSetting.aiTranslationEnabled = this.aiTranslationEnabled
+        newSetting.aiTranslationTargetLanguage = this.aiTranslationTargetLanguage
     }
 }
 
@@ -182,6 +188,10 @@ class ApplicationSettings : ApplicationSettingsSupport {
     override var aiEnableCache: Boolean = false
     
     //endregion
+
+    // API Translation
+    override var aiTranslationEnabled: Boolean = false
+    override var aiTranslationTargetLanguage: String? = null
 
     fun copy(): ApplicationSettings {
         val applicationSettings = ApplicationSettings()
