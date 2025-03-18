@@ -7,8 +7,7 @@
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/tangcent/easy-api.svg)](http://isitmaintained.com/project/tangcent/easy-api "Average time to resolve an issue")
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/tangcent/easy-api.svg)](http://isitmaintained.com/project/tangcent/easy-api "Percentage of issues still open")
 
-- Simplifies API Development
-- Parsing based on [javadoc](#Javadoc)&[KDoc](#KDoc)&[ScalaDoc](#ScalaDoc)
+English | [中文](README_CN.md)
 
 ## Feature
 
@@ -21,6 +20,25 @@
 | web        | [spring](https://spring.io/), [feign](https://spring.io/projects/spring-cloud-openfeign), [jaxrs](https://www.oracle.com/technical-resources/articles/java/jax-rs.html) ([quarkus](https://quarkus.io/) or [jersey](https://eclipse-ee4j.github.io/jersey/))                                                                       | [dubbo](https://dubbo.apache.org) |
 | channels   | [Postman](https://easyapi.itangcent.com/documents/export2postman.html), [Markdown](https://easyapi.itangcent.com/documents/export2markdown.html) , [Curl](https://curl.se/)                                                                                 , [HttpClient](https://plugins.jetbrains.com/plugin/13121-http-client) | -                                 |
 | frameworks | javax.validation, Jackson, Gson                                                                                                                                                                                                                                                                                                    | [swagger](https://swagger.io/)    |
+
+## AI Powered (Beta)
+
+EasyAPI includes powerful AI capabilities to enhance your API documentation workflow:
+
+### Features
+
+- **API Translation**: Automatically translate your API documentation to different languages, preserving technical terms
+  while providing natural language translations.
+- **Method Return Type Inference**: Use AI to analyze method code and more accurately infer complex return types,
+  improving API documentation accuracy.
+
+### Configuration
+
+- **Support for Multiple AI Providers**: Configure your preferred AI provider (OpenAI, DeepSeek, etc.) and models (
+  GPT-4, DeepSeek-V3, etc.).
+- **API Response Caching**: Optimize performance by caching AI responses for identical requests.
+
+To enable these features, configure your AI provider and API token in the EasyAPI settings dialog.
 
 ## Navigation
 
