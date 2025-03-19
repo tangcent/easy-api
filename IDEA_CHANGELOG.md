@@ -1,3 +1,17 @@
+* 2.3.8
+	* refactor: Enhance EasyApiSettingAI layout  [(#583)](https://github.com/tangcent/easy-api/pull/583)
+
+	* docs: Update README to include AI-powered features and configuration details  [(#582)](https://github.com/tangcent/easy-api/pull/582)
+
+	* refactor: Refactor SPI BeanProvider logic  [(#581)](https://github.com/tangcent/easy-api/pull/581)
+
+	* refactor(postman): standardize rule key naming pattern  [(#579)](https://github.com/tangcent/easy-api/pull/579)
+
+	* feat: Add AI-powered translation support for API documentation  [(#580)](https://github.com/tangcent/easy-api/pull/580)
+
+	* feat: Add support for AI-powered method inference  [(#578)](https://github.com/tangcent/easy-api/pull/578)
+
+	* fix: Fix project cache size always showing as zero in settings  [(#577)](https://github.com/tangcent/easy-api/pull/577)
 * 2.3.7
 	* fix: several ApiExport actions cannot export method docs  [(#575)](https://github.com/tangcent/easy-api/pull/575)
 * 2.3.6
