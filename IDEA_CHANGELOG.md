@@ -1,3 +1,11 @@
+* 2.3.9
+	* feat: Implement template-based Markdown formatting for API documentation  [(#589)](https://github.com/tangcent/easy-api/pull/589)
+
+	* refactor: improve AI response content handling  [(#587)](https://github.com/tangcent/easy-api/pull/587)
+
+	* build: update Kotlin daemon JVM arguments  [(#588)](https://github.com/tangcent/easy-api/pull/588)
+
+	* feat: Support Local LLM service  [(#586)](https://github.com/tangcent/easy-api/pull/586)
 * 2.3.8
 	* refactor: Enhance EasyApiSettingAI layout  [(#583)](https://github.com/tangcent/easy-api/pull/583)
 
