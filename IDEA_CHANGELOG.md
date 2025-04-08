@@ -1,3 +1,11 @@
+* 2.4.0
+	* build: enhance commit message validation to support release version format  [(#594)](https://github.com/tangcent/easy-api/pull/594)
+
+	* feat: improve link resolution in Markdown Documentation Comments  [(#593)](https://github.com/tangcent/easy-api/pull/593)
+
+	* fix: escape special characters in markdown template tables  [(#592)](https://github.com/tangcent/easy-api/pull/592)
+
+	* build: add commit message validation workflow  [(#591)](https://github.com/tangcent/easy-api/pull/591)
 * 2.3.9
 	* feat: Implement template-based Markdown formatting for API documentation  [(#589)](https://github.com/tangcent/easy-api/pull/589)
 
