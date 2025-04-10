@@ -1,7 +1,6 @@
 package com.itangcent.idea.plugin.dialog
 
 import com.google.inject.Inject
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBoxTableRenderer
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.ui.MutableCollectionComboBoxModel
@@ -43,9 +42,6 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
 
     @Inject
     private lateinit var actionContext: ActionContext
-
-    @Inject(optional = true)
-    private var myProject: Project? = null
 
     private var rootPanel: JPanel? = null
 
@@ -104,8 +100,6 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
     private var generalPanel: JPanel? = null
 
     private var logLevelComboBox: JComboBox<Logger.Level>? = null
-
-    private var logCharsetComboBox: JComboBox<Charsets>? = null
 
     private var methodDocEnableCheckBox: JCheckBox? = null
 
@@ -178,10 +172,10 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
         SwingUtils.immersed(this.postmanWorkSpaceRefreshButton!!)
 
         postmanJson5FormatTypeComboBox!!.model =
-            DefaultComboBoxModel(PostmanJson5FormatType.values().mapToTypedArray { it.name })
+            DefaultComboBoxModel(PostmanJson5FormatType.entries.mapToTypedArray { it.name })
 
         postmanExportModeComboBox!!.model =
-            DefaultComboBoxModel(PostmanExportMode.values().mapToTypedArray { it.name })
+            DefaultComboBoxModel(PostmanExportMode.entries.mapToTypedArray { it.name })
 
         this.postmanTokenTextField!!.onTextChange {
             postmanWorkSpaceRefreshButton!!.isVisible = it.notNullOrBlank()
@@ -196,7 +190,7 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
         }
 
         postmanCollectionsRefreshButton!!.addActionListener {
-            refreshPostmanCollections(false)
+            forceRefreshPostmanCollections()
         }
 
         postmanTokenLabel!!.addMouseListener(object : MouseAdapter() {
@@ -221,17 +215,15 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
             clearProjectCache()
         }
 
-        logLevelComboBox!!.model = DefaultComboBoxModel(CommonSettingsHelper.CoarseLogLevel.editableValues())
-
-        logCharsetComboBox!!.model = DefaultComboBoxModel(Charsets.SUPPORTED_CHARSETS)
+        logLevelComboBox!!.model = DefaultComboBoxModel(CommonSettingsHelper.VerbosityLevel.editableValues())
 
         outputCharsetComboBox!!.model = DefaultComboBoxModel(Charsets.SUPPORTED_CHARSETS)
 
         markdownFormatTypeComboBox!!.model =
-            DefaultComboBoxModel(MarkdownFormatType.values().mapToTypedArray { it.name })
+            DefaultComboBoxModel(MarkdownFormatType.entries.mapToTypedArray { it.name })
 
         httpClientComboBox!!.model =
-            DefaultComboBoxModel(HttpClientType.values().mapToTypedArray { it.value })
+            DefaultComboBoxModel(HttpClientType.entries.mapToTypedArray { it.value })
 
         //endregion general-----------------------------------------------------
     }
@@ -246,8 +238,7 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
         this.buildExampleCheckBox!!.isSelected = settings.postmanBuildExample
 
         this.postmanWorkspaceComboBoxModel?.selectedItem = this.selectedPostmanWorkspace
-        this.logLevelComboBox!!.selectedItem = CommonSettingsHelper.CoarseLogLevel.toLevel(settings.logLevel)
-        this.logCharsetComboBox!!.selectedItem = Charsets.forName(settings.logCharset)
+        this.logLevelComboBox!!.selectedItem = CommonSettingsHelper.VerbosityLevel.toLevel(settings.logLevel)
         this.outputCharsetComboBox!!.selectedItem = Charsets.forName(settings.outputCharset)
         this.postmanJson5FormatTypeComboBox!!.selectedItem = settings.postmanJson5FormatType
         this.postmanExportModeComboBox!!.selectedItem = settings.postmanExportMode
@@ -289,13 +280,13 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
 
         try {
             computeGlobalCacheSize()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             //ignore
         }
 
         try {
             computeProjectCacheSize()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             //ignore
         }
     }
@@ -333,15 +324,10 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
     private var tableMouseListener: MouseListener? = null
     private var postmanCollectionInit = false
 
-
     @Synchronized
-    private fun refreshPostmanCollections(cache: Boolean) {
-        if (cache) {
+    private fun forceRefreshPostmanCollections() {
+        postmanCachedApiHelper.withoutCache {
             refreshPostmanCollections()
-        } else {
-            postmanCachedApiHelper.withoutCache {
-                refreshPostmanCollections()
-            }
         }
     }
 
@@ -565,9 +551,7 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
         settings.httpClient = httpClientComboBox!!.selectedItem as? String ?: HttpClientType.APACHE.value
         settings.httpTimeOut = httpTimeOutTextField!!.text.toIntOrNull() ?: 10
         settings.useRecommendConfig = recommendedCheckBox!!.isSelected
-        settings.logLevel =
-            (logLevelComboBox!!.selected() ?: CommonSettingsHelper.CoarseLogLevel.LOW).getLevel()
-        settings.logCharset = (logCharsetComboBox!!.selectedItem as? Charsets ?: Charsets.UTF_8).displayName()
+        settings.logLevel = (logLevelComboBox!!.selected() ?: CommonSettingsHelper.VerbosityLevel.NORMAL).getLevel()
         settings.outputDemo = outputDemoCheckBox!!.isSelected
         settings.outputCharset = (outputCharsetComboBox!!.selectedItem as? Charsets ?: Charsets.UTF_8).displayName()
         settings.markdownFormatType =

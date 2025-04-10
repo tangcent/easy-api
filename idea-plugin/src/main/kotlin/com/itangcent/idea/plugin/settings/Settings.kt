@@ -80,16 +80,11 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
     /**
      * Charset for output file
      */
-    override var logCharset: String = Charsets.UTF_8.displayName()
+    override var outputCharset: String = Charsets.UTF_8.displayName()
 
     // markdown
 
     override var outputDemo: Boolean = true
-
-    /**
-     * Charset for out put file
-     */
-    override var outputCharset: String = Charsets.UTF_8.displayName()
 
     override var markdownFormatType: String = MarkdownFormatType.SIMPLE.name
 
@@ -187,7 +182,6 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
         if (useRecommendConfig != other.useRecommendConfig) return false
         if (recommendConfigs != other.recommendConfigs) return false
         if (logLevel != other.logLevel) return false
-        if (logCharset != other.logCharset) return false
         if (outputDemo != other.outputDemo) return false
         if (outputCharset != other.outputCharset) return false
         if (markdownFormatType != other.markdownFormatType) return false
@@ -235,7 +229,6 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
         result = 31 * result + useRecommendConfig.hashCode()
         result = 31 * result + recommendConfigs.hashCode()
         result = 31 * result + logLevel
-        result = 31 * result + logCharset.hashCode()
         result = 31 * result + outputDemo.hashCode()
         result = 31 * result + outputCharset.hashCode()
         result = 31 * result + markdownFormatType.hashCode()
@@ -265,7 +258,7 @@ class Settings : ProjectSettingsSupport, ApplicationSettingsSupport {
                 "readSetter=$readSetter, inferEnable=$inferEnable, inferMaxDeep=$inferMaxDeep, " +
                 "selectedOnly=$selectedOnly, httpTimeOut=$httpTimeOut, trustHosts=${trustHosts.contentToString()}, " +
                 "unsafeSsl=$unsafeSsl, httpClient='$httpClient', useRecommendConfig=$useRecommendConfig, " +
-                "recommendConfigs='$recommendConfigs', logLevel=$logLevel, logCharset='$logCharset', " +
+                "recommendConfigs='$recommendConfigs', logLevel=$logLevel, " +
                 "outputDemo=$outputDemo, outputCharset='$outputCharset', markdownFormatType='$markdownFormatType', " +
                 "builtInConfig=$builtInConfig, remoteConfig=${remoteConfig.contentToString()}, " +
                 "aiProvider=$aiProvider, " +
