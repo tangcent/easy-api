@@ -32,6 +32,8 @@ internal class RecommendConfigSettingsHelperTest : SettingsHelperTest() {
                     "module=#module\n" +
                     "#Ignore class/api\n" +
                     "ignore=#ignore\n" +
+                    "#ignore fields from java.lang system classes\n" +
+                    "field.ignore=groovy:!it.containingClass().name().startsWith(\"java.lang\")&&it.defineClass().name().startsWith(\"java.lang\")\n" +
                     "#Support for Jackson annotations\n" +
                     "field.name=@com.fasterxml.jackson.annotation.JsonProperty#value\n" +
                     "field.ignore=@com.fasterxml.jackson.annotation.JsonIgnore#value\n" +
