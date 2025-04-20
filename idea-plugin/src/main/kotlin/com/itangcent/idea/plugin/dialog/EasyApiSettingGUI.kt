@@ -29,7 +29,7 @@ import com.itangcent.idea.utils.isDoubleClick
 import com.itangcent.intellij.context.ActionContext
 import com.itangcent.intellij.file.DefaultLocalFileRepository
 import com.itangcent.intellij.file.LocalFileRepository
-import com.itangcent.intellij.logger.Logger
+import com.itangcent.utils.EnumKit
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
@@ -99,7 +99,9 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
 
     private var generalPanel: JPanel? = null
 
-    private var logLevelComboBox: JComboBox<Logger.Level>? = null
+    private var logLevelComboBox: JComboBox<CommonSettingsHelper.VerbosityLevel>? = null
+
+    private var loggerConsoleTypeComboBox: JComboBox<CommonSettingsHelper.LoggerConsoleType>? = null
 
     private var methodDocEnableCheckBox: JCheckBox? = null
 
@@ -215,7 +217,9 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
             clearProjectCache()
         }
 
-        logLevelComboBox!!.model = DefaultComboBoxModel(CommonSettingsHelper.VerbosityLevel.editableValues())
+        logLevelComboBox!!.model = DefaultComboBoxModel(CommonSettingsHelper.VerbosityLevel.entries.toTypedArray())
+
+        loggerConsoleTypeComboBox!!.model = DefaultComboBoxModel(CommonSettingsHelper.LoggerConsoleType.entries.toTypedArray())
 
         outputCharsetComboBox!!.model = DefaultComboBoxModel(Charsets.SUPPORTED_CHARSETS)
 
@@ -239,6 +243,9 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
 
         this.postmanWorkspaceComboBoxModel?.selectedItem = this.selectedPostmanWorkspace
         this.logLevelComboBox!!.selectedItem = CommonSettingsHelper.VerbosityLevel.toLevel(settings.logLevel)
+        this.loggerConsoleTypeComboBox!!.selectedItem =
+            EnumKit.safeValueOf<CommonSettingsHelper.LoggerConsoleType>(settings.loggerConsoleType)
+
         this.outputCharsetComboBox!!.selectedItem = Charsets.forName(settings.outputCharset)
         this.postmanJson5FormatTypeComboBox!!.selectedItem = settings.postmanJson5FormatType
         this.postmanExportModeComboBox!!.selectedItem = settings.postmanExportMode
@@ -551,7 +558,8 @@ class EasyApiSettingGUI : AbstractEasyApiSettingGUI() {
         settings.httpClient = httpClientComboBox!!.selectedItem as? String ?: HttpClientType.APACHE.value
         settings.httpTimeOut = httpTimeOutTextField!!.text.toIntOrNull() ?: 10
         settings.useRecommendConfig = recommendedCheckBox!!.isSelected
-        settings.logLevel = (logLevelComboBox!!.selected() ?: CommonSettingsHelper.VerbosityLevel.NORMAL).getLevel()
+        settings.logLevel = (logLevelComboBox!!.selected() ?: CommonSettingsHelper.VerbosityLevel.NORMAL).level
+        settings.loggerConsoleType = (loggerConsoleTypeComboBox!!.selected() ?: CommonSettingsHelper.LoggerConsoleType.SINGLE_CONSOLE).name
         settings.outputDemo = outputDemoCheckBox!!.isSelected
         settings.outputCharset = (outputCharsetComboBox!!.selectedItem as? Charsets ?: Charsets.UTF_8).displayName()
         settings.markdownFormatType =
