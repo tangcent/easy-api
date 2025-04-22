@@ -1,3 +1,21 @@
+* 2.4.1
+	* feat: Enhance script object 'api' with parameter accessor methods  [(#604)](https://github.com/tangcent/easy-api/pull/604)
+
+	* build: update release label in auto-label workflow configuration  [(#603)](https://github.com/tangcent/easy-api/pull/603)
+
+	* build: Enhance PR workflow to comment on both issues and PRs  [(#602)](https://github.com/tangcent/easy-api/pull/602)
+
+	* refactor: Standardize capitalization in form labels  [(#601)](https://github.com/tangcent/easy-api/pull/601)
+
+	* feat: Add multi-window console logging capability  [(#600)](https://github.com/tangcent/easy-api/pull/600)
+
+	* build: add cleanBin task in build.gradle.kts  [(#599)](https://github.com/tangcent/easy-api/pull/599)
+
+	* feat: ignore fields from java.lang system classes to prevent complex exported types  [(#598)](https://github.com/tangcent/easy-api/pull/598)
+
+	* refactor: Remove unused charset setting from log configuration  [(#597)](https://github.com/tangcent/easy-api/pull/597)
+
+	* build(ci): Add workflow to package plugin and notify on PRs  [(#596)](https://github.com/tangcent/easy-api/pull/596)
 * 2.4.0
 	* build: enhance commit message validation to support release version format  [(#594)](https://github.com/tangcent/easy-api/pull/594)
 
