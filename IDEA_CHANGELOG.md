@@ -1,3 +1,13 @@
+* 2.4.2
+	* feat: Add support for processing inner classes in API export  [(#610)](https://github.com/tangcent/easy-api/pull/610)
+
+	* build: auto-remove WIP label when PR closes related issue  [(#609)](https://github.com/tangcent/easy-api/pull/609)
+
+	* fix: Fix compatibility with IntelliJ IDEA Ultimate IU-251.26094.121+  [(#608)](https://github.com/tangcent/easy-api/pull/608)
+
+	* chore: Replace deprecated `URL` constructor calls with `asUrl()` extension  [(#607)](https://github.com/tangcent/easy-api/pull/607)
+
+	* refactor: Refactor PsiClassHelper utilities  [(#606)](https://github.com/tangcent/easy-api/pull/606)
 * 2.4.1
 	* feat: Enhance script object 'api' with parameter accessor methods  [(#604)](https://github.com/tangcent/easy-api/pull/604)
 
