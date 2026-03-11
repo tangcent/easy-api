@@ -1,3 +1,7 @@
+* 2.4.3
+	* fix: improve module finding logic by prioritizing subclass context for inherited API methods  [(#615)](https://github.com/tangcent/easy-api/pull/615)
+
+	* refactor: Simplify API dashboard panel layout and tab management  [(#613)](https://github.com/tangcent/easy-api/pull/613)
 * 2.4.2
 	* feat: Add support for processing inner classes in API export  [(#610)](https://github.com/tangcent/easy-api/pull/610)
 
