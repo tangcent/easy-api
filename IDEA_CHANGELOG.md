@@ -1,3 +1,9 @@
+* 2.4.4
+	* fix: avoid shell interpretation of PR body in CI workflows  [(#619)](https://github.com/tangcent/easy-api/pull/619)
+
+	* fix: fix IconLoader compatibility  [(#618)](https://github.com/tangcent/easy-api/pull/618)
+
+	* fix: use reflection to access MavenId to avoid binary incompatibility with IDEA 261+ (#1279)  [(#617)](https://github.com/tangcent/easy-api/pull/617)
 * 2.4.3
 	* fix: improve module finding logic by prioritizing subclass context for inherited API methods  [(#615)](https://github.com/tangcent/easy-api/pull/615)
 
