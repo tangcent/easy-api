@@ -56,6 +56,8 @@ interface ApplicationSettingsSupport {
     var markdownFormatType: String
     var builtInConfig: String?
     var remoteConfig: Array<String>
+    /** When true, automatically scan APIs on file changes */
+    var autoScanEnabled: Boolean
 
     /**
      * Copies settings to another instance.
@@ -86,6 +88,7 @@ interface ApplicationSettingsSupport {
         newSetting.unsafeSsl = this.unsafeSsl
         newSetting.httpClient = this.httpClient
         newSetting.remoteConfig = this.remoteConfig
+        newSetting.autoScanEnabled = this.autoScanEnabled
     }
 }
 
