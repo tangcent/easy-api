@@ -16,10 +16,10 @@ jobs:
       - name: Extract version
         id: extract_version
         run: |
-          # First try to get version from commit message
-          VERSION=$(echo "${{ github.event.head_commit.message }}" | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' | sed 's/^v//')
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
           
-          # If no version in commit message, try to get it from build.gradle.kts
+          VERSION=$(echo "$COMMIT_MSG" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/^v//')
+
           if [ -z "$VERSION" ]; then
             if [ -f "build.gradle.kts" ]; then
               VERSION=$(grep '^version\s*=' build.gradle.kts | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
@@ -33,12 +33,11 @@ jobs:
               exit 1
             fi
           fi
-          
-          # Add 'v' prefix if not present
+
           if [[ ! "$VERSION" =~ ^v ]]; then
             VERSION="v$VERSION"
           fi
-          
+
           echo "Extracted version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
