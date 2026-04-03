@@ -35,6 +35,7 @@ interface ApplicationSettingsSupport {
     var feignEnable: Boolean
     var jaxrsEnable: Boolean
     var actuatorEnable: Boolean
+    var grpcEnable: Boolean
     var postmanToken: String?
     var wrapCollection: Boolean
     var autoMergeScript: Boolean
@@ -58,6 +59,14 @@ interface ApplicationSettingsSupport {
     var remoteConfig: Array<String>
     /** When true, automatically scan APIs on file changes */
     var autoScanEnabled: Boolean
+    /** gRPC artifact configurations in format: groupId:artifactId[:version][:enabled] */
+    var grpcArtifactConfigs: Array<String>
+    /** Additional JAR paths for gRPC runtime */
+    var grpcAdditionalJars: Array<String>
+    /** Enable gRPC call functionality */
+    var grpcCallEnabled: Boolean
+    /** Repository paths for gRPC runtime resolution in format: type:enabled:path */
+    var grpcRepositories: Array<String>
 
     /**
      * Copies settings to another instance.
@@ -72,6 +81,7 @@ interface ApplicationSettingsSupport {
         newSetting.feignEnable = this.feignEnable
         newSetting.jaxrsEnable = this.jaxrsEnable
         newSetting.actuatorEnable = this.actuatorEnable
+        newSetting.grpcEnable = this.grpcEnable
         newSetting.queryExpanded = this.queryExpanded
         newSetting.formExpanded = this.formExpanded
         newSetting.pathMulti = this.pathMulti
@@ -89,6 +99,10 @@ interface ApplicationSettingsSupport {
         newSetting.httpClient = this.httpClient
         newSetting.remoteConfig = this.remoteConfig
         newSetting.autoScanEnabled = this.autoScanEnabled
+        newSetting.grpcArtifactConfigs = this.grpcArtifactConfigs
+        newSetting.grpcAdditionalJars = this.grpcAdditionalJars
+        newSetting.grpcCallEnabled = this.grpcCallEnabled
+        newSetting.grpcRepositories = this.grpcRepositories
     }
 }
 
