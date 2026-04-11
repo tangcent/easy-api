@@ -38,6 +38,7 @@ interface ApplicationSettingsSupport {
     var grpcEnable: Boolean
     var swaggerEnable: Boolean
     var swagger3Enable: Boolean
+    var extensionConfigs: String
     var postmanToken: String?
     var wrapCollection: Boolean
     var autoMergeScript: Boolean
@@ -52,7 +53,6 @@ interface ApplicationSettingsSupport {
     var httpTimeOut: Int
     var unsafeSsl: Boolean
     var httpClient: String
-    var recommendConfigs: String
     var logLevel: Int
     var outputDemo: Boolean
     var outputCharset: String
@@ -86,13 +86,13 @@ interface ApplicationSettingsSupport {
         newSetting.grpcEnable = this.grpcEnable
         newSetting.swaggerEnable = this.swaggerEnable
         newSetting.swagger3Enable = this.swagger3Enable
+        newSetting.extensionConfigs = this.extensionConfigs
         newSetting.queryExpanded = this.queryExpanded
         newSetting.formExpanded = this.formExpanded
         newSetting.pathMulti = this.pathMulti
         newSetting.inferReturnMain = this.inferReturnMain
         newSetting.enableUrlTemplating = this.enableUrlTemplating
         newSetting.switchNotice = this.switchNotice
-        newSetting.recommendConfigs = this.recommendConfigs
         newSetting.logLevel = this.logLevel
         newSetting.outputDemo = this.outputDemo
         newSetting.outputCharset = this.outputCharset

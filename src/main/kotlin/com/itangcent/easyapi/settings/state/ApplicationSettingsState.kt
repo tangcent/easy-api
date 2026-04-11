@@ -45,7 +45,7 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
         override var httpTimeOut: Int = 5,
         override var unsafeSsl: Boolean = false,
         override var httpClient: String = HttpClientType.APACHE.value,
-        override var recommendConfigs: String = Settings().recommendConfigs,
+        override var extensionConfigs: String = Settings().extensionConfigs,
         override var logLevel: Int = 50,
         override var outputDemo: Boolean = true,
         override var outputCharset: String = "UTF-8",
@@ -85,7 +85,7 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
             if (postmanToken != other.postmanToken) return false
             if (postmanJson5FormatType != other.postmanJson5FormatType) return false
             if (httpClient != other.httpClient) return false
-            if (recommendConfigs != other.recommendConfigs) return false
+            if (extensionConfigs != other.extensionConfigs) return false
             if (outputCharset != other.outputCharset) return false
             if (markdownFormatType != other.markdownFormatType) return false
             if (builtInConfig != other.builtInConfig) return false
@@ -121,7 +121,7 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
             result = 31 * result + (postmanToken?.hashCode() ?: 0)
             result = 31 * result + postmanJson5FormatType.hashCode()
             result = 31 * result + httpClient.hashCode()
-            result = 31 * result + recommendConfigs.hashCode()
+            result = 31 * result + extensionConfigs.hashCode()
             result = 31 * result + outputCharset.hashCode()
             result = 31 * result + markdownFormatType.hashCode()
             result = 31 * result + (builtInConfig?.hashCode() ?: 0)
