@@ -21,7 +21,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
     private val postmanPanel = PostmanSettingsPanel()
     private val httpPanel = HttpSettingsPanel()
     private val intelligentPanel = IntelligentSettingsPanel()
-    private val recommendPanel = RecommendConfigPanel()
+    private val extensionPanel = ExtensionConfigPanel()
     private val remotePanel = RemoteConfigPanel()
     private val builtInPanel = BuiltInConfigPanel()
     private val otherPanel = OtherSettingsPanel()
@@ -38,7 +38,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         const val TAB_POSTMAN = "Postman"
         const val TAB_HTTP = "HTTP"
         const val TAB_INTELLIGENT = "Intelligent"
-        const val TAB_RECOMMEND = "Recommend"
+        const val TAB_EXTENSIONS = "Extensions"
         const val TAB_REMOTE = "Remote"
         const val TAB_BUILT_IN = "Built-in"
         const val TAB_OTHER = "Other"
@@ -61,7 +61,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
                 t.addTab(TAB_POSTMAN, wrapNorth(postmanPanel.component))
                 t.addTab(TAB_HTTP, wrapNorth(httpPanel.component))
                 t.addTab(TAB_INTELLIGENT, wrapNorth(intelligentPanel.component))
-                t.addTab(TAB_RECOMMEND, recommendPanel.component)
+                t.addTab(TAB_EXTENSIONS, extensionPanel.component)
                 t.addTab(TAB_REMOTE, remotePanel.component)
                 t.addTab(TAB_BUILT_IN, builtInPanel.component)
                 t.addTab(TAB_OTHER, otherPanel.component)
@@ -109,7 +109,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         val settings = settingBinder.read()
         return listOf(
             generalPanel, postmanPanel, httpPanel,
-            intelligentPanel, recommendPanel, remotePanel, builtInPanel, otherPanel, grpcPanel
+            intelligentPanel, extensionPanel, remotePanel, builtInPanel, otherPanel, grpcPanel
         ).any { it.isModified(settings) }
     }
 
@@ -122,7 +122,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         postmanPanel.applyTo(settings)
         httpPanel.applyTo(settings)
         intelligentPanel.applyTo(settings)
-        recommendPanel.applyTo(settings)
+        extensionPanel.applyTo(settings)
         remotePanel.applyTo(settings)
         builtInPanel.applyTo(settings)
         otherPanel.applyTo(settings)
@@ -139,7 +139,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         postmanPanel.resetFrom(settings)
         httpPanel.resetFrom(settings)
         intelligentPanel.resetFrom(settings)
-        recommendPanel.resetFrom(settings)
+        extensionPanel.resetFrom(settings)
         remotePanel.resetFrom(settings)
         builtInPanel.resetFrom(settings)
         otherPanel.resetFrom(settings)
@@ -198,7 +198,7 @@ abstract class BaseEasyApiChildConfigurable(
     }
 }
 
-class EasyApiRecommendConfigurable(project: com.intellij.openapi.project.Project) : BaseEasyApiChildConfigurable("Recommend", { RecommendConfigPanel() }) { init { this.project = project } }
+class EasyApiExtensionConfigurable(project: com.intellij.openapi.project.Project) : BaseEasyApiChildConfigurable("Extensions", { ExtensionConfigPanel() }) { init { this.project = project } }
 
 class EasyApiRemoteConfigurable(project: com.intellij.openapi.project.Project) : BaseEasyApiChildConfigurable("Remote", { RemoteConfigPanel() }) { init { this.project = project } }
 
