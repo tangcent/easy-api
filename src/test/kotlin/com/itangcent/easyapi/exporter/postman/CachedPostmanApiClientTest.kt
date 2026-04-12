@@ -2,27 +2,24 @@ package com.itangcent.easyapi.exporter.postman
 
 import com.itangcent.easyapi.cache.AppCacheRepository
 import com.itangcent.easyapi.http.UrlConnectionHttpClient
-import kotlinx.coroutines.runBlocking
+import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
 import org.junit.Assert.*
-import org.junit.Test
 
-class CachedPostmanApiClientTest {
+class CachedPostmanApiClientTest : EasyApiLightCodeInsightFixtureTestCase() {
 
     private fun createClient(apiKey: String = ""): CachedPostmanApiClient {
         val postmanClient = PostmanApiClient(apiKey = apiKey, httpClient = UrlConnectionHttpClient)
         return CachedPostmanApiClient(postmanClient)
     }
 
-    @Test
-    fun testListWorkspacesWithEmptyApiKey() = runBlocking {
+    fun testListWorkspacesWithEmptyApiKey() = runTest {
         val client = createClient(apiKey = "")
 
         val workspaces = client.listWorkspaces()
         assertTrue("Workspaces should be empty for blank API key", workspaces.isEmpty())
     }
 
-    @Test
-    fun testListWorkspacesWithCache() = runBlocking {
+    fun testListWorkspacesWithCache() = runTest {
         AppCacheRepository.getInstance().clear()
 
         val client = createClient(apiKey = "test-api-key")
@@ -33,8 +30,7 @@ class CachedPostmanApiClientTest {
         assertNotNull("Workspaces list should not be null", workspacesWithCache)
     }
 
-    @Test
-    fun testClearWorkspacesCache() = runBlocking {
+    fun testClearWorkspacesCache() = runTest {
         AppCacheRepository.getInstance().clear()
 
         val client = createClient(apiKey = "test-api-key")
@@ -46,8 +42,7 @@ class CachedPostmanApiClientTest {
         assertNull("Cache should be cleared", cached)
     }
 
-    @Test
-    fun testWorkspaceCaching() = runBlocking {
+    fun testWorkspaceCaching() = runTest {
         AppCacheRepository.getInstance().clear()
 
         val client = createClient(apiKey = "test-api-key")
@@ -60,16 +55,14 @@ class CachedPostmanApiClientTest {
         }
     }
 
-    @Test
-    fun testListCollectionsWithEmptyApiKey() = runBlocking {
+    fun testListCollectionsWithEmptyApiKey() = runTest {
         val client = createClient(apiKey = "")
 
         val collections = client.listCollections("test-workspace-id")
         assertTrue("Collections should be empty for blank API key", collections.isEmpty())
     }
 
-    @Test
-    fun testListCollectionsWithCache() = runBlocking {
+    fun testListCollectionsWithCache() = runTest {
         AppCacheRepository.getInstance().clear()
 
         val client = createClient(apiKey = "test-api-key")
@@ -80,8 +73,7 @@ class CachedPostmanApiClientTest {
         assertNotNull("Collections list should not be null", collectionsWithCache)
     }
 
-    @Test
-    fun testCollectionCaching() = runBlocking {
+    fun testCollectionCaching() = runTest {
         AppCacheRepository.getInstance().clear()
 
         val client = createClient(apiKey = "test-api-key")
@@ -96,8 +88,7 @@ class CachedPostmanApiClientTest {
         }
     }
 
-    @Test
-    fun testUploadCollection() = runBlocking {
+    fun testUploadCollection() = runTest {
         val client = createClient(apiKey = "")
 
         val collection = com.itangcent.easyapi.exporter.postman.model.PostmanCollection(
@@ -110,8 +101,7 @@ class CachedPostmanApiClientTest {
         assertTrue("Upload should succeed with empty API key (mock mode)", result.success)
     }
 
-    @Test
-    fun testUpdateCollection() = runBlocking {
+    fun testUpdateCollection() = runTest {
         val client = createClient(apiKey = "")
 
         val collection = com.itangcent.easyapi.exporter.postman.model.PostmanCollection(
