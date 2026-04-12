@@ -23,6 +23,23 @@ import javax.swing.table.AbstractTableModel
 import javax.swing.table.DefaultTableCellRenderer
 import javax.swing.table.TableCellRenderer
 
+/**
+ * Dialog for configuring and initiating API exports.
+ *
+ * Provides a unified UI for exporting APIs to multiple formats:
+ * - Markdown (file-based)
+ * - Postman (workspace and collection selection)
+ *
+ * ## Features
+ * - Format selection dropdown with dynamic options panel
+ * - Postman: Workspace and collection selection with API integration
+ * - File export: Output directory and filename configuration
+ *
+ * @param project The IntelliJ project context
+ * @param endpointCount The number of endpoints to export (shown in title)
+ * @param endpoints The list of endpoints to export (used to filter available formats)
+ * @see ExportDialogResult for the dialog output
+ */
 class ExportDialog(
     private val project: Project,
     endpointCount: Int,
