@@ -69,7 +69,6 @@ class GrpcClassExporter(
                             ?: methodInfo.methodName,
                         folder = folder,
                         description = methodInfo.description,
-                        tags = listOf("gRPC"),
                         sourceClass = psiClass,
                         sourceMethod = methodInfo.psiMethod,
                         className = className,

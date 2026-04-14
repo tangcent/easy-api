@@ -119,9 +119,6 @@ class SpringMvcClassExporter(
                 val folder = metadataResolver.resolveFolderName(method, psiClass)
                 val description = metadataResolver.resolveMethodDoc(method)
                 val classDesc = metadataResolver.resolveClassDoc(psiClass)
-                val tags = metadataResolver.resolveApiTag(method)
-                    ?.split("\n")?.map { it.trim() }?.filter { it.isNotBlank() }
-                    ?: emptyList()
 
                 val resolvedBindings = resolveParameterBindings(resolvedMethod)
                 val params = buildParameters(resolvedBindings, genericContext)
@@ -169,7 +166,6 @@ class SpringMvcClassExporter(
                         name = apiName,
                         folder = folder,
                         description = description,
-                        tags = tags,
                         sourceClass = psiClass,
                         sourceMethod = method,
                         className = psiClass.qualifiedName ?: psiClass.name,
@@ -377,7 +373,10 @@ class SpringMvcClassExporter(
         return result
     }
 
-    private suspend fun expandFormParameter(parameter: PsiParameter, genericContext: GenericContext = GenericContext.EMPTY): List<ApiParameter> {
+    private suspend fun expandFormParameter(
+        parameter: PsiParameter,
+        genericContext: GenericContext = GenericContext.EMPTY
+    ): List<ApiParameter> {
         val formExpanded = settings.formExpanded
         if (!formExpanded) {
             return emptyList()
@@ -385,7 +384,10 @@ class SpringMvcClassExporter(
         return expandComplexParameter(parameter, ParameterBinding.Form, genericContext)
     }
 
-    private suspend fun expandQueryParameter(parameter: PsiParameter, genericContext: GenericContext = GenericContext.EMPTY): List<ApiParameter> {
+    private suspend fun expandQueryParameter(
+        parameter: PsiParameter,
+        genericContext: GenericContext = GenericContext.EMPTY
+    ): List<ApiParameter> {
         val queryExpanded = settings.queryExpanded
         if (!queryExpanded) {
             return emptyList()
@@ -393,7 +395,11 @@ class SpringMvcClassExporter(
         return expandComplexParameter(parameter, ParameterBinding.Query, genericContext)
     }
 
-    private suspend fun expandComplexParameter(parameter: PsiParameter, binding: ParameterBinding, genericContext: GenericContext = GenericContext.EMPTY): List<ApiParameter> {
+    private suspend fun expandComplexParameter(
+        parameter: PsiParameter,
+        binding: ParameterBinding,
+        genericContext: GenericContext = GenericContext.EMPTY
+    ): List<ApiParameter> {
         val psiClass = PsiTypesUtil.getPsiClass(parameter.type) ?: return emptyList()
         val qualifiedName = psiClass.qualifiedName ?: return emptyList()
 
