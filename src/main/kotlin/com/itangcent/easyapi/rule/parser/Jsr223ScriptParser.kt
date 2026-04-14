@@ -134,15 +134,11 @@ abstract class Jsr223ScriptParser(
         bindings["R"] = bindings["runtime"]
     }
 
-    private fun Any.wrapExt(context: RuleContext): Any {
-        if (this is PsiElement) {
-            return context.withElement(this).asScriptIt()
-        }
-        return this
-    }
-
     companion object : IdeaLog
 }
+
+/**
+ * Script helper providing class lookup utilities.
  *
  * Mirrors the legacy `StandardJdkRuleParser.Helper` class.
  * Provides `findClass` and link resolution utilities to scripts.
