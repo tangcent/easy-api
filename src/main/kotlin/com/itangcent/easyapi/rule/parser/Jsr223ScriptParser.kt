@@ -8,7 +8,6 @@ import com.itangcent.easyapi.http.HttpClientProvider
 import com.itangcent.easyapi.logging.IdeaLog
 import com.itangcent.easyapi.rule.RuleKey
 import com.itangcent.easyapi.rule.context.RuleContext
-import com.itangcent.easyapi.rule.context.ScriptFieldContext
 import com.itangcent.easyapi.rule.context.ScriptPsiClassContext
 import com.itangcent.easyapi.rule.context.ScriptPsiFieldContext
 import com.itangcent.easyapi.rule.context.ScriptPsiMethodContext
@@ -111,15 +110,13 @@ abstract class Jsr223ScriptParser(
         // localStorage (wrapped to match legacy Storage API)
         bindings["localStorage"] = ScriptStorageWrapper(context.localStorage)
 
-        // extensions from rule context — fieldContext strings are auto-wrapped as ScriptFieldContext
-        // via context.wrapExt(); PsiElements are wrapped as script contexts
+        // fieldContext default — may be overridden by exts() below if set via contextHandle
+        bindings["fieldContext"] = context.wrapExt("fieldContext", context.fieldContext)
+
+        // extensions from rule context — overrides defaults; fieldContext strings are
+        // auto-wrapped as ScriptFieldContext via context.wrapExt()
         context.exts().forEach { (key, value) ->
             bindings[key] = context.wrapExt(key, value)
-        }
-
-        // fieldContext — if not set via exts(), fall back to context.fieldContext
-        if (!bindings.containsKey("fieldContext")) {
-            bindings["fieldContext"] = context.fieldContext?.let { ScriptFieldContext(it) }
         }
 
         // httpClient
