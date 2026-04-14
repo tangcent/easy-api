@@ -8,6 +8,7 @@ import com.itangcent.easyapi.http.HttpClientProvider
 import com.itangcent.easyapi.logging.IdeaLog
 import com.itangcent.easyapi.rule.RuleKey
 import com.itangcent.easyapi.rule.context.RuleContext
+import com.itangcent.easyapi.rule.context.ScriptFieldContext
 import com.itangcent.easyapi.rule.context.ScriptPsiClassContext
 import com.itangcent.easyapi.rule.context.ScriptPsiFieldContext
 import com.itangcent.easyapi.rule.context.ScriptPsiMethodContext
@@ -110,8 +111,16 @@ abstract class Jsr223ScriptParser(
         // localStorage (wrapped to match legacy Storage API)
         bindings["localStorage"] = ScriptStorageWrapper(context.localStorage)
 
-        // fieldContext
-        bindings["fieldContext"] = context.fieldContext
+        // extensions from rule context — fieldContext strings are auto-wrapped as ScriptFieldContext
+        // via context.wrapExt(); PsiElements are wrapped as script contexts
+        context.exts().forEach { (key, value) ->
+            bindings[key] = context.wrapExt(key, value)
+        }
+
+        // fieldContext — if not set via exts(), fall back to context.fieldContext
+        if (!bindings.containsKey("fieldContext")) {
+            bindings["fieldContext"] = context.fieldContext?.let { ScriptFieldContext(it) }
+        }
 
         // httpClient
         val httpClient = runCatching {
@@ -126,11 +135,6 @@ abstract class Jsr223ScriptParser(
         // runtime + alias
         bindings["runtime"] = ScriptRuntime(context)
         bindings["R"] = bindings["runtime"]
-
-        // extensions from rule context
-        context.exts().forEach { (key, value) ->
-            bindings[key] = value?.wrapExt(context)
-        }
     }
 
     private fun Any.wrapExt(context: RuleContext): Any {
@@ -142,9 +146,6 @@ abstract class Jsr223ScriptParser(
 
     companion object : IdeaLog
 }
-
-/**
- * Script helper providing class lookup utilities.
  *
  * Mirrors the legacy `StandardJdkRuleParser.Helper` class.
  * Provides `findClass` and link resolution utilities to scripts.

@@ -1,6 +1,7 @@
 package com.itangcent.easyapi.config.source
 
 import com.itangcent.easyapi.exporter.model.HttpMethod
+import com.itangcent.easyapi.exporter.model.ObjectModel
 import com.itangcent.easyapi.exporter.model.httpMetadata
 import com.itangcent.easyapi.exporter.springmvc.SpringMvcClassExporter
 import com.itangcent.easyapi.extension.ExtensionConfigRegistry
@@ -42,7 +43,6 @@ class JacksonConfigIntegrationTest : EasyApiLightCodeInsightFixtureTestCase() {
         return TestConfigReader.fromConfigText(extension?.content ?: "")
     }
 
-
     fun testJacksonConfigLoadsCorrectly() = runTest {
         val extension = ExtensionConfigRegistry.getExtension("jackson")
         assertNotNull("jackson extension should exist", extension)
@@ -64,5 +64,93 @@ class JacksonConfigIntegrationTest : EasyApiLightCodeInsightFixtureTestCase() {
         val getEndpoint = endpoints.find { it.httpMetadata?.method == HttpMethod.GET }
         assertNotNull("Should find GET endpoint", getEndpoint)
         assertTrue("GET endpoint path should contain /user/get", getEndpoint?.httpMetadata?.path?.contains("/user/get") == true)
+    }
+
+    /**
+     * Verifies that @JsonProperty renames fields in the exported body.
+     * UserDTO.id -> "user_id", UserDTO.name -> "user_name"
+     */
+    fun testJsonPropertyRenamesFields() = runTest {
+        val psiClass = findClass("com.itangcent.jackson.UserController")
+        assertNotNull(psiClass)
+        val endpoints = exporter.export(psiClass!!)
+
+        val postEndpoint = endpoints.find { it.httpMetadata?.method == HttpMethod.POST }
+        assertNotNull("Should find POST endpoint", postEndpoint)
+
+        val body = postEndpoint!!.httpMetadata!!.body
+        assertNotNull("POST endpoint should have a request body", body)
+        assertTrue("Request body should be an object", body is ObjectModel.Object)
+        val fields = (body as ObjectModel.Object).fields
+
+        assertTrue("Field 'user_id' should exist (renamed from 'id' via @JsonProperty)", fields.containsKey("user_id"))
+        assertTrue("Field 'user_name' should exist (renamed from 'name' via @JsonProperty)", fields.containsKey("user_name"))
+        assertFalse("Original field 'id' should NOT exist", fields.containsKey("id"))
+        assertFalse("Original field 'name' should NOT exist", fields.containsKey("name"))
+    }
+
+    /**
+     * Verifies that @JsonIgnore excludes the field from the exported body.
+     * UserDTO.password is annotated with @JsonIgnore.
+     */
+    fun testJsonIgnoreExcludesField() = runTest {
+        val psiClass = findClass("com.itangcent.jackson.UserController")
+        assertNotNull(psiClass)
+        val endpoints = exporter.export(psiClass!!)
+
+        val postEndpoint = endpoints.find { it.httpMetadata?.method == HttpMethod.POST }
+        assertNotNull("Should find POST endpoint", postEndpoint)
+
+        val body = postEndpoint!!.httpMetadata!!.body
+        assertNotNull("POST endpoint should have a request body", body)
+        val fields = (body as ObjectModel.Object).fields
+
+        assertFalse("Field 'password' should be excluded by @JsonIgnore", fields.containsKey("password"))
+    }
+
+    /**
+     * Verifies that @JsonFormat produces a mock value for the annotated field.
+     * UserDTO.createTime has @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss").
+     */
+    fun testJsonFormatProducesMockValue() = runTest {
+        val psiClass = findClass("com.itangcent.jackson.UserController")
+        assertNotNull(psiClass)
+        val endpoints = exporter.export(psiClass!!)
+
+        val postEndpoint = endpoints.find { it.httpMetadata?.method == HttpMethod.POST }
+        assertNotNull("Should find POST endpoint", postEndpoint)
+
+        val body = postEndpoint!!.httpMetadata!!.body
+        assertNotNull("POST endpoint should have a request body", body)
+        val fields = (body as ObjectModel.Object).fields
+
+        assertTrue("Field 'createTime' should exist", fields.containsKey("createTime"))
+        val createTimeField = fields["createTime"]!!
+        assertNotNull("createTime should have a mock value from @JsonFormat", createTimeField.mock)
+        assertTrue(
+            "Mock value should contain the datetime pattern",
+            createTimeField.mock!!.contains("yyyy-MM-dd HH:mm:ss")
+        )
+    }
+
+    /**
+     * Verifies that the response body also applies jackson rules (field renaming, ignore).
+     */
+    fun testResponseBodyAppliesJacksonRules() = runTest {
+        val psiClass = findClass("com.itangcent.jackson.UserController")
+        assertNotNull(psiClass)
+        val endpoints = exporter.export(psiClass!!)
+
+        val getEndpoint = endpoints.find { it.httpMetadata?.method == HttpMethod.GET }
+        assertNotNull("Should find GET endpoint", getEndpoint)
+
+        val responseBody = getEndpoint!!.httpMetadata!!.responseBody
+        assertNotNull("GET endpoint should have a response body", responseBody)
+        assertTrue("Response body should be an object", responseBody is ObjectModel.Object)
+        val fields = (responseBody as ObjectModel.Object).fields
+
+        assertTrue("Response field 'user_id' should exist", fields.containsKey("user_id"))
+        assertTrue("Response field 'user_name' should exist", fields.containsKey("user_name"))
+        assertFalse("Response field 'password' should be excluded by @JsonIgnore", fields.containsKey("password"))
     }
 }
