@@ -143,14 +143,6 @@ class ApiMetadataResolver(
         return engine.evaluate(RuleKeys.PARAM_MOCK, parameter)
     }
 
-    suspend fun resolveApiTag(method: PsiMethod): String? {
-        return engine.evaluate(RuleKeys.API_TAG, method)
-    }
-
-    suspend fun resolveApiStatus(method: PsiMethod): String? {
-        return engine.evaluate(RuleKeys.API_STATUS, method)
-    }
-
     suspend fun resolveModule(method: PsiMethod): String? {
         return engine.evaluate(RuleKeys.MODULE, method)
     }

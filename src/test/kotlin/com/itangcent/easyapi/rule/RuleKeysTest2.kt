@@ -12,12 +12,6 @@ class RuleKeysTest2 {
     }
 
     @Test
-    fun testApiTagKey() {
-        assertEquals("api.tag", RuleKeys.API_TAG.name)
-        assertTrue(RuleKeys.API_TAG is RuleKey.StringKey)
-    }
-
-    @Test
     fun testIgnoreKey() {
         assertEquals("ignore", RuleKeys.IGNORE.name)
         assertTrue(RuleKeys.IGNORE is RuleKey.BooleanKey)
@@ -44,7 +38,7 @@ class RuleKeysTest2 {
     @Test
     fun testFieldDocKey_merge() {
         assertEquals("field.doc", RuleKeys.FIELD_DOC.name)
-        assertEquals(StringRuleMode.MERGE, (RuleKeys.FIELD_DOC as RuleKey.StringKey).stringMode)
+        assertEquals(StringRuleMode.MERGE_DISTINCT, (RuleKeys.FIELD_DOC as RuleKey.StringKey).stringMode)
         assertTrue(RuleKeys.FIELD_DOC.aliases.contains("doc.field"))
     }
 
