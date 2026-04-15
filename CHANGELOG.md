@@ -5,6 +5,31 @@ All notable changes to the EasyAPI plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.5] - 2026-04-15
+
+### Added
+-  support URL paste in API Search Everywhere with path variable matching (#659)
+
+### Fixed
+-  Postman workspace and collections stuck on loading in modal dialog (#662)
+-  add missing same-package imports in test resources (#661)
+-  resolve JacksonConfigIntegrationTest failures for @JsonUnwrapped and @JsonView (#660)
+-  implement proper enum.use.custom resolution with unified enum handling (#656)
+-  ensure fieldContext is always available for field rule evaluation (#655)
+-  inject fieldContext correctly into Groovy rule engine scripts (#653)
+-  resolve EDT threading violations in API dashboard navigation (#652)
+
+### Changed
+- refactor(ExtensionConfigRegistry): update list of known extensions
+
+### Improved
+- chore: remove YApi-specific features and deprecated configurations (#663)
+- chore: cleanup unused test resource files (#658)
+- amend: remove Recommend settings from plugin configuration (#657)
+- amend: simplify SettingBinder and RuleEngine APIs (#654)
+
+---
+
 ## [3.0.4] - 2026-04-13
 
 ### Added
