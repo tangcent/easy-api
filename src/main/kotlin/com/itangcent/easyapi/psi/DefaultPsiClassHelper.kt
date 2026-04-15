@@ -343,7 +343,6 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
             val fieldDefaultValue =
                 engine.evaluate(RuleKeys.FIELD_DEFAULT_VALUE, accessibleField.psi, fieldContext = fieldPath)
             val fieldRequired = engine.evaluate(RuleKeys.FIELD_REQUIRED, accessibleField.psi, fieldContext = fieldPath)
-            val fieldMock = engine.evaluate(RuleKeys.FIELD_MOCK, accessibleField.psi, fieldContext = fieldPath)
             val fieldDemo = engine.evaluate(RuleKeys.FIELD_DEMO, accessibleField.psi, fieldContext = fieldPath)
             val fieldAdvancedStr = engine.evaluate(RuleKeys.FIELD_ADVANCED, accessibleField.psi, fieldContext = fieldPath)
             val fieldAdvanced = if (!fieldAdvancedStr.isNullOrBlank()) {
@@ -382,7 +381,7 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
             val fieldModel = buildFieldModel(
                 fieldType, engine, docHelper, cache,
                 option, effectiveMaxDepth, depth + 1, visited,
-                fieldComment, fieldRequired, fieldDefaultValue, fieldMock, fieldDemo, fieldAdvanced,
+                fieldComment, fieldRequired, fieldDefaultValue, fieldDemo, fieldAdvanced,
                 psiElement = accessibleField.psi,
                 generic = isGenericField
             )
@@ -550,7 +549,6 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
         comment: String?,
         required: Boolean,
         defaultValue: String?,
-        mock: String? = null,
         demo: String? = null,
         advanced: Map<String, Any?>? = null,
         psiElement: PsiElement? = null,
@@ -570,7 +568,6 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
             required = required,
             defaultValue = defaultValue,
             options = options,
-            mock = mock,
             demo = demo,
             advanced = advanced,
             generic = generic
