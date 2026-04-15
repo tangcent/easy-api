@@ -62,11 +62,4 @@ class RuleKeysTest {
         assertEquals("class.is.spring.ctrl", RuleKeys.CLASS_IS_CTRL.name)
         assertEquals(listOf("class.is.ctrl"), RuleKeys.CLASS_IS_CTRL.aliases)
     }
-
-    @Test
-    fun testFieldMockIsStringKey() {
-        // This is the key fix — field.mock must be a StringKey so #mock returns tag value, not boolean
-        assertTrue(RuleKeys.FIELD_MOCK is RuleKey.StringKey)
-        assertEquals("field.mock", RuleKeys.FIELD_MOCK.name)
-    }
 }

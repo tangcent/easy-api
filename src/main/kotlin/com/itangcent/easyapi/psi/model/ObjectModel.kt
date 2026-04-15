@@ -22,7 +22,7 @@ data class FieldOption(
  * - Required flag
  * - Default value
  * - Options (for enum-like fields)
- * - Mock and demo values
+ * - Demo values
  * - Advanced properties
  *
  * @param model The type model for this field
@@ -30,7 +30,6 @@ data class FieldOption(
  * @param required Whether this field is required
  * @param defaultValue Default value for the field
  * @param options Available options (for enum fields)
- * @param mock Mock value for testing
  * @param demo Demo value for documentation
  * @param advanced Additional advanced properties
  */
@@ -40,7 +39,6 @@ data class FieldModel(
     val required: Boolean = false,
     val defaultValue: String? = null,
     val options: List<FieldOption>? = null,
-    val mock: String? = null,
     val demo: String? = null,
     val advanced: Map<String, Any?>? = null,
     /** True if this field's declared type is a generic type parameter (e.g., `T` in `Result<T>`) */
@@ -202,11 +200,10 @@ class ObjectModelBuilder {
         required: Boolean = false,
         defaultValue: String? = null,
         options: List<FieldOption>? = null,
-        mock: String? = null,
         demo: String? = null,
         advanced: Map<String, Any?>? = null
     ): ObjectModelBuilder = apply {
-        fields[name] = FieldModel(model, comment, required, defaultValue, options, mock, demo, advanced)
+        fields[name] = FieldModel(model, comment, required, defaultValue, options, demo, advanced)
     }
 
     fun stringField(
