@@ -91,6 +91,8 @@ class ExportDialog(
     private var postmanDataLoaded = false
     private var postmanClient: CachedPostmanApiClient? = null
 
+    private val preferencesPersistence = ExportDialogPreferencesPersistence(project)
+
     private val cardLayout = CardLayout()
     private val optionsPanel = JPanel(cardLayout)
 
@@ -164,7 +166,24 @@ class ExportDialog(
         nameCol.minWidth = 80
     }
 
-    private fun loadDefaultValues() {}
+    private fun loadDefaultValues() {
+        val savedPrefs = preferencesPersistence.load()
+        
+        savedPrefs.lastExportFormat?.let { formatName ->
+            val format = availableFormats.find { it.name == formatName }
+            if (format != null) {
+                formatComboBox.selectedItem = format
+            }
+        }
+        
+        savedPrefs.lastOutputDir?.takeIf { it.isNotBlank() }?.let { dir ->
+            outputDirField.text = dir
+        }
+        
+        savedPrefs.lastFileName?.takeIf { it.isNotBlank() }?.let { name ->
+            fileNameField.text = name
+        }
+    }
 
     private fun loadPostmanDataFromApi() {
         val settings = SettingBinder.getInstance(project).read()
@@ -197,7 +216,7 @@ class ExportDialog(
                         postmanWorkspaceComboBox.model = DefaultComboBoxModel(
                             postmanWorkspaces.map { it.toString() }.toTypedArray()
                         )
-                        val savedWs = settings.postmanWorkspace
+                        val savedWs = preferencesPersistence.load().lastPostmanWorkspaceId
                         val savedIdx = postmanWorkspaces.indexOfFirst { it.id == savedWs }
                         postmanWorkspaceComboBox.selectedIndex = if (savedIdx >= 0) savedIdx else 0
                     } else {
@@ -240,10 +259,22 @@ class ExportDialog(
         postmanCollectionItems.addAll(collections)
         selectedPostmanCollection = null
 
+        val savedPrefs = preferencesPersistence.load()
+        val savedCollectionId = savedPrefs.lastPostmanCollectionId
+        val savedCollectionName = savedPrefs.lastPostmanCollectionName
+
+        val savedIdx = if (savedCollectionId != null) {
+            collections.indexOfFirst { (it.uid ?: it.id) == savedCollectionId }
+        } else -1
+
         val inferredName = defaultNewCollectionName()
-        val matchIdx = collections.indexOfFirst { it.name == inferredName }
-            .takeIf { it >= 0 }
-            ?: collections.indexOfFirst { it.name.startsWith("$inferredName-") }
+        val matchIdx = if (savedIdx >= 0) {
+            savedIdx
+        } else {
+            collections.indexOfFirst { it.name == inferredName }
+                .takeIf { it >= 0 }
+                ?: collections.indexOfFirst { it.name.startsWith("$inferredName-") }
+        }
 
         val hasNewEntry = matchIdx < 0
         val entries = mutableListOf<String>()
@@ -260,7 +291,8 @@ class ExportDialog(
             (postmanCollectionComboBox.editor.editorComponent as? JTextField)?.text = collections[matchIdx].name
         } else {
             postmanCollectionComboBox.selectedIndex = 0
-            (postmanCollectionComboBox.editor.editorComponent as? JTextField)?.text = inferredName
+            val textToUse = savedCollectionName?.takeIf { it.isNotBlank() } ?: inferredName
+            (postmanCollectionComboBox.editor.editorComponent as? JTextField)?.text = textToUse
         }
     }
 
@@ -448,7 +480,45 @@ class ExportDialog(
         }
 
         outputConfig = config
+        
+        saveDialogState()
+        
         super.doOKAction()
+    }
+    
+    private fun saveDialogState() {
+        val prefs = ExportDialogPreferences(
+            lastExportFormat = selectedFormat.name,
+            lastOutputDir = if (selectedFormat == ExportFormat.MARKDOWN || selectedFormat == ExportFormat.CURL) {
+                outputConfig.outputDir
+            } else null,
+            lastFileName = if (selectedFormat == ExportFormat.MARKDOWN || selectedFormat == ExportFormat.CURL) {
+                outputConfig.fileName
+            } else null,
+            lastPostmanWorkspaceId = if (selectedFormat == ExportFormat.POSTMAN) {
+                val wsIdx = postmanWorkspaceComboBox.selectedIndex
+                if (wsIdx >= 0 && wsIdx < postmanWorkspaces.size) {
+                    postmanWorkspaces[wsIdx].id
+                } else null
+            } else null,
+            lastPostmanWorkspaceName = if (selectedFormat == ExportFormat.POSTMAN) {
+                val wsIdx = postmanWorkspaceComboBox.selectedIndex
+                if (wsIdx >= 0 && wsIdx < postmanWorkspaces.size) {
+                    postmanWorkspaces[wsIdx].name
+                } else null
+            } else null,
+            lastPostmanCollectionId = if (selectedFormat == ExportFormat.POSTMAN) {
+                selectedPostmanCollection?.let { it.uid ?: it.id }
+            } else null,
+            lastPostmanCollectionName = if (selectedFormat == ExportFormat.POSTMAN) {
+                val collectionText = ((postmanCollectionComboBox.editor.editorComponent as? JTextField)?.text
+                    ?: postmanCollectionComboBox.selectedItem?.toString())?.trim()
+                    ?.removePrefix("(New): ")?.trim().orEmpty()
+                selectedPostmanCollection?.name ?: collectionText.takeIf { it.isNotBlank() }
+            } else null
+        )
+        
+        preferencesPersistence.save(prefs)
     }
 
     companion object {
