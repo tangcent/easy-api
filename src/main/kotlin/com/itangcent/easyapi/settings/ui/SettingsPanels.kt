@@ -82,6 +82,7 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
     private val jaxrsEnable = JBCheckBox("Enable JAX-RS support", true)
     private val actuatorEnable = JBCheckBox("Enable Spring Actuator support")
     private val autoScanEnabled = JBCheckBox("Enable automatic API scanning on file changes", true)
+    private val concurrentScanEnabled = JBCheckBox("Enable concurrent API scanning (experimental)", false)
 
     private val logLevelCombo = ComboBox(CommonSettingsHelper.VerbosityLevel.values())
     private val outputCharsetCombo = ComboBox(arrayOf("UTF-8", "GBK", "ISO-8859-1"))
@@ -363,6 +364,7 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
             )
         )
         .addComponent(autoScanEnabled)
+        .addComponent(concurrentScanEnabled)
         .addLabeledComponent("Log Level:", logLevelCombo)
         .addLabeledComponent("Output Charset:", outputCharsetCombo)
         .addComponent(outputDemoCheckBox)
@@ -377,6 +379,7 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
         jaxrsEnable.isSelected = settings?.jaxrsEnable ?: true
         actuatorEnable.isSelected = settings?.actuatorEnable ?: false
         autoScanEnabled.isSelected = settings?.autoScanEnabled ?: true
+        concurrentScanEnabled.isSelected = settings?.concurrentScanEnabled ?: false
         logLevelCombo.selectedItem = CommonSettingsHelper.VerbosityLevel.toLevel(settings?.logLevel ?: 50)
         outputCharsetCombo.selectedItem = settings?.outputCharset ?: "UTF-8"
         outputDemoCheckBox.isSelected = settings?.outputDemo ?: true
@@ -398,6 +401,7 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
         settings.jaxrsEnable = jaxrsEnable.isSelected
         settings.actuatorEnable = actuatorEnable.isSelected
         settings.autoScanEnabled = autoScanEnabled.isSelected
+        settings.concurrentScanEnabled = concurrentScanEnabled.isSelected
         settings.logLevel = (logLevelCombo.selectedItem as? CommonSettingsHelper.VerbosityLevel)?.level ?: 50
         settings.outputCharset = outputCharsetCombo.selectedItem?.toString() ?: "UTF-8"
         settings.outputDemo = outputDemoCheckBox.isSelected
@@ -415,6 +419,7 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
                 jaxrsEnable.isSelected != s.jaxrsEnable ||
                 actuatorEnable.isSelected != s.actuatorEnable ||
                 autoScanEnabled.isSelected != s.autoScanEnabled ||
+                concurrentScanEnabled.isSelected != s.concurrentScanEnabled ||
                 (logLevelCombo.selectedItem as? CommonSettingsHelper.VerbosityLevel)?.level != s.logLevel ||
                 outputCharsetCombo.selectedItem?.toString() != s.outputCharset ||
                 outputDemoCheckBox.isSelected != s.outputDemo ||
