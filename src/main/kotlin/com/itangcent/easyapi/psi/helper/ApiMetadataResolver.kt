@@ -143,14 +143,6 @@ class ApiMetadataResolver(
         return engine.evaluate(RuleKeys.PARAM_MOCK, parameter)
     }
 
-    suspend fun resolveModule(method: PsiMethod): String? {
-        return engine.evaluate(RuleKeys.MODULE, method)
-    }
-
-    suspend fun resolveModule(psiClass: PsiClass): String? {
-        return engine.evaluate(RuleKeys.MODULE, psiClass)
-    }
-
     suspend fun isIgnored(element: PsiElement): Boolean {
         return engine.evaluate(RuleKeys.IGNORE, element)
     }
