@@ -5,6 +5,26 @@ All notable changes to the EasyAPI plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.6] - 2026-04-19
+
+### Added
+-  add variable resolution support in ApiDashboard (#684)
+-  handle properties.prefix rule in FieldsToPropertiesAction (#682)
+-  enhance script PSI context with class introspection methods and fix Swing dispatcher modality (#676)
+-  remember export dialog options for better UX (#674)
+-  add concurrent API scanning option for better performance (#673)
+-  add rule-based configuration support with cache invalidation (#672)
+
+### Improved
+- chore: remove unused module rule (RuleKeys.MODULE, resolveModule, module.config) (#681)
+- chore: remove unused MarkdownRender and related code (#680)
+- test: add missing unit tests and fix test failures (#679)
+- test: improve test coverage across multiple packages (#678)
+- perf: optimize rule engine with Flow-based lazy evaluation (#677)
+- perf: optimize exporter selection with framework availability caching (#675)
+
+---
+
 ## [3.0.5] - 2026-04-15
 
 ### Added
