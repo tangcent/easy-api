@@ -1,5 +1,3 @@
-#Get the module from the comment,group the apis
-module=#module
 #Ignore class/api
 ignore=#ignore
 #ignore fields from java.lang system classes

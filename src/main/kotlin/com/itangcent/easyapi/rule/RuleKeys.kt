@@ -18,7 +18,6 @@ object RuleKeys {
     // ── API metadata ──────────────────────────────────────────────
     val API_NAME = RuleKey.string("api.name")
     val FOLDER_NAME = RuleKey.string("folder.name")
-    val MODULE = RuleKey.string("module")
     val IGNORE = RuleKey.boolean("ignore")
 
     // ── Method rules ──────────────────────────────────────────────
