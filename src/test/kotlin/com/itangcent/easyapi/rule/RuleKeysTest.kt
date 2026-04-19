@@ -62,4 +62,12 @@ class RuleKeysTest {
         assertEquals("class.is.spring.ctrl", RuleKeys.CLASS_IS_CTRL.name)
         assertEquals(listOf("class.is.ctrl"), RuleKeys.CLASS_IS_CTRL.aliases)
     }
+
+    @Test
+    fun testPropertiesPrefixKey() {
+        val key = RuleKeys.PROPERTIES_PREFIX
+        assertEquals("properties.prefix", key.name)
+        assertTrue(key.mode is StringRuleMode.SINGLE)
+        assertTrue(key.aliases.isEmpty())
+    }
 }
