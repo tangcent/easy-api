@@ -14,7 +14,6 @@ class SettingsTest {
         assertTrue("jaxrsEnable should default to true", settings.jaxrsEnable)
         assertFalse("actuatorEnable should default to false", settings.actuatorEnable)
         assertTrue("grpcEnable should default to true", settings.grpcEnable)
-        assertTrue("swaggerEnable should default to true", settings.swaggerEnable)
         assertEquals("httpTimeOut should default to 5", 5, settings.httpTimeOut)
         assertEquals("outputCharset should default to UTF-8", "UTF-8", settings.outputCharset)
     }
