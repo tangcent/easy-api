@@ -36,7 +36,6 @@
                         serviceImplementation="com.itangcent.easyapi.settings.DefaultSettingBinder"/>
         <projectService serviceImplementation="com.itangcent.easyapi.settings.state.ProjectSettingsState"/>
 
-        <projectService serviceImplementation="com.itangcent.easyapi.psi.helper.StandardDocHelper"/>
         <projectService serviceImplementation="com.itangcent.easyapi.exporter.grpc.GrpcMethodResolver"/>
         <projectService serviceImplementation="com.itangcent.easyapi.grpc.CompositeDescriptorResolver"/>
 
