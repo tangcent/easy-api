@@ -78,12 +78,12 @@ class ScriptEditorPanel(private val project: Project) : JPanel(BorderLayout()) {
             override fun documentChanged(event: com.intellij.openapi.editor.event.DocumentEvent) {
                 markDirty()
             }
-        })
+        }, project)
         postResponseScriptArea.document.addDocumentListener(object : com.intellij.openapi.editor.event.DocumentListener {
             override fun documentChanged(event: com.intellij.openapi.editor.event.DocumentEvent) {
                 markDirty()
             }
-        })
+        }, project)
     }
 
     fun loadForScope(scope: ScriptScope, endpointCount: Int = 0) {
