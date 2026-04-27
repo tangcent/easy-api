@@ -54,8 +54,6 @@ object RuleKeys {
     val FIELD_ORDER = RuleKey.string("field.order")
     val FIELD_ORDER_WITH = RuleKey.string("field.order.with")
     val FIELD_ADVANCED = RuleKey.string("field.advanced", StringRuleMode.MERGE)
-    val FIELD_MAX_DEPTH = RuleKey.int("field.max.depth")
-    val PARAM_MAX_DEPTH = RuleKey.int("param.max.depth")
 
     // ── JSON rules ────────────────────────────────────────────────
     val JSON_FIELD_PARSE_BEFORE = RuleKey.event("json.field.parse.before", aliases = listOf("field.parse.before"))
