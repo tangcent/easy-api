@@ -43,7 +43,7 @@ data class Settings(
     override var httpTimeOut: Int = 5,
     override var unsafeSsl: Boolean = false,
     override var httpClient: String = HttpClientType.APACHE.value,
-    override var logLevel: Int = 50,
+    override var logLevel: Int = 0,
     override var outputDemo: Boolean = true,
     override var outputCharset: String = "UTF-8",
     override var markdownFormatType: String = MarkdownFormatType.SIMPLE.name,
