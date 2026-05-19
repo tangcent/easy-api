@@ -10,12 +10,87 @@ class SettingsTest {
     @Test
     fun testDefaultSettings() {
         val settings = Settings()
-        assertFalse("feignEnable should default to false", settings.feignEnable)
-        assertTrue("jaxrsEnable should default to true", settings.jaxrsEnable)
-        assertFalse("actuatorEnable should default to false", settings.actuatorEnable)
-        assertTrue("grpcEnable should default to true", settings.grpcEnable)
-        assertEquals("httpTimeOut should default to 5", 5, settings.httpTimeOut)
-        assertEquals("outputCharset should default to UTF-8", "UTF-8", settings.outputCharset)
+        assertFalse(settings.feignEnable)
+        assertTrue(settings.jaxrsEnable)
+        assertFalse(settings.actuatorEnable)
+        assertTrue(settings.grpcEnable)
+        assertNull(settings.postmanToken)
+        assertNull(settings.postmanWorkspace)
+        assertEquals(PostmanExportMode.CREATE_NEW.name, settings.postmanExportMode)
+        assertNull(settings.postmanCollections)
+        assertTrue(settings.postmanBuildExample)
+        assertFalse(settings.wrapCollection)
+        assertFalse(settings.autoMergeScript)
+        assertTrue(settings.queryExpanded)
+        assertTrue(settings.formExpanded)
+        assertEquals("ALL", settings.pathMulti)
+        assertTrue(settings.inferReturnMain)
+        assertTrue(settings.enableUrlTemplating)
+        assertTrue(settings.switchNotice)
+        assertEquals(5, settings.httpTimeOut)
+        assertFalse(settings.unsafeSsl)
+        assertEquals(HttpClientType.APACHE.value, settings.httpClient)
+        assertEquals(0, settings.logLevel)
+        assertTrue(settings.outputDemo)
+        assertEquals("UTF-8", settings.outputCharset)
+        assertEquals(MarkdownFormatType.SIMPLE.name, settings.markdownFormatType)
+        assertNull(settings.builtInConfig)
+        assertArrayEquals(emptyArray(), settings.remoteConfig)
+        assertTrue(settings.autoScanEnabled)
+        assertArrayEquals(emptyArray(), settings.grpcArtifactConfigs)
+        assertArrayEquals(emptyArray(), settings.grpcAdditionalJars)
+        assertFalse(settings.grpcCallEnabled)
+        assertArrayEquals(emptyArray(), settings.grpcRepositories)
+    }
+
+    @Test
+    fun testDefaultGutterIconEnabled() {
+        val settings = Settings()
+        assertTrue("gutterIconEnabled should default to true", settings.gutterIconEnabled)
+    }
+
+    @Test
+    fun testCustomValues() {
+        val settings = Settings(
+            feignEnable = true,
+            jaxrsEnable = false,
+            postmanToken = "my-token",
+            httpTimeOut = 30,
+            logLevel = 100
+        )
+        assertTrue(settings.feignEnable)
+        assertFalse(settings.jaxrsEnable)
+        assertEquals("my-token", settings.postmanToken)
+        assertEquals(30, settings.httpTimeOut)
+        assertEquals(100, settings.logLevel)
+    }
+
+    @Test
+    fun testEquality_sameDefaults() {
+        val s1 = Settings()
+        val s2 = Settings()
+        assertEquals(s1, s2)
+    }
+
+    @Test
+    fun testEquality_differentValues() {
+        val s1 = Settings(feignEnable = true)
+        val s2 = Settings(feignEnable = false)
+        assertNotEquals(s1, s2)
+    }
+
+    @Test
+    fun testEquality_differentGutterIconEnabled() {
+        val s1 = Settings(gutterIconEnabled = true)
+        val s2 = Settings(gutterIconEnabled = false)
+        assertNotEquals(s1, s2)
+    }
+
+    @Test
+    fun testEquality_withArrays() {
+        val s1 = Settings(remoteConfig = arrayOf("http://example.com"))
+        val s2 = Settings(remoteConfig = arrayOf("http://example.com"))
+        assertEquals(s1, s2)
     }
 
     @Test
@@ -25,6 +100,15 @@ class SettingsTest {
         (source as ApplicationSettingsSupport).copyTo(target)
         assertTrue("feignEnable should be copied", target.feignEnable)
         assertEquals("httpTimeOut should be copied", 10, target.httpTimeOut)
+    }
+
+    @Test
+    fun testSettingsCopyToApplicationSettings_gutterIconEnabled() {
+        val source = Settings(gutterIconEnabled = false)
+        val target = Settings()
+        assertTrue("target gutterIconEnabled should default to true", target.gutterIconEnabled)
+        (source as ApplicationSettingsSupport).copyTo(target)
+        assertFalse("gutterIconEnabled should be copied as false", target.gutterIconEnabled)
     }
 
     @Test

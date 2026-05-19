@@ -55,6 +55,7 @@ data class Settings(
     override var grpcCallEnabled: Boolean = false,
     override var grpcRepositories: Array<String> = emptyArray(),
     override var concurrentScanEnabled: Boolean = false,
+    override var gutterIconEnabled: Boolean = true,
     override var projectEnvironments: String = "",
     override var globalEnvironments: String = ""
 ) : ProjectSettingsSupport, ApplicationSettingsSupport {
@@ -105,6 +106,7 @@ data class Settings(
         if (grpcCallEnabled != other.grpcCallEnabled) return false
         if (!grpcRepositories.contentEquals(other.grpcRepositories)) return false
         if (concurrentScanEnabled != other.concurrentScanEnabled) return false
+        if (gutterIconEnabled != other.gutterIconEnabled) return false
         if (projectEnvironments != other.projectEnvironments) return false
         if (globalEnvironments != other.globalEnvironments) return false
 
@@ -146,6 +148,7 @@ data class Settings(
         result = 31 * result + grpcCallEnabled.hashCode()
         result = 31 * result + grpcRepositories.contentHashCode()
         result = 31 * result + concurrentScanEnabled.hashCode()
+        result = 31 * result + gutterIconEnabled.hashCode()
         result = 31 * result + projectEnvironments.hashCode()
         result = 31 * result + globalEnvironments.hashCode()
         return result
