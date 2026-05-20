@@ -15,7 +15,7 @@ class CachedPostmanApiClientTest : EasyApiLightCodeInsightFixtureTestCase() {
     fun testListWorkspacesWithEmptyApiKey() = runTest {
         val client = createClient(apiKey = "")
 
-        val workspaces = client.listWorkspaces()
+        val workspaces = client.listWorkspaces(useCache = false)
         assertTrue("Workspaces should be empty for blank API key", workspaces.isEmpty())
     }
 
@@ -58,7 +58,7 @@ class CachedPostmanApiClientTest : EasyApiLightCodeInsightFixtureTestCase() {
     fun testListCollectionsWithEmptyApiKey() = runTest {
         val client = createClient(apiKey = "")
 
-        val collections = client.listCollections("test-workspace-id")
+        val collections = client.listCollections("test-workspace-id", useCache = false)
         assertTrue("Collections should be empty for blank API key", collections.isEmpty())
     }
 
