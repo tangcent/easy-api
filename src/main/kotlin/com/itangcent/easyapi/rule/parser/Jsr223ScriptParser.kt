@@ -14,7 +14,7 @@ import com.itangcent.easyapi.rule.context.ScriptPsiClassContext
 import com.itangcent.easyapi.rule.context.ScriptPsiFieldContext
 import com.itangcent.easyapi.rule.context.ScriptPsiMethodContext
 import com.itangcent.easyapi.rule.context.asScriptIt
-import com.itangcent.easyapi.util.RegexUtils
+import com.itangcent.easyapi.util.text.RegexUtils
 import com.itangcent.easyapi.util.RuleToolUtils
 import com.itangcent.easyapi.util.ide.ModuleHelper
 import kotlinx.coroutines.runBlocking
