@@ -31,7 +31,7 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
 
     fun testSaveAndLoadPreferences() {
         val prefs = ExportDialogPreferences(
-            lastExportFormat = "MARKDOWN",
+            lastExportFormat = "markdown",
             lastOutputDir = "/tmp/output",
             lastFileName = "api_doc"
         )
@@ -39,14 +39,14 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
         persistence.save(prefs)
         val loaded = persistence.load()
         
-        assertEquals("MARKDOWN", loaded.lastExportFormat)
+        assertEquals("markdown", loaded.lastExportFormat)
         assertEquals("/tmp/output", loaded.lastOutputDir)
         assertEquals("api_doc", loaded.lastFileName)
     }
 
     fun testSaveAndLoadPostmanPreferences() {
         val prefs = ExportDialogPreferences(
-            lastExportFormat = "POSTMAN",
+            lastExportFormat = "postman",
             lastPostmanWorkspaceId = "ws-123",
             lastPostmanWorkspaceName = "My Workspace",
             lastPostmanCollectionId = "col-456",
@@ -56,7 +56,7 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
         persistence.save(prefs)
         val loaded = persistence.load()
         
-        assertEquals("POSTMAN", loaded.lastExportFormat)
+        assertEquals("postman", loaded.lastExportFormat)
         assertEquals("ws-123", loaded.lastPostmanWorkspaceId)
         assertEquals("My Workspace", loaded.lastPostmanWorkspaceName)
         assertEquals("col-456", loaded.lastPostmanCollectionId)
@@ -65,26 +65,26 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
 
     fun testOverwritePreferences() {
         val prefs1 = ExportDialogPreferences(
-            lastExportFormat = "MARKDOWN",
+            lastExportFormat = "markdown",
             lastOutputDir = "/tmp/output1"
         )
         persistence.save(prefs1)
         
         val prefs2 = ExportDialogPreferences(
-            lastExportFormat = "POSTMAN",
+            lastExportFormat = "postman",
             lastPostmanWorkspaceId = "ws-789"
         )
         persistence.save(prefs2)
         
         val loaded = persistence.load()
-        assertEquals("POSTMAN", loaded.lastExportFormat)
+        assertEquals("postman", loaded.lastExportFormat)
         assertNull("Output dir should be null after overwrite", loaded.lastOutputDir)
         assertEquals("ws-789", loaded.lastPostmanWorkspaceId)
     }
 
     fun testReset() {
         val prefs = ExportDialogPreferences(
-            lastExportFormat = "CURL",
+            lastExportFormat = "curl",
             lastOutputDir = "/tmp/test"
         )
         persistence.save(prefs)
@@ -98,13 +98,13 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
 
     fun testPartialPreferences() {
         val prefs = ExportDialogPreferences(
-            lastExportFormat = "HTTP_CLIENT"
+            lastExportFormat = "http-client"
         )
         
         persistence.save(prefs)
         val loaded = persistence.load()
         
-        assertEquals("HTTP_CLIENT", loaded.lastExportFormat)
+        assertEquals("http-client", loaded.lastExportFormat)
         assertNull("Other fields should be null", loaded.lastOutputDir)
         assertNull("Other fields should be null", loaded.lastFileName)
         assertNull("Other fields should be null", loaded.lastPostmanWorkspaceId)
@@ -127,7 +127,7 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
 
     fun testSpecialCharacters() {
         val prefs = ExportDialogPreferences(
-            lastExportFormat = "MARKDOWN",
+            lastExportFormat = "markdown",
             lastOutputDir = "/tmp/测试目录/папка",
             lastFileName = "api-文档_v1.0",
             lastPostmanWorkspaceName = "Workspace 🚀 Test"
@@ -146,7 +146,7 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
         val longName = "b".repeat(500)
         
         val prefs = ExportDialogPreferences(
-            lastExportFormat = "MARKDOWN",
+            lastExportFormat = "markdown",
             lastOutputDir = longPath,
             lastFileName = longName
         )
@@ -160,7 +160,7 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
 
     fun testAllFields() {
         val prefs = ExportDialogPreferences(
-            lastExportFormat = "POSTMAN",
+            lastExportFormat = "postman",
             lastOutputDir = "/output",
             lastFileName = "export",
             lastPostmanWorkspaceId = "workspace-id",
@@ -172,7 +172,7 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
         persistence.save(prefs)
         val loaded = persistence.load()
         
-        assertEquals("POSTMAN", loaded.lastExportFormat)
+        assertEquals("postman", loaded.lastExportFormat)
         assertEquals("/output", loaded.lastOutputDir)
         assertEquals("export", loaded.lastFileName)
         assertEquals("workspace-id", loaded.lastPostmanWorkspaceId)
@@ -184,12 +184,12 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
     fun testMultipleSaveLoadCycles() {
         for (i in 1..5) {
             val prefs = ExportDialogPreferences(
-                lastExportFormat = "FORMAT_$i",
+                lastExportFormat = "format_$i",
                 lastOutputDir = "/dir_$i"
             )
             persistence.save(prefs)
             val loaded = persistence.load()
-            assertEquals("FORMAT_$i", loaded.lastExportFormat)
+            assertEquals("format_$i", loaded.lastExportFormat)
             assertEquals("/dir_$i", loaded.lastOutputDir)
         }
     }
@@ -207,7 +207,7 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
 
     fun testPreferencesDataClassCopy() {
         val original = ExportDialogPreferences(
-            lastExportFormat = "MARKDOWN",
+            lastExportFormat = "markdown",
             lastOutputDir = "/tmp",
             lastFileName = "test",
             lastPostmanWorkspaceId = "ws-1",
@@ -229,15 +229,15 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
 
     fun testPreferencesDataClassEquality() {
         val prefs1 = ExportDialogPreferences(
-            lastExportFormat = "MARKDOWN",
+            lastExportFormat = "markdown",
             lastOutputDir = "/tmp"
         )
         val prefs2 = ExportDialogPreferences(
-            lastExportFormat = "MARKDOWN",
+            lastExportFormat = "markdown",
             lastOutputDir = "/tmp"
         )
         val prefs3 = ExportDialogPreferences(
-            lastExportFormat = "POSTMAN"
+            lastExportFormat = "postman"
         )
         
         assertEquals(prefs1, prefs2)
@@ -246,11 +246,11 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
 
     fun testPreferencesDataClassHashCode() {
         val prefs1 = ExportDialogPreferences(
-            lastExportFormat = "MARKDOWN",
+            lastExportFormat = "markdown",
             lastOutputDir = "/tmp"
         )
         val prefs2 = ExportDialogPreferences(
-            lastExportFormat = "MARKDOWN",
+            lastExportFormat = "markdown",
             lastOutputDir = "/tmp"
         )
         
@@ -259,12 +259,12 @@ class ExportDialogPreferencesPersistenceTest : EasyApiLightCodeInsightFixtureTes
 
     fun testPreferencesDataClassToString() {
         val prefs = ExportDialogPreferences(
-            lastExportFormat = "MARKDOWN",
+            lastExportFormat = "markdown",
             lastOutputDir = "/tmp"
         )
         
         val str = prefs.toString()
-        assertTrue("toString should contain lastExportFormat", str.contains("MARKDOWN"))
+        assertTrue("toString should contain lastExportFormat", str.contains("markdown"))
         assertTrue("toString should contain lastOutputDir", str.contains("/tmp"))
     }
 }
