@@ -25,6 +25,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
     private val builtInPanel = BuiltInConfigPanel()
     private val otherPanel = OtherSettingsPanel()
     private val grpcPanel = GrpcSettingsPanel(project)
+    private val hoppscotchPanel = HoppscotchSettingsPanel(project)
     private val environmentPanel = EnvironmentSettingsPanel(project)
 
     companion object {
@@ -43,6 +44,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         const val TAB_BUILT_IN = "Built-in"
         const val TAB_OTHER = "Other"
         const val TAB_GRPC = "gRPC"
+        const val TAB_HOPPSCOTCH = "Hoppscotch (Beta)"
         const val TAB_ENVIRONMENT = "Environments"
     }
 
@@ -67,6 +69,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
                 t.addTab(TAB_BUILT_IN, builtInPanel.component)
                 t.addTab(TAB_OTHER, otherPanel.component)
                 t.addTab(TAB_GRPC, wrapNorth(grpcPanel.component))
+                t.addTab(TAB_HOPPSCOTCH, wrapNorth(hoppscotchPanel.component))
                 t.addTab(TAB_ENVIRONMENT, environmentPanel.component)
             }
             panel!!.add(tabs, BorderLayout.CENTER)
@@ -111,7 +114,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         val settings = settingBinder.read()
         return listOf(
             generalPanel, postmanPanel, httpPanel,
-            intelligentPanel, extensionPanel, remotePanel, builtInPanel, otherPanel, grpcPanel, environmentPanel
+            intelligentPanel, extensionPanel, remotePanel, builtInPanel, otherPanel, grpcPanel, hoppscotchPanel, environmentPanel
         ).any { it.isModified(settings) }
     }
 
@@ -129,6 +132,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         builtInPanel.applyTo(settings)
         otherPanel.applyTo(settings)
         grpcPanel.applyTo(settings)
+        hoppscotchPanel.applyTo(settings)
         environmentPanel.applyTo(settings)
         settingBinder.save(settings)
     }
@@ -147,6 +151,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         builtInPanel.resetFrom(settings)
         otherPanel.resetFrom(settings)
         grpcPanel.resetFrom(settings)
+        hoppscotchPanel.resetFrom(settings)
         environmentPanel.resetFrom(settings)
     }
 

@@ -35,6 +35,7 @@
         <apiChannel implementation="com.itangcent.easyapi.exporter.channel.postman.PostmanChannel"/>
         <apiChannel implementation="com.itangcent.easyapi.exporter.channel.curl.CurlChannel"/>
         <apiChannel implementation="com.itangcent.easyapi.exporter.channel.httpclient.HttpClientChannel"/>
+        <apiChannel implementation="com.itangcent.easyapi.exporter.channel.hoppscotch.HoppscotchChannel"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.intellij">

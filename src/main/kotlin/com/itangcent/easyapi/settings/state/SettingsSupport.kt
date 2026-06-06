@@ -69,6 +69,10 @@ interface ApplicationSettingsSupport {
     /** When true, show gutter icon on API methods for opening in API Dashboard */
     var gutterIconEnabled: Boolean
     var globalEnvironments: String
+    var hoppscotchToken: String?
+    var hoppscotchServerUrl: String?
+    var hoppscotchBackendUrl: String?
+    var hoppscotchRefreshToken: String?
 
     fun copyTo(newSetting: ApplicationSettingsSupport) {
         newSetting.postmanToken = this.postmanToken
@@ -103,6 +107,10 @@ interface ApplicationSettingsSupport {
         newSetting.concurrentScanEnabled = this.concurrentScanEnabled
         newSetting.gutterIconEnabled = this.gutterIconEnabled
         newSetting.globalEnvironments = this.globalEnvironments
+        newSetting.hoppscotchToken = this.hoppscotchToken
+        newSetting.hoppscotchServerUrl = this.hoppscotchServerUrl
+        newSetting.hoppscotchBackendUrl = this.hoppscotchBackendUrl
+        newSetting.hoppscotchRefreshToken = this.hoppscotchRefreshToken
     }
 }
 
