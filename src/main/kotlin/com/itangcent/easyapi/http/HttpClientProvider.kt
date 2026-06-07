@@ -6,6 +6,7 @@ import com.intellij.openapi.project.Project
 import com.itangcent.easyapi.core.event.EventBus
 import com.itangcent.easyapi.core.event.EventKeys
 import com.itangcent.easyapi.http.HttpClientProvider.Companion.getInstance
+import com.itangcent.easyapi.logging.IdeaLog
 import com.itangcent.easyapi.rule.engine.RuleEngine
 import com.itangcent.easyapi.settings.HttpClientType
 import com.itangcent.easyapi.settings.SettingBinder
@@ -38,13 +39,13 @@ class HttpClientProvider(private val project: Project) {
     ): HttpClient {
         val settings = SettingBinder.getInstance(project).read()
         val resolvedHttpClient = httpClient ?: settings.httpClient ?: HttpClientType.APACHE.value
-        val resolvedHttpTimeOutSec = httpTimeOut ?: settings.httpTimeOut ?: 5
+        val resolvedHttpTimeOutSec = httpTimeOut ?: settings.httpTimeOut ?: 30
         val resolvedHttpTimeOutMs = resolvedHttpTimeOutSec * 1000
         val resolvedUnsafeSsl = unsafeSsl ?: settings.unsafeSsl ?: false
 
         val ruleEngine = RuleEngine.getInstance(project)
         val raw = getRawClient(resolvedHttpClient, resolvedHttpTimeOutMs, resolvedUnsafeSsl)
-        return HttpClientScriptInterceptor(raw, ruleEngine)
+        return HttpClientScriptInterceptor(raw.logging(), ruleEngine)
     }
 
     fun dispose() {
@@ -75,5 +76,41 @@ class HttpClientProvider(private val project: Project) {
 
     companion object {
         fun getInstance(project: Project): HttpClientProvider = project.service()
+    }
+}
+
+/**
+ * Wraps this [HttpClient] with request/response logging via [LoggingHttpClient].
+ */
+fun HttpClient.logging() = LoggingHttpClient(this)
+
+/**
+ * A decorator that logs HTTP request and response details to the IDE log.
+ *
+ * Logs the request method and URL before execution, and logs the response status,
+ * elapsed time, and body (or failure message) after execution.
+ *
+ * All other [HttpClient] operations are delegated to the underlying client.
+ */
+class LoggingHttpClient(private val delegate: HttpClient) : HttpClient by delegate {
+    companion object : IdeaLog
+
+    override suspend fun execute(request: HttpRequest): HttpResponse {
+        val start = System.currentTimeMillis()
+        LOG.info("--> ${request.method} ${request.buildUrl()}")
+        try {
+            val response = delegate.execute(request)
+            val elapsed = System.currentTimeMillis() - start
+            LOG.info(
+                "<-- ${request.method} ${request.buildUrl()}: ${response.code} (${elapsed}ms):\n-------\n" +
+                        "${response.body}\n" +
+                        "-------"
+            )
+            return response
+        } catch (e: Exception) {
+            val elapsed = System.currentTimeMillis() - start
+            LOG.info("<-- FAILED (${elapsed}ms) ${e.message}", e)
+            throw e
+        }
     }
 }
