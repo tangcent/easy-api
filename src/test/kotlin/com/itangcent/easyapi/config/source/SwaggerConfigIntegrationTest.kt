@@ -75,7 +75,7 @@ class SwaggerConfigIntegrationTest : EasyApiLightCodeInsightFixtureTestCase() {
 
         val getEndpoint = endpoints.find {
             it.httpMetadata?.method == HttpMethod.GET &&
-                    it.httpMetadata?.path?.contains("{id}") == true
+            it.httpMetadata?.path?.contains("{id}") == true
         }
         assertNotNull("Should find GET /product/get/{id} endpoint", getEndpoint)
         assertEquals(
@@ -94,7 +94,7 @@ class SwaggerConfigIntegrationTest : EasyApiLightCodeInsightFixtureTestCase() {
         val endpoints = exporter.export(psiClass!!)
         val listEndpoint = endpoints.find {
             it.httpMetadata?.method == HttpMethod.GET &&
-                    it.httpMetadata?.path?.contains("list") == true
+            it.httpMetadata?.path?.contains("list") == true
         }
         assertNotNull("Should find GET /product/list endpoint", listEndpoint)
 
@@ -114,7 +114,7 @@ class SwaggerConfigIntegrationTest : EasyApiLightCodeInsightFixtureTestCase() {
         val endpoints = exporter.export(psiClass!!)
         val listEndpoint = endpoints.find {
             it.httpMetadata?.method == HttpMethod.GET &&
-                    it.httpMetadata?.path?.contains("list") == true
+            it.httpMetadata?.path?.contains("list") == true
         }
         assertNotNull("Should find GET /product/list endpoint", listEndpoint)
 
@@ -134,7 +134,7 @@ class SwaggerConfigIntegrationTest : EasyApiLightCodeInsightFixtureTestCase() {
         val endpoints = exporter.export(psiClass!!)
         val getEndpoint = endpoints.find {
             it.httpMetadata?.method == HttpMethod.GET &&
-                    it.httpMetadata?.path?.contains("{id}") == true
+            it.httpMetadata?.path?.contains("{id}") == true
         }
         assertNotNull("Should find GET /product/get/{id} endpoint", getEndpoint)
 
@@ -153,7 +153,7 @@ class SwaggerConfigIntegrationTest : EasyApiLightCodeInsightFixtureTestCase() {
         val endpoints = exporter.export(psiClass!!)
         val listEndpoint = endpoints.find {
             it.httpMetadata?.method == HttpMethod.GET &&
-                    it.httpMetadata?.path?.contains("list") == true
+            it.httpMetadata?.path?.contains("list") == true
         }
         assertNotNull("Should find GET /product/list endpoint", listEndpoint)
 
