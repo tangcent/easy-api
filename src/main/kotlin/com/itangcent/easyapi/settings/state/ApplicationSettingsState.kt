@@ -57,7 +57,11 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
         override var grpcRepositories: Array<String> = emptyArray(),
         override var concurrentScanEnabled: Boolean = false,
         override var gutterIconEnabled: Boolean = true,
-        override var globalEnvironments: String = ""
+        override var globalEnvironments: String = "",
+        override var hoppscotchToken: String? = null,
+        override var hoppscotchServerUrl: String? = "https://hoppscotch.io",
+        override var hoppscotchBackendUrl: String? = null,
+        override var hoppscotchRefreshToken: String? = null
     ) : ApplicationSettingsSupport {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -97,6 +101,10 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
             if (concurrentScanEnabled != other.concurrentScanEnabled) return false
             if (gutterIconEnabled != other.gutterIconEnabled) return false
             if (globalEnvironments != other.globalEnvironments) return false
+            if (hoppscotchToken != other.hoppscotchToken) return false
+            if (hoppscotchServerUrl != other.hoppscotchServerUrl) return false
+            if (hoppscotchBackendUrl != other.hoppscotchBackendUrl) return false
+            if (hoppscotchRefreshToken != other.hoppscotchRefreshToken) return false
 
             return true
         }
@@ -134,6 +142,10 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
             result = 31 * result + concurrentScanEnabled.hashCode()
             result = 31 * result + gutterIconEnabled.hashCode()
             result = 31 * result + globalEnvironments.hashCode()
+            result = 31 * result + (hoppscotchToken?.hashCode() ?: 0)
+            result = 31 * result + (hoppscotchServerUrl?.hashCode() ?: 0)
+            result = 31 * result + (hoppscotchBackendUrl?.hashCode() ?: 0)
+            result = 31 * result + (hoppscotchRefreshToken?.hashCode() ?: 0)
             return result
         }
     }

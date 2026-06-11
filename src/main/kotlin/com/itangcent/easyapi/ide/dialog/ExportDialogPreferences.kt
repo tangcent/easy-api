@@ -22,7 +22,9 @@ data class ExportDialogPreferences(
     val lastPostmanWorkspaceId: String? = null,
     val lastPostmanWorkspaceName: String? = null,
     val lastPostmanCollectionId: String? = null,
-    val lastPostmanCollectionName: String? = null
+    val lastPostmanCollectionName: String? = null,
+    val lastHoppscotchCollectionId: String? = null,
+    val lastHoppscotchCollectionName: String? = null
 )
 
 /**

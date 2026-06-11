@@ -11,6 +11,7 @@ package com.itangcent.easyapi.exporter.channel
  * - [Empty] — No configuration needed (e.g., cURL export)
  * - [FileConfig] — File-based export configuration (e.g., Markdown)
  * - [PostmanConfig] — Postman-specific configuration
+ * - [HoppscotchConfig] — Hoppscotch-specific configuration
  *
  * @see ApiChannel.createOptionsPanel for the UI that creates these configs
  */
@@ -42,6 +43,19 @@ sealed class ChannelConfig {
     data class PostmanConfig(
         val workspaceId: String? = null,
         val workspaceName: String? = null,
+        val collectionId: String? = null,
+        val collectionName: String? = null,
+        val isUpdate: Boolean = false
+    ) : ChannelConfig()
+
+    /**
+     * Configuration for Hoppscotch export channel.
+     *
+     * @property collectionId the Hoppscotch collection ID (for updates)
+     * @property collectionName the Hoppscotch collection name
+     * @property isUpdate whether to update an existing collection
+     */
+    data class HoppscotchConfig(
         val collectionId: String? = null,
         val collectionName: String? = null,
         val isUpdate: Boolean = false

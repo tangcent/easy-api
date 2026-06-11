@@ -19,6 +19,7 @@ Export API endpoints from your source code to multiple formats:
 |--------|:----:|:----:|--------|
 | **Markdown** | ✓ | ✓ | `.md` documentation file |
 | **Postman** | ✓ | — | JSON file or direct upload to Postman |
+| **Hoppscotch** *(Beta)* | ✓ | — | JSON file or direct upload to Hoppscotch |
 | **cURL** | ✓ | ✓ | Executable shell script |
 | **HTTP Client** | ✓ | ✓ | IntelliJ HTTP Client scratch file |
 
@@ -117,7 +118,7 @@ Support for gRPC service implementations:
 
 1. Right-click on a controller file, class, or method in the editor or project view
 2. Select **EasyApi → Export** (or press `Ctrl+E` on macOS / `Alt+Shift+E`)
-3. Choose the target format (Postman / Markdown / cURL / HTTP Client)
+3. Choose the target format (Postman / Hoppscotch *(Beta)* / Markdown / cURL / HTTP Client)
 4. The APIs will be exported automatically
 
 ### Call an API
