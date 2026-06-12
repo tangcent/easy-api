@@ -24,15 +24,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      - name: Fetch PR head
+        run: |
+          git fetch origin refs/pull/${{ github.event.pull_request.number }}/head:pr-head
+          git checkout pr-head
 
       - name: Check if branch is release branch and add label if needed
         id: check_branch
-        run: |
-          # Check if branch follows 'release/xxx' pattern
-          if [[ "${{ github.event.pull_request.head.ref }}" == release/* ]]; then
-            echo "This is a release branch"
+        env:
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { issue: { number: issueNumber }, repo: { owner, repo } } = context;
+            const branchName = process.env.BRANCH_NAME;
             
             # Get current labels
             LABELS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
@@ -101,17 +107,19 @@ jobs:
 
       - name: Update Pull Request
         if: contains(github.event.pull_request.labels.*.name, 'release') || steps.check_branch.outputs.result == 'true'
-        run: |
-          if [ -f pr_body.txt ]; then
-            # Read PR body from file and format as proper JSON
-            PR_BODY=$(jq -Rs . < pr_body.txt)
-            curl -s -X PATCH \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Accept: application/vnd.github.v3+json" \
-              -H "Content-Type: application/json" \
-              https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }} \
-              -d "{\"body\":$PR_BODY}"
-          else
-            echo "Error: pr_body.txt not found"
-            exit 1
-          fi
+        uses: actions/github-script@v6
+        env:
+          PR_BODY: ${{ steps.generate_content.outputs.pr_body }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { issue: { number: issueNumber }, repo: { owner, repo } } = context;
+            
+            const prBody = process.env.PR_BODY;
+            
+            github.rest.issues.update({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: prBody
+            });
