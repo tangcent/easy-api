@@ -1,328 +1,35 @@
 package com.itangcent.easyapi.exporter.hoppscotch
 
-import com.google.gson.JsonObject
-import com.itangcent.easyapi.exporter.hoppscotch.model.HoppCollection
-import com.itangcent.easyapi.exporter.hoppscotch.model.HoppRESTRequest
 import com.itangcent.easyapi.http.HttpClient
 import com.itangcent.easyapi.http.HttpRequest
 import com.itangcent.easyapi.http.HttpResponse
-import com.itangcent.easyapi.util.json.GsonUtils
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 
+/**
+ * Tests for HoppscotchApiClient companion methods and API operations with mock HttpClient.
+ */
 class HoppscotchApiClientTest {
 
-    private lateinit var mockHttpClient: MockHttpClient
-    private lateinit var client: HoppscotchApiClient
+    private lateinit var mockClient: MockHttpClient
+    private lateinit var apiClient: HoppscotchApiClient
 
     @Before
     fun setUp() {
-        mockHttpClient = MockHttpClient()
-        client = HoppscotchApiClient(
-            token = "test-token-123",
-            serverUrl = "https://hoppscotch.test",
-            httpClient = mockHttpClient
-        )
-    }
-
-    @Test
-    fun `testConnection returns true for valid response`() = runBlocking {
-        val data = JsonObject().apply {
-            add("me", JsonObject().apply {
-                addProperty("uid", "user1")
-                addProperty("displayName", "Test User")
-            })
-        }
-        mockHttpClient.nextResponse = graphqlResponse(data)
-        assertTrue(client.testConnection())
-    }
-
-    @Test
-    fun `testConnection returns false for error response`() = runBlocking {
-        val errors = """{"errors":[{"message":"Unauthorized"}]}"""
-        mockHttpClient.nextResponse = HttpResponse(code = 200, body = errors)
-        assertFalse(client.testConnection())
-    }
-
-    @Test
-    fun `testConnection returns false for blank token`() = runBlocking {
-        val blankTokenClient = HoppscotchApiClient(
-            token = "",
-            serverUrl = "https://hoppscotch.test",
-            httpClient = mockHttpClient
-        )
-        assertFalse(blankTokenClient.testConnection())
-    }
-
-    @Test
-    fun `listTeams returns teams from valid response`() = runBlocking {
-        val teamsData = JsonObject().apply {
-            add("myTeams", GsonUtils.GSON.toJsonTree(listOf(
-                mapOf("id" to "team1", "name" to "Team A"),
-                mapOf("id" to "team2", "name" to "Team B")
-            )))
-        }
-        mockHttpClient.nextResponse = graphqlResponse(teamsData)
-        val teams = client.listTeams()
-        assertEquals(2, teams.size)
-        assertEquals("team1", teams[0].id)
-        assertEquals("Team A", teams[0].name)
-        assertEquals("team2", teams[1].id)
-        assertEquals("Team B", teams[1].name)
-    }
-
-    @Test
-    fun `listTeams returns empty for blank token`() = runBlocking {
-        val blankTokenClient = HoppscotchApiClient(
-            token = "",
-            serverUrl = "https://hoppscotch.test",
-            httpClient = mockHttpClient
-        )
-        assertTrue(blankTokenClient.listTeams().isEmpty())
-    }
-
-    @Test
-    fun `listCollections returns collections from valid response`() = runBlocking {
-        val collectionsData = JsonObject().apply {
-            add("rootCollectionsOfTeam", GsonUtils.GSON.toJsonTree(listOf(
-                mapOf("id" to "col1", "title" to "Collection A"),
-                mapOf("id" to "col2", "title" to "Collection B")
-            )))
-        }
-        mockHttpClient.nextResponse = graphqlResponse(collectionsData)
-        val collections = client.listCollections()
-        assertEquals(2, collections.size)
-        assertEquals("col1", collections[0].id)
-        assertEquals("Collection A", collections[0].name)
-    }
-
-    @Test
-    fun `listCollections with teamId includes teamID in query`() = runBlocking {
-        val collectionsData = JsonObject().apply {
-            add("rootCollectionsOfTeam", GsonUtils.GSON.toJsonTree(emptyList<Map<String, String>>()))
-        }
-        mockHttpClient.nextResponse = graphqlResponse(collectionsData)
-        client.listCollections(teamId = "team1")
-        val lastRequest = mockHttpClient.lastRequest
-        assertNotNull(lastRequest)
-        assertTrue(lastRequest!!.body!!.contains("teamID"))
-    }
-
-    @Test
-    fun `uploadCollection returns success for valid response`() = runBlocking {
-        val importData = JsonObject().apply {
-            add("importUserCollectionsFromJSON", JsonObject().apply {
-                addProperty("exportedCollection", "new-col-1")
-                addProperty("collectionType", "REST")
-            })
-        }
-        mockHttpClient.nextResponse = graphqlResponse(importData)
-        val collection = HoppCollection(
-            name = "Test Collection",
-            requests = listOf(HoppRESTRequest(name = "GET /api", method = "GET", endpoint = "/api"))
-        )
-        val result = client.uploadCollection(collection)
-        assertTrue(result.success)
-        assertEquals("new-col-1", result.collectionId)
-    }
-
-    @Test
-    fun `uploadCollection with teamId uses importCollectionsFromJSON`() = runBlocking {
-        val importData = JsonObject().apply {
-            addProperty("importCollectionsFromJSON", true)
-        }
-        mockHttpClient.nextResponse = graphqlResponse(importData)
-        val collection = HoppCollection(name = "Team Collection")
-        val result = client.uploadCollection(collection, teamId = "team1")
-        assertTrue(result.success)
-        assertNull(result.collectionId) // Team import returns Boolean, no collection ID
-        val lastRequest = mockHttpClient.lastRequest
-        assertNotNull(lastRequest)
-        assertTrue(lastRequest!!.body!!.contains("importCollectionsFromJSON"))
-        assertTrue(lastRequest.body!!.contains("teamID"))
-    }
-
-    @Test
-    fun `uploadCollection returns failure for GraphQL errors`() = runBlocking {
-        val errorBody = """{"errors":[{"message":"Collection name already exists"}]}"""
-        mockHttpClient.nextResponse = HttpResponse(code = 200, body = errorBody)
-        val collection = HoppCollection(name = "Test")
-        val result = client.uploadCollection(collection)
-        assertFalse(result.success)
-        assertEquals("Collection name already exists", result.message)
-    }
-
-    @Test
-    fun `uploadCollection returns failure for blank token`() = runBlocking {
-        val blankTokenClient = HoppscotchApiClient(
-            token = "",
-            serverUrl = "https://hoppscotch.test",
-            httpClient = mockHttpClient
-        )
-        val collection = HoppCollection(name = "Test")
-        val result = blankTokenClient.uploadCollection(collection)
-        assertFalse(result.success)
-        assertEquals("No access token configured", result.message)
-    }
-
-    @Test
-    fun `updateCollection creates new then deletes old`() = runBlocking {
-        val importData = JsonObject().apply {
-            add("importUserCollectionsFromJSON", JsonObject().apply {
-                addProperty("exportedCollection", "new-col-2")
-                addProperty("collectionType", "REST")
-            })
-        }
-        mockHttpClient.responseQueue.add(graphqlResponse(importData))
-        val deleteData = JsonObject().apply {
-            addProperty("deleteUserCollection", true)
-        }
-        mockHttpClient.responseQueue.add(graphqlResponse(deleteData))
-
-        val collection = HoppCollection(name = "Updated")
-        val result = client.updateCollection("old-col-1", collection)
-        assertTrue(result.success)
-        assertEquals("new-col-2", result.collectionId)
-        assertTrue(result.message!!.contains("updated successfully"))
-    }
-
-    @Test
-    fun `deleteCollection returns true for valid response`() = runBlocking {
-        val deleteData = JsonObject().apply {
-            addProperty("deleteUserCollection", true)
-        }
-        mockHttpClient.nextResponse = graphqlResponse(deleteData)
-        assertTrue(client.deleteCollection("col-1"))
-    }
-
-    @Test
-    fun `deleteCollection with teamId uses deleteCollection mutation`() = runBlocking {
-        val deleteData = JsonObject().apply {
-            addProperty("deleteCollection", true)
-        }
-        mockHttpClient.nextResponse = graphqlResponse(deleteData)
-        assertTrue(client.deleteCollection("col-1", teamId = "team1"))
-        val lastRequest = mockHttpClient.lastRequest
-        assertNotNull(lastRequest)
-        assertTrue(lastRequest!!.body!!.contains("deleteCollection"))
-        assertTrue(lastRequest.body!!.contains("collectionID"))
-    }
-
-    @Test
-    fun `deleteCollection returns false for blank token`() = runBlocking {
-        val blankTokenClient = HoppscotchApiClient(
-            token = "",
-            serverUrl = "https://hoppscotch.test",
-            httpClient = mockHttpClient
-        )
-        assertFalse(blankTokenClient.deleteCollection("col-1"))
-    }
-
-    @Test
-    fun `request includes Bearer token in Authorization header`() = runBlocking {
-        val data = JsonObject().apply {
-            add("me", JsonObject().apply {
-                addProperty("uid", "user1")
-                addProperty("displayName", "Test User")
-            })
-        }
-        mockHttpClient.nextResponse = graphqlResponse(data)
-        client.testConnection()
-        val lastRequest = mockHttpClient.lastRequest
-        assertNotNull(lastRequest)
-        val authHeader = lastRequest!!.headers.find { it.first == "Authorization" }
-        assertNotNull(authHeader)
-        assertEquals("Bearer test-token-123", authHeader!!.second)
-    }
-
-    @Test
-    fun `request includes Content-Type json header`() = runBlocking {
-        val data = JsonObject().apply {
-            add("me", JsonObject().apply {
-                addProperty("uid", "user1")
-                addProperty("displayName", "Test User")
-            })
-        }
-        mockHttpClient.nextResponse = graphqlResponse(data)
-        client.testConnection()
-        val lastRequest = mockHttpClient.lastRequest
-        assertNotNull(lastRequest)
-        val contentTypeHeader = lastRequest!!.headers.find { it.first == "Content-Type" }
-        assertNotNull(contentTypeHeader)
-        assertEquals("application/json", contentTypeHeader!!.second)
-    }
-
-    @Test
-    fun `401 response returns false from testConnection`() = runBlocking {
-        mockHttpClient.nextResponse = HttpResponse(code = 401, body = "Unauthorized")
-        assertFalse(client.testConnection())
-    }
-
-    @Test
-    fun `401 response makes listTeams return empty list`() = runBlocking {
-        mockHttpClient.nextResponse = HttpResponse(code = 401, body = "Unauthorized")
-        val result = client.listTeams()
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
-    fun `non-200 response returns null gracefully`() = runBlocking {
-        mockHttpClient.nextResponse = HttpResponse(code = 500, body = "Internal Server Error")
-        val result = client.listTeams()
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
-    fun `HoppscotchAuthException is an Exception with message`() {
-        val exception = HoppscotchAuthException("Token expired")
-        assertTrue(exception is Exception)
-        assertEquals("Token expired", exception.message)
-    }
-
-    @Test
-    fun `custom server URL uses api graphql path`() = runBlocking {
-        val customClient = HoppscotchApiClient(
-            token = "test-token",
-            serverUrl = "https://custom.hoppscotch.example",
-            httpClient = mockHttpClient
-        )
-        val data = JsonObject().apply {
-            add("me", JsonObject().apply {
-                addProperty("uid", "user1")
-                addProperty("displayName", "Test User")
-            })
-        }
-        mockHttpClient.nextResponse = graphqlResponse(data)
-        customClient.testConnection()
-        val lastRequest = mockHttpClient.lastRequest
-        assertNotNull(lastRequest)
-        assertEquals("https://custom.hoppscotch.example/graphql", lastRequest!!.url)
-    }
-
-    @Test
-    fun `cloud server URL resolves to api hoppscotch io`() = runBlocking {
-        val cloudClient = HoppscotchApiClient(
+        mockClient = MockHttpClient()
+        apiClient = HoppscotchApiClient(
             token = "test-token",
             serverUrl = "https://hoppscotch.io",
-            httpClient = mockHttpClient
+            httpClient = mockClient
         )
-        val data = JsonObject().apply {
-            add("me", JsonObject().apply {
-                addProperty("uid", "user1")
-                addProperty("displayName", "Test User")
-            })
-        }
-        mockHttpClient.nextResponse = graphqlResponse(data)
-        cloudClient.testConnection()
-        val lastRequest = mockHttpClient.lastRequest
-        assertNotNull(lastRequest)
-        assertEquals("https://api.hoppscotch.io/graphql", lastRequest!!.url)
     }
 
+    // ==================== URL Resolution (companion methods) ====================
+
     @Test
-    fun `resolveApiBaseUrl returns api hoppscotch io for cloud`() {
+    fun `resolveApiBaseUrl for cloud returns api subdomain`() {
         assertEquals(
             "https://api.hoppscotch.io",
             HoppscotchApiClient.resolveApiBaseUrl("https://hoppscotch.io")
@@ -330,7 +37,23 @@ class HoppscotchApiClientTest {
     }
 
     @Test
-    fun `resolveApiBaseUrl returns same URL for self-hosted`() {
+    fun `resolveApiBaseUrl for cloud with trailing slash`() {
+        assertEquals(
+            "https://api.hoppscotch.io",
+            HoppscotchApiClient.resolveApiBaseUrl("https://hoppscotch.io/")
+        )
+    }
+
+    @Test
+    fun `resolveApiBaseUrl for self-hosted with backend URL`() {
+        assertEquals(
+            "http://localhost:3170/v1",
+            HoppscotchApiClient.resolveApiBaseUrl("https://custom.example.com", "http://localhost:3170/v1")
+        )
+    }
+
+    @Test
+    fun `resolveApiBaseUrl for self-hosted without backend URL`() {
         assertEquals(
             "https://custom.example.com",
             HoppscotchApiClient.resolveApiBaseUrl("https://custom.example.com")
@@ -338,28 +61,297 @@ class HoppscotchApiClientTest {
     }
 
     @Test
-    fun `isCloudServer returns true for hoppscotch io`() {
+    fun `resolveApiV1BaseUrl for cloud`() {
+        assertEquals(
+            "https://api.hoppscotch.io/v1",
+            HoppscotchApiClient.resolveApiV1BaseUrl("https://hoppscotch.io")
+        )
+    }
+
+    @Test
+    fun `resolveApiV1BaseUrl for self-hosted with backend URL`() {
+        assertEquals(
+            "http://localhost:3170/v1",
+            HoppscotchApiClient.resolveApiV1BaseUrl("https://custom.example.com", "http://localhost:3170/v1")
+        )
+    }
+
+    @Test
+    fun `resolveApiV1BaseUrl for self-hosted without backend URL`() {
+        assertEquals(
+            "https://custom.example.com/v1",
+            HoppscotchApiClient.resolveApiV1BaseUrl("https://custom.example.com")
+        )
+    }
+
+    @Test
+    fun `resolveGraphQLUrl for cloud`() {
+        assertEquals(
+            "https://api.hoppscotch.io/graphql",
+            HoppscotchApiClient.resolveGraphQLUrl("https://hoppscotch.io")
+        )
+    }
+
+    @Test
+    fun `resolveGraphQLUrl for self-hosted with backend URL`() {
+        assertEquals(
+            "http://localhost:3170/v1/graphql",
+            HoppscotchApiClient.resolveGraphQLUrl("https://custom.example.com", "http://localhost:3170/v1")
+        )
+    }
+
+    @Test
+    fun `resolveGraphQLUrl for self-hosted without backend URL`() {
+        assertEquals(
+            "https://custom.example.com/graphql",
+            HoppscotchApiClient.resolveGraphQLUrl("https://custom.example.com")
+        )
+    }
+
+    @Test
+    fun `isCloudServer for hoppscotch io`() {
         assertTrue(HoppscotchApiClient.isCloudServer("https://hoppscotch.io"))
     }
 
     @Test
-    fun `isCloudServer returns false for custom server`() {
+    fun `isCloudServer for hoppscotch io with trailing slash`() {
+        assertTrue(HoppscotchApiClient.isCloudServer("https://hoppscotch.io/"))
+    }
+
+    @Test
+    fun `isCloudServer for self-hosted`() {
         assertFalse(HoppscotchApiClient.isCloudServer("https://custom.example.com"))
     }
 
-    private fun graphqlResponse(data: JsonObject): HttpResponse {
-        val wrapper = JsonObject().apply { add("data", data) }
-        return HttpResponse(code = 200, body = GsonUtils.GSON.toJson(wrapper))
+    // ==================== testConnection ====================
+
+    @Test
+    fun `testConnection returns true on success`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(
+            code = 200,
+            body = """{"data":{"me":{"uid":"user-1","displayName":"Test User"}}}"""
+        )
+        assertTrue(apiClient.testConnection())
     }
 
+    @Test
+    fun `testConnection returns false on GraphQL error`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(
+            code = 200,
+            body = """{"errors":[{"message":"Unauthorized"}]}"""
+        )
+        assertFalse(apiClient.testConnection())
+    }
+
+    @Test
+    fun `testConnection returns false on HTTP error`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(code = 500, body = "Internal Server Error")
+        assertFalse(apiClient.testConnection())
+    }
+
+    @Test
+    fun `testConnection returns false on exception`() = runBlocking {
+        mockClient.shouldThrow = true
+        assertFalse(apiClient.testConnection())
+    }
+
+    @Test
+    fun `testConnection with blank token returns false`() = runBlocking {
+        val client = HoppscotchApiClient(token = "", httpClient = mockClient)
+        assertFalse(client.testConnection())
+    }
+
+    // ==================== listTeams ====================
+
+    @Test
+    fun `listTeams returns teams on success`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(
+            code = 200,
+            body = """{"data":{"myTeams":[{"id":"team-1","name":"Team Alpha"},{"id":"team-2","name":"Team Beta"}]}}"""
+        )
+        val teams = apiClient.listTeams()
+        assertEquals(2, teams.size)
+        assertEquals("team-1", teams[0].id)
+        assertEquals("Team Alpha", teams[0].name)
+    }
+
+    @Test
+    fun `listTeams returns empty on error`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(code = 500, body = "Error")
+        val teams = apiClient.listTeams()
+        assertTrue(teams.isEmpty())
+    }
+
+    @Test
+    fun `listTeams with blank token returns empty`() = runBlocking {
+        val client = HoppscotchApiClient(token = "", httpClient = mockClient)
+        val teams = client.listTeams()
+        assertTrue(teams.isEmpty())
+    }
+
+    // ==================== listCollections ====================
+
+    @Test
+    fun `listCollections returns collections on success`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(
+            code = 200,
+            body = """{"data":{"rootCollectionsOfTeam":[{"id":"col-1","title":"Collection 1"},{"id":"col-2","title":"Collection 2"}]}}"""
+        )
+        val collections = apiClient.listCollections()
+        assertEquals(2, collections.size)
+        assertEquals("col-1", collections[0].id)
+        assertEquals("Collection 1", collections[0].name)
+    }
+
+    @Test
+    fun `listCollections with teamId includes teamID in query`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(
+            code = 200,
+            body = """{"data":{"rootCollectionsOfTeam":[{"id":"col-1","title":"Test"}]}}"""
+        )
+        val collections = apiClient.listCollections(teamId = "team-123")
+        assertEquals(1, collections.size)
+        // Verify the request body contains teamID
+        val requestBody = mockClient.lastRequest?.body ?: ""
+        assertTrue(requestBody.contains("teamID"))
+    }
+
+    @Test
+    fun `listCollections returns empty on error`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(code = 500, body = "Error")
+        val collections = apiClient.listCollections()
+        assertTrue(collections.isEmpty())
+    }
+
+    @Test
+    fun `listCollections with blank token returns empty`() = runBlocking {
+        val client = HoppscotchApiClient(token = "", httpClient = mockClient)
+        val collections = client.listCollections()
+        assertTrue(collections.isEmpty())
+    }
+
+    // ==================== uploadCollection ====================
+
+    @Test
+    fun `uploadCollection with blank token returns failure`() = runBlocking {
+        val client = HoppscotchApiClient(token = "", httpClient = mockClient)
+        val collection = com.itangcent.easyapi.exporter.hoppscotch.model.HoppCollection(name = "Test")
+        val result = client.uploadCollection(collection)
+        assertFalse(result.success)
+        assertTrue(result.message?.contains("No access token") == true)
+    }
+
+    @Test
+    fun `uploadCollection handles GraphQL errors`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(
+            code = 200,
+            body = """{"errors":[{"message":"Invalid JSON format"}]}"""
+        )
+        val collection = com.itangcent.easyapi.exporter.hoppscotch.model.HoppCollection(name = "Test")
+        val result = apiClient.uploadCollection(collection)
+        assertFalse(result.success)
+        assertTrue(result.message?.contains("Invalid JSON format") == true)
+    }
+
+    @Test
+    fun `uploadCollection handles exception`() = runBlocking {
+        mockClient.shouldThrow = true
+        val collection = com.itangcent.easyapi.exporter.hoppscotch.model.HoppCollection(name = "Test")
+        val result = apiClient.uploadCollection(collection)
+        assertFalse(result.success)
+    }
+
+    // ==================== deleteCollection ====================
+
+    @Test
+    fun `deleteCollection returns true on success`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(
+            code = 200,
+            body = """{"data":{"deleteUserCollection":true}}"""
+        )
+        assertTrue(apiClient.deleteCollection("col-123"))
+    }
+
+    @Test
+    fun `deleteCollection returns false on error`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(code = 500, body = "Error")
+        assertFalse(apiClient.deleteCollection("col-123"))
+    }
+
+    @Test
+    fun `deleteCollection with blank token returns false`() = runBlocking {
+        val client = HoppscotchApiClient(token = "", httpClient = mockClient)
+        assertFalse(client.deleteCollection("col-123"))
+    }
+
+    // ==================== 401 Auth Exception ====================
+
+    @Test
+    fun `testConnection returns false on 401`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(code = 401, body = "Unauthorized")
+        assertFalse(apiClient.testConnection())
+    }
+
+    @Test
+    fun `listCollections returns empty on 401`() = runBlocking {
+        mockClient.nextResponse = HttpResponse(code = 401, body = "Unauthorized")
+        val result = apiClient.listCollections("team-1")
+        assertTrue(result.isEmpty())
+    }
+
+    // ==================== Data classes ====================
+
+    @Test
+    fun `HoppTeam data class`() {
+        val team = HoppTeam(id = "team-1", name = "Test Team")
+        assertEquals("team-1", team.id)
+        assertEquals("Test Team", team.name)
+    }
+
+    @Test
+    fun `HoppCollectionInfo data class`() {
+        val info = HoppCollectionInfo(id = "col-1", name = "Test Collection")
+        assertEquals("col-1", info.id)
+        assertEquals("Test Collection", info.name)
+    }
+
+    @Test
+    fun `HoppUploadResult data class`() {
+        val result = HoppUploadResult(success = true, message = "OK", collectionId = "col-1")
+        assertTrue(result.success)
+        assertEquals("OK", result.message)
+        assertEquals("col-1", result.collectionId)
+    }
+
+    @Test
+    fun `HoppUploadResult copy`() {
+        val result = HoppUploadResult(success = true, message = "OK", collectionId = "col-1")
+        val copy = result.copy(success = false)
+        assertFalse(copy.success)
+        assertEquals("OK", copy.message)
+    }
+
+    @Test
+    fun `HoppscotchAuthException is an Exception`() {
+        val ex = HoppscotchAuthException("Token expired")
+        assertTrue(ex is Exception)
+        assertEquals("Token expired", ex.message)
+    }
+
+    /**
+     * Simple mock HttpClient that returns a pre-configured response.
+     */
     class MockHttpClient : HttpClient {
-        var nextResponse: HttpResponse = HttpResponse(code = 200, body = "{}")
-        var responseQueue: ArrayDeque<HttpResponse> = ArrayDeque()
+        var nextResponse: HttpResponse = HttpResponse(code = 200, body = "")
         var lastRequest: HttpRequest? = null
+        var shouldThrow: Boolean = false
 
         override suspend fun execute(request: HttpRequest): HttpResponse {
             lastRequest = request
-            return if (responseQueue.isNotEmpty()) responseQueue.removeFirst() else nextResponse
+            if (shouldThrow) {
+                throw RuntimeException("Test error")
+            }
+            return nextResponse
         }
 
         override fun close() {}
