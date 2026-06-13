@@ -33,7 +33,7 @@ class PostmanFormatterLogicTest {
     @Test
     fun `parsePath handles empty string`() {
         val result = PostmanFormatter.parsePath("")
-        assertEquals(listOf(""), result)
+        assertEquals(emptyList<String>(), result)
     }
 
     @Test

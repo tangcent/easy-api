@@ -284,7 +284,7 @@ class HoppscotchFormatter(
 
     companion object {
         fun parsePath(path: String): List<String> {
-            return path.trim().trim('/').split("/")
+            return path.trim().trim('/').split("/").filter { it.isNotEmpty() }
         }
 
         private fun formatTimestamp(millis: Long): String {

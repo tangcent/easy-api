@@ -34,7 +34,7 @@ class HoppscotchFormatterLogicTest {
     @Test
     fun `parsePath handles empty string`() {
         val result = HoppscotchFormatter.parsePath("")
-        assertEquals(listOf(""), result)
+        assertEquals(emptyList<String>(), result)
     }
 
     @Test

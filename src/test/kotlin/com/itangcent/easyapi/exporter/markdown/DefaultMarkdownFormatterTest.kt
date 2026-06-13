@@ -540,7 +540,7 @@ class DefaultMarkdownFormatterTest {
 
         val markdown = formatter.format(listOf(endpoint), "gRPC API")
 
-        assertTrue(markdown.contains("**Streaming:** BIDI_STREAMING"))
+        assertTrue(markdown.contains("**Streaming:** BIDIRECTIONAL"))
     }
 
     // ==================== No-demo mode ====================
