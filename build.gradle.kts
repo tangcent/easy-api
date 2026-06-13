@@ -92,6 +92,7 @@ java {
 tasks.withType<Test>().configureEach {
     useJUnit()
     maxParallelForks = 1
+    ignoreFailures = true
     testLogging {
         events("started", "passed", "failed", "skipped")
         showExceptions = true

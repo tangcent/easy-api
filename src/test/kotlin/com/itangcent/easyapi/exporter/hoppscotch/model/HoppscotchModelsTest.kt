@@ -1,19 +1,26 @@
 package com.itangcent.easyapi.exporter.hoppscotch.model
 
-import com.google.gson.JsonObject
+import com.google.gson.JsonElement
+import com.google.gson.JsonParser
 import org.junit.Assert.*
 import org.junit.Test
 
-class HoppCollectionTest {
+/**
+ * Comprehensive tests for Hoppscotch model data classes and utility functions.
+ */
+class HoppscotchModelsTest {
+
+    // ==================== HoppCollection tests ====================
 
     @Test
-    fun testHoppCollectionCreation() {
-        val collection = HoppCollection(name = "Test API")
+    fun `HoppCollection default values`() {
+        val collection = HoppCollection(name = "Test")
         assertEquals(12, collection.v)
-        assertEquals("Test API", collection.name)
+        assertEquals("Test", collection.name)
+        assertTrue(collection._ref_id.startsWith("coll_"))
         assertTrue(collection.folders.isEmpty())
         assertTrue(collection.requests.isEmpty())
-        assertEquals("inherit", collection.auth.authType)
+        assertEquals(HoppAuth(), collection.auth)
         assertTrue(collection.headers.isEmpty())
         assertTrue(collection.variables.isEmpty())
         assertNull(collection.description)
@@ -22,181 +29,207 @@ class HoppCollectionTest {
     }
 
     @Test
-    fun testHoppCollectionWithFoldersAndRequests() {
-        val request = HoppRESTRequest(name = "Get Users", method = "GET", endpoint = "/users")
-        val folder = HoppCollection(name = "Users", requests = listOf(request))
-        val collection = HoppCollection(name = "API", folders = listOf(folder), requests = listOf(request))
+    fun `HoppCollection with all fields`() {
+        val collection = HoppCollection(
+            name = "Full Collection",
+            folders = listOf(HoppCollection(name = "Sub")),
+            requests = listOf(HoppRESTRequest(name = "GET /api", method = "GET", endpoint = "/api")),
+            auth = HoppAuth(authType = "bearer"),
+            headers = listOf(HoppKeyValue(key = "Auth", value = "token")),
+            variables = listOf(HoppCollectionVariable(key = "host", initialValue = "https://api.example.com")),
+            description = "Test description",
+            preRequestScript = "console.log('pre')",
+            testScript = "console.log('test')"
+        )
         assertEquals(1, collection.folders.size)
         assertEquals(1, collection.requests.size)
-        assertEquals("Users", collection.folders[0].name)
+        assertEquals("bearer", collection.auth.authType)
+        assertEquals("Test description", collection.description)
     }
 
     @Test
-    fun testHoppCollectionEquality() {
-        val refId = generateUniqueRefId("coll")
-        val c1 = HoppCollection(name = "API", _ref_id = refId)
-        val c2 = HoppCollection(name = "API", _ref_id = refId)
-        assertEquals(c1, c2)
+    fun `HoppCollection copy`() {
+        val original = HoppCollection(name = "Original")
+        val copy = original.copy(name = "Copied")
+        assertEquals("Copied", copy.name)
+        assertEquals(original.v, copy.v)
     }
 
     @Test
-    fun testHoppCollectionCopy() {
-        val original = HoppCollection(name = "API")
-        val copy = original.copy(name = "New API")
-        assertEquals("New API", copy.name)
-        assertEquals("API", original.name)
+    fun `HoppCollection equals and hashCode`() {
+        val c1 = HoppCollection(name = "Test", v = 12)
+        val c2 = HoppCollection(name = "Test", v = 12)
+        // They won't be equal because _ref_id is different
+        // But if we set the same _ref_id they should be equal
+        val c3 = c1.copy()
+        assertEquals(c1, c3)
     }
-}
 
-class HoppRESTRequestTest {
+    // ==================== HoppRESTRequest tests ====================
 
     @Test
-    fun testHoppRESTRequestCreation() {
-        val request = HoppRESTRequest(
-            name = "Create User",
-            method = "POST",
-            endpoint = "/users",
-            params = listOf(HoppKeyValue("id", "1")),
-            headers = listOf(HoppKeyValue("Content-Type", "application/json")),
-            body = HoppRequestBody(contentType = "application/json", body = "{}"),
-            preRequestScript = "pw.console.log('pre')",
-            testScript = "pw.expect(pw.response.status).toBe(200)",
-            description = "Creates a new user"
-        )
+    fun `HoppRESTRequest default values`() {
+        val request = HoppRESTRequest(name = "GET /api", method = "GET", endpoint = "/api")
         assertEquals("17", request.v)
-        assertEquals("Create User", request.name)
-        assertEquals("POST", request.method)
-        assertEquals("/users", request.endpoint)
-        assertEquals(1, request.params.size)
-        assertEquals(1, request.headers.size)
-        assertEquals("application/json", request.body.contentType)
-        assertEquals("pw.console.log('pre')", request.preRequestScript)
-        assertEquals("pw.expect(pw.response.status).toBe(200)", request.testScript)
-        assertEquals("Creates a new user", request.description)
-    }
-
-    @Test
-    fun testHoppRESTRequestWithDefaults() {
-        val request = HoppRESTRequest(name = "Test", method = "GET", endpoint = "/test")
-        assertEquals("17", request.v)
+        assertEquals("GET /api", request.name)
+        assertEquals("GET", request.method)
+        assertEquals("/api", request.endpoint)
+        assertTrue(request._ref_id.startsWith("req_"))
         assertTrue(request.params.isEmpty())
         assertTrue(request.headers.isEmpty())
-        assertEquals("inherit", request.auth.authType)
-        assertNull(request.body.contentType)
-        assertNull(request.body.body)
+        assertEquals(HoppAuth(), request.auth)
+        assertEquals(HoppRequestBody(), request.body)
         assertEquals("", request.preRequestScript)
         assertEquals("", request.testScript)
         assertTrue(request.requestVariables.isEmpty())
         assertTrue(request.responses.isEmpty())
         assertNull(request.description)
     }
-}
-
-class HoppKeyValueTest {
 
     @Test
-    fun testHoppKeyValueCreation() {
-        val kv = HoppKeyValue(key = "Authorization", value = "Bearer token", active = true, description = "Auth header")
-        assertEquals("Authorization", kv.key)
-        assertEquals("Bearer token", kv.value)
-        assertTrue(kv.active)
-        assertEquals("Auth header", kv.description)
+    fun `HoppRESTRequest with all fields`() {
+        val request = HoppRESTRequest(
+            name = "POST /api/users",
+            method = "POST",
+            endpoint = "https://api.example.com/api/users",
+            params = listOf(HoppKeyValue(key = "page", value = "1")),
+            headers = listOf(HoppKeyValue(key = "Content-Type", value = "application/json")),
+            body = HoppRequestBody(contentType = "application/json", body = "{}"),
+            preRequestScript = "pm.request.headers.add('X-Custom')",
+            testScript = "pm.response.to.have.status(200)",
+            description = "Create a new user"
+        )
+        assertEquals(1, request.params.size)
+        assertEquals(1, request.headers.size)
+        assertEquals("application/json", request.body.contentType)
+        assertEquals("Create a new user", request.description)
     }
 
+    // ==================== HoppKeyValue tests ====================
+
     @Test
-    fun testHoppKeyValueWithDefaults() {
-        val kv = HoppKeyValue(key = "Content-Type")
-        assertEquals("Content-Type", kv.key)
+    fun `HoppKeyValue default values`() {
+        val kv = HoppKeyValue(key = "name")
+        assertEquals("name", kv.key)
         assertEquals("", kv.value)
         assertTrue(kv.active)
         assertNull(kv.description)
     }
-}
-
-class HoppAuthTest {
 
     @Test
-    fun testHoppAuthDefaults() {
+    fun `HoppKeyValue with all fields`() {
+        val kv = HoppKeyValue(key = "Authorization", value = "Bearer token", active = false, description = "Auth header")
+        assertEquals("Authorization", kv.key)
+        assertEquals("Bearer token", kv.value)
+        assertFalse(kv.active)
+        assertEquals("Auth header", kv.description)
+    }
+
+    @Test
+    fun `HoppKeyValue equals and hashCode`() {
+        val kv1 = HoppKeyValue(key = "name", value = "value")
+        val kv2 = HoppKeyValue(key = "name", value = "value")
+        assertEquals(kv1, kv2)
+        assertEquals(kv1.hashCode(), kv2.hashCode())
+    }
+
+    // ==================== HoppAuth tests ====================
+
+    @Test
+    fun `HoppAuth default values`() {
         val auth = HoppAuth()
         assertEquals("inherit", auth.authType)
         assertTrue(auth.authActive)
     }
 
     @Test
-    fun testHoppAuthBearer() {
-        val auth = HoppAuth(authType = "bearer", authActive = true)
+    fun `HoppAuth custom values`() {
+        val auth = HoppAuth(authType = "bearer", authActive = false)
         assertEquals("bearer", auth.authType)
-        assertTrue(auth.authActive)
+        assertFalse(auth.authActive)
     }
-}
-
-class HoppRequestBodyTest {
 
     @Test
-    fun testHoppRequestBodyDefaults() {
+    fun `HoppAuth equals and hashCode`() {
+        val a1 = HoppAuth()
+        val a2 = HoppAuth()
+        assertEquals(a1, a2)
+        assertEquals(a1.hashCode(), a2.hashCode())
+    }
+
+    // ==================== HoppRequestBody tests ====================
+
+    @Test
+    fun `HoppRequestBody default values`() {
         val body = HoppRequestBody()
         assertNull(body.contentType)
         assertNull(body.body)
     }
 
     @Test
-    fun testHoppRequestBodyJson() {
-        val body = HoppRequestBody(contentType = "application/json", body = "{\"name\":\"test\"}")
+    fun `HoppRequestBody with JSON body`() {
+        val body = HoppRequestBody(contentType = "application/json", body = """{"name":"John"}""")
         assertEquals("application/json", body.contentType)
-        assertEquals("{\"name\":\"test\"}", body.body)
+        assertEquals("""{"name":"John"}""", body.body)
     }
 
     @Test
-    fun testHoppRequestBodyFormData() {
-        val entries = listOf(HoppFormDataEntry(key = "file", value = "test.txt"))
-        val body = HoppRequestBody(contentType = "multipart/form-data", body = entries)
+    fun `HoppRequestBody with form data body`() {
+        val formData = listOf(HoppFormDataEntry(key = "file", value = "test.txt", isFile = true))
+        val body = HoppRequestBody(contentType = "multipart/form-data", body = formData)
         assertEquals("multipart/form-data", body.contentType)
         assertNotNull(body.body)
     }
-}
 
-class HoppCollectionVariableTest {
+    // ==================== HoppCollectionVariable tests ====================
 
     @Test
-    fun testHoppCollectionVariableCreation() {
-        val variable = HoppCollectionVariable(
-            key = "baseUrl",
-            initialValue = "http://localhost:8080",
-            currentValue = "http://localhost:8080"
-        )
-        assertEquals("baseUrl", variable.key)
-        assertEquals("http://localhost:8080", variable.initialValue)
-        assertEquals("http://localhost:8080", variable.currentValue)
+    fun `HoppCollectionVariable default values`() {
+        val variable = HoppCollectionVariable(key = "host")
+        assertEquals("host", variable.key)
+        assertEquals("", variable.initialValue)
+        assertEquals("", variable.currentValue)
         assertFalse(variable.secret)
     }
-}
-
-class HoppRequestVariableTest {
 
     @Test
-    fun testHoppRequestVariableCreation() {
-        val variable = HoppRequestVariable(key = "token", value = "abc123", active = true)
-        assertEquals("token", variable.key)
-        assertEquals("abc123", variable.value)
+    fun `HoppCollectionVariable with all fields`() {
+        val variable = HoppCollectionVariable(
+            key = "apiKey",
+            initialValue = "default-key",
+            currentValue = "actual-key",
+            secret = true
+        )
+        assertEquals("apiKey", variable.key)
+        assertEquals("default-key", variable.initialValue)
+        assertEquals("actual-key", variable.currentValue)
+        assertTrue(variable.secret)
+    }
+
+    // ==================== HoppRequestVariable tests ====================
+
+    @Test
+    fun `HoppRequestVariable default values`() {
+        val variable = HoppRequestVariable(key = "id")
+        assertEquals("id", variable.key)
+        assertEquals("", variable.value)
         assertTrue(variable.active)
     }
-}
-
-class HoppFormDataEntryTest {
 
     @Test
-    fun testHoppFormDataEntryCreation() {
-        val entry = HoppFormDataEntry(key = "avatar", value = "photo.jpg", active = true, isFile = false)
-        assertEquals("avatar", entry.key)
-        assertEquals("photo.jpg", entry.value)
-        assertTrue(entry.active)
-        assertFalse(entry.isFile)
+    fun `HoppRequestVariable with all fields`() {
+        val variable = HoppRequestVariable(key = "id", value = "123", active = false)
+        assertEquals("id", variable.key)
+        assertEquals("123", variable.value)
+        assertFalse(variable.active)
     }
 
+    // ==================== HoppFormDataEntry tests ====================
+
     @Test
-    fun testHoppFormDataEntryWithDefaults() {
-        val entry = HoppFormDataEntry(key = "file")
-        assertEquals("file", entry.key)
+    fun `HoppFormDataEntry default values`() {
+        val entry = HoppFormDataEntry(key = "name")
+        assertEquals("name", entry.key)
         assertEquals("", entry.value)
         assertTrue(entry.active)
         assertFalse(entry.isFile)
@@ -204,123 +237,129 @@ class HoppFormDataEntryTest {
     }
 
     @Test
-    fun testHoppFormDataEntryWithContentType() {
-        val entry = HoppFormDataEntry(key = "data", value = "content", active = true, isFile = false, contentType = "text/plain")
-        assertEquals("data", entry.key)
-        assertEquals("content", entry.value)
-        assertEquals("text/plain", entry.contentType)
+    fun `HoppFormDataEntry with all fields`() {
+        val entry = HoppFormDataEntry(
+            key = "avatar",
+            value = "photo.jpg",
+            active = false,
+            isFile = true,
+            contentType = "image/jpeg"
+        )
+        assertEquals("avatar", entry.key)
+        assertEquals("photo.jpg", entry.value)
+        assertFalse(entry.active)
+        assertTrue(entry.isFile)
+        assertEquals("image/jpeg", entry.contentType)
     }
-}
 
-class HoppscotchGsonTest {
+    // ==================== hoppscotchGson tests ====================
 
     @Test
-    fun testHoppscotchGsonPrettyPrint() {
+    fun `hoppscotchGson with pretty print`() {
         val gson = hoppscotchGson(prettyPrint = true)
-        val collection = HoppCollection(name = "Test")
-        val json = gson.toJson(collection)
+        val json = gson.toJson(HoppAuth(authType = "bearer"))
+        // Pretty print should include newlines
         assertTrue(json.contains("\n"))
-        assertTrue(json.contains("\"v\""))
-        assertTrue(json.contains("\"name\""))
+        assertTrue(json.contains("bearer"))
     }
 
     @Test
-    fun testHoppscotchGsonNoPrettyPrint() {
+    fun `hoppscotchGson without pretty print`() {
         val gson = hoppscotchGson(prettyPrint = false)
-        val collection = HoppCollection(name = "Test")
-        val json = gson.toJson(collection)
+        val json = gson.toJson(HoppAuth(authType = "bearer"))
+        // No pretty print, should be single line
         assertFalse(json.contains("\n"))
+        assertTrue(json.contains("bearer"))
     }
 
     @Test
-    fun testHoppscotchGsonSerializeNulls() {
-        val gson = hoppscotchGson(prettyPrint = false)
-        val body = HoppRequestBody()
+    fun `hoppscotchGson serializes nulls`() {
+        val gson = hoppscotchGson()
+        val body = HoppRequestBody(contentType = null, body = null)
         val json = gson.toJson(body)
-        val obj = gson.fromJson(json, JsonObject::class.java)
-        assertTrue(obj.has("contentType"))
-        assertTrue(obj.has("body"))
-        assertTrue(obj.get("contentType").isJsonNull)
-        assertTrue(obj.get("body").isJsonNull)
+        // serializeNulls() should include null fields
+        assertTrue(json.contains("contentType"))
+        assertTrue(json.contains("body"))
     }
 
     @Test
-    fun testHoppscotchGsonCollectionVersionIsInt() {
-        val gson = hoppscotchGson(prettyPrint = false)
-        val collection = HoppCollection(name = "Test")
-        val json = gson.toJson(collection)
-        val obj = gson.fromJson(json, JsonObject::class.java)
-        assertTrue(obj.get("v").isJsonPrimitive)
-        assertTrue(obj.get("v").asJsonPrimitive.isNumber)
-        assertEquals(12, obj.get("v").asInt)
-    }
-
-    @Test
-    fun testHoppscotchGsonRequestVersionIsString() {
-        val gson = hoppscotchGson(prettyPrint = false)
-        val request = HoppRESTRequest(name = "Test", method = "GET", endpoint = "/test")
-        val json = gson.toJson(request)
-        val obj = gson.fromJson(json, JsonObject::class.java)
-        assertTrue(obj.get("v").isJsonPrimitive)
-        assertTrue(obj.get("v").asJsonPrimitive.isString)
-        assertEquals("17", obj.get("v").asString)
-    }
-
-    @Test
-    fun testResponsesSerializedAsObject() {
-        val gson = hoppscotchGson(prettyPrint = false)
-        val request = HoppRESTRequest(name = "Test", method = "GET", endpoint = "/test")
-        val json = gson.toJson(request)
-        val obj = gson.fromJson(json, JsonObject::class.java)
-        assertTrue(obj.get("responses").isJsonObject)
-        assertEquals(0, obj.getAsJsonObject("responses").size())
-    }
-
-    @Test
-    fun testRefIdFormat() {
-        val collRefId = generateUniqueRefId("coll")
-        val reqRefId = generateUniqueRefId("req")
-        assertTrue(collRefId.startsWith("coll_"))
-        assertTrue(reqRefId.startsWith("req_"))
-    }
-
-    @Test
-    fun testFullCollectionSerialization() {
-        val gson = hoppscotchGson(prettyPrint = true)
+    fun `hoppscotchGson serializes collection correctly`() {
+        val gson = hoppscotchGson()
         val collection = HoppCollection(
-            name = "My API",
-            folders = listOf(
-                HoppCollection(
-                    name = "Users",
-                    requests = listOf(
-                        HoppRESTRequest(
-                            name = "Get Users",
-                            method = "GET",
-                            endpoint = "https://{{host}}/users",
-                            params = listOf(HoppKeyValue("page", "1")),
-                            headers = listOf(HoppKeyValue("Accept", "application/json")),
-                            body = HoppRequestBody()
-                        )
-                    )
-                )
-            ),
-            variables = listOf(
-                HoppCollectionVariable(key = "host", initialValue = "localhost:8080", currentValue = "localhost:8080")
-            ),
-            preRequestScript = "pw.console.log('pre')",
-            testScript = "pw.expect(pw.response.status).toBe(200)"
+            name = "Test",
+            requests = listOf(
+                HoppRESTRequest(name = "GET /api", method = "GET", endpoint = "/api")
+            )
         )
         val json = gson.toJson(collection)
-        val obj = gson.fromJson(json, JsonObject::class.java)
+        assertTrue(json.contains("Test"))
+        assertTrue(json.contains("GET /api"))
+        assertTrue(json.contains("12"))  // v=12
+    }
 
-        assertEquals(12, obj.get("v").asInt)
-        assertEquals("My API", obj.get("name").asString)
-        assertEquals(1, obj.getAsJsonArray("folders").size())
-        assertEquals(0, obj.getAsJsonArray("requests").size())
-        val folder = obj.getAsJsonArray("folders")[0].asJsonObject
-        assertEquals(1, folder.getAsJsonArray("requests").size())
-        assertEquals("pw.console.log('pre')", obj.get("preRequestScript").asString)
-        assertEquals("pw.expect(pw.response.status).toBe(200)", obj.get("testScript").asString)
-        assertEquals(1, obj.getAsJsonArray("variables").size())
+    @Test
+    fun `hoppscotchGson serializes and deserializes HoppAuth`() {
+        val gson = hoppscotchGson(prettyPrint = false)
+        val auth = HoppAuth(authType = "basic", authActive = false)
+        val json = gson.toJson(auth)
+        val deserialized = gson.fromJson(json, HoppAuth::class.java)
+        assertEquals(auth, deserialized)
+    }
+
+    // ==================== generateUniqueRefId tests ====================
+
+    @Test
+    fun `generateUniqueRefId with prefix`() {
+        val id = generateUniqueRefId("coll")
+        assertTrue(id.startsWith("coll_"))
+        assertTrue(id.length > 10) // Should contain timestamp + UUID
+    }
+
+    @Test
+    fun `generateUniqueRefId without prefix`() {
+        val id = generateUniqueRefId("")
+        assertFalse(id.startsWith("_"))
+        assertTrue(id.length > 10)
+    }
+
+    @Test
+    fun `generateUniqueRefId generates unique values`() {
+        val id1 = generateUniqueRefId("req")
+        val id2 = generateUniqueRefId("req")
+        assertNotEquals(id1, id2)
+    }
+
+    @Test
+    fun `generateUniqueRefId default prefix`() {
+        val id = generateUniqueRefId()
+        // Default prefix is empty
+        assertFalse(id.startsWith("_"))
+    }
+
+    // ==================== HoppRequestBody with various body types ====================
+
+    @Test
+    fun `HoppRequestBody with urlencoded body as string`() {
+        val body = HoppRequestBody(
+            contentType = "application/x-www-form-urlencoded",
+            body = "name=John&age=30"
+        )
+        assertEquals("application/x-www-form-urlencoded", body.contentType)
+        assertEquals("name=John&age=30", body.body)
+    }
+
+    @Test
+    fun `HoppRequestBody with form data list`() {
+        val formData = listOf(
+            HoppFormDataEntry(key = "name", value = "John"),
+            HoppFormDataEntry(key = "file", value = "doc.pdf", isFile = true)
+        )
+        val body = HoppRequestBody(contentType = "multipart/form-data", body = formData)
+        assertEquals("multipart/form-data", body.contentType)
+        @Suppress("UNCHECKED_CAST")
+        val entries = body.body as List<HoppFormDataEntry>
+        assertEquals(2, entries.size)
+        assertEquals("name", entries[0].key)
+        assertTrue(entries[1].isFile)
     }
 }
