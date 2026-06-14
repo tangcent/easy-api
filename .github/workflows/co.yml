@@ -58,12 +58,12 @@ jobs:
       - name: Generate coverage report
         run: |
           ./gradlew check --stacktrace
-          ./gradlew jacocoTestReport
+          ./gradlew koverXmlReport
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: build/reports/jacoco/report.xml
+          file: build/reports/kover/xml/report.xml
           flags: unittests
           env_vars: OS
           name: codecov-umbrella

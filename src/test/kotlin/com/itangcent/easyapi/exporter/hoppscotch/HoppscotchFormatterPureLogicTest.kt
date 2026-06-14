@@ -34,12 +34,12 @@ class HoppscotchFormatterPureLogicTest {
 
     @Test
     fun `parsePath splits empty path`() {
-        assertEquals(listOf(""), HoppscotchFormatter.parsePath(""))
+        assertEquals(emptyList<String>(), HoppscotchFormatter.parsePath(""))
     }
 
     @Test
     fun `parsePath splits root path`() {
-        assertEquals(listOf(""), HoppscotchFormatter.parsePath("/"))
+        assertEquals(emptyList<String>(), HoppscotchFormatter.parsePath("/"))
     }
 
     @Test
