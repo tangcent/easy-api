@@ -25,10 +25,10 @@ class ChannelQuickActionGroup : DefaultActionGroup(), IdeaLog {
     companion object {
         const val ACTION_ID_PREFIX = "com.itangcent.easy_api.actions.channel."
         private const val GROUP_ID = "com.itangcent.idea.easy_api.actions.ChannelQuickExportGroup"
-        private val PLUGIN_ID = PluginId.getId("com.itangcent.idea.plugin.easy-yapi")
+        private val PLUGIN_ID = PluginId.getId("com.itangcent.idea.plugin.easy-api")
 
         private val CHANNEL_EP =
-            ExtensionPointName.create<ApiChannel>("com.itangcent.idea.plugin.easy-yapi.apiChannel")
+            ExtensionPointName.create<ApiChannel>("com.itangcent.idea.plugin.easy-api.apiChannel")
 
         /**
          * Registers all channel actions with [ActionManager] (with plugin ID for
