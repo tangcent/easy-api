@@ -15,7 +15,7 @@ import com.itangcent.easyapi.logging.IdeaLog
  * Each [ChannelExportAction] is registered with [ActionManager] using a stable ID
  * and the plugin's [PluginId], so IntelliJ's Keymap system can:
  * - Discover the action (stable ID)
- * - Place it under the "EasyYapi" category (plugin ID)
+ * - Place it under the "EasyApi" category (plugin ID)
  *
  * Registration is triggered eagerly via [ensureActionsRegistered] (called from
  * [ChannelActionInitActivity]) and lazily via [getChildren] as a fallback.
