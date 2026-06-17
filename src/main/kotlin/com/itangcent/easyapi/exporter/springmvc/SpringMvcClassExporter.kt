@@ -122,9 +122,10 @@ class SpringMvcClassExporter(
 
             withContext(IdeDispatchers.ReadAction) {
                 val apiName = metadataResolver.resolveApiName(method)
-                val folder = metadataResolver.resolveFolderName(method, psiClass)
                 val description = metadataResolver.resolveMethodDoc(method)
-                val classDesc = metadataResolver.resolveClassDoc(psiClass)
+                val classFolder = metadataResolver.resolveFolder(psiClass)
+                val methodFolderName = metadataResolver.resolveFolderName(method)
+                val folder = methodFolderName.takeIf { it.isNotBlank() } ?: classFolder.name
 
                 val resolvedBindings = resolveParameterBindings(resolvedMethod)
                 val params = buildParameters(resolvedBindings, resolvedMethod)
@@ -175,7 +176,7 @@ class SpringMvcClassExporter(
                         sourceClass = psiClass,
                         sourceMethod = method,
                         className = psiClass.qualifiedName ?: psiClass.name,
-                        classDescription = classDesc,
+                        classDescription = classFolder.description,
                         metadata = httpMetadata(
                             path = normalizedPath,
                             method = inferredMethod,
