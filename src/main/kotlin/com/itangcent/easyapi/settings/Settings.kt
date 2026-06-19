@@ -61,7 +61,8 @@ data class Settings(
     override var hoppscotchToken: String? = null,
     override var hoppscotchServerUrl: String? = "https://hoppscotch.io",
     override var hoppscotchBackendUrl: String? = null,
-    override var hoppscotchRefreshToken: String? = null
+    override var hoppscotchRefreshToken: String? = null,
+    override var enumFieldAutoInferEnabled: Boolean = false
 ) : ProjectSettingsSupport, ApplicationSettingsSupport {
 
     companion object {
@@ -117,6 +118,7 @@ data class Settings(
         if (hoppscotchServerUrl != other.hoppscotchServerUrl) return false
         if (hoppscotchBackendUrl != other.hoppscotchBackendUrl) return false
         if (hoppscotchRefreshToken != other.hoppscotchRefreshToken) return false
+        if (enumFieldAutoInferEnabled != other.enumFieldAutoInferEnabled) return false
 
         return true
     }
@@ -163,6 +165,7 @@ data class Settings(
         result = 31 * result + (hoppscotchServerUrl?.hashCode() ?: 0)
         result = 31 * result + (hoppscotchBackendUrl?.hashCode() ?: 0)
         result = 31 * result + (hoppscotchRefreshToken?.hashCode() ?: 0)
+        result = 31 * result + enumFieldAutoInferEnabled.hashCode()
         return result
     }
 }

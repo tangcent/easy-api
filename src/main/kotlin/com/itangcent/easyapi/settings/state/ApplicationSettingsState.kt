@@ -61,7 +61,8 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
         override var hoppscotchToken: String? = null,
         override var hoppscotchServerUrl: String? = "https://hoppscotch.io",
         override var hoppscotchBackendUrl: String? = null,
-        override var hoppscotchRefreshToken: String? = null
+        override var hoppscotchRefreshToken: String? = null,
+        override var enumFieldAutoInferEnabled: Boolean = false
     ) : ApplicationSettingsSupport {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -105,6 +106,7 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
             if (hoppscotchServerUrl != other.hoppscotchServerUrl) return false
             if (hoppscotchBackendUrl != other.hoppscotchBackendUrl) return false
             if (hoppscotchRefreshToken != other.hoppscotchRefreshToken) return false
+            if (enumFieldAutoInferEnabled != other.enumFieldAutoInferEnabled) return false
 
             return true
         }
@@ -146,6 +148,7 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
             result = 31 * result + (hoppscotchServerUrl?.hashCode() ?: 0)
             result = 31 * result + (hoppscotchBackendUrl?.hashCode() ?: 0)
             result = 31 * result + (hoppscotchRefreshToken?.hashCode() ?: 0)
+            result = 31 * result + enumFieldAutoInferEnabled.hashCode()
             return result
         }
     }

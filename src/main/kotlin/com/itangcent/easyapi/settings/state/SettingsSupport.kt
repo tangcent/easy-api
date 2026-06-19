@@ -73,6 +73,16 @@ interface ApplicationSettingsSupport {
     var hoppscotchServerUrl: String?
     var hoppscotchBackendUrl: String?
     var hoppscotchRefreshToken: String?
+    /**
+     * When true, auto-infer the enum value field for ambiguous references
+     * (e.g. `@see XxxEnum` without a specific field, or enum-typed fields
+     * with a single instance field). When false, always fall back to the
+     * enum constant name.
+     *
+     * Explicit references (`@see Xxx#code`, `@JsonValue`, `enum.use.custom`)
+     * are always resolved regardless of this setting.
+     */
+    var enumFieldAutoInferEnabled: Boolean
 
     fun copyTo(newSetting: ApplicationSettingsSupport) {
         newSetting.postmanToken = this.postmanToken
@@ -111,6 +121,7 @@ interface ApplicationSettingsSupport {
         newSetting.hoppscotchServerUrl = this.hoppscotchServerUrl
         newSetting.hoppscotchBackendUrl = this.hoppscotchBackendUrl
         newSetting.hoppscotchRefreshToken = this.hoppscotchRefreshToken
+        newSetting.enumFieldAutoInferEnabled = this.enumFieldAutoInferEnabled
     }
 }
 

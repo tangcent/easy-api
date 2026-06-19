@@ -723,6 +723,13 @@ class IntelligentSettingsPanel : SettingsPanel {
         toolTipText = "Use RFC 6570 URI template syntax for path variables in exported URLs (e.g., /users/{id})"
     }
     private val pathMultiCombo = ComboBox(PathSelector.values().map { it.name }.toTypedArray())
+    private val enumFieldAutoInferEnabled = JBCheckBox("Auto-infer enum value field for ambiguous references", false).apply {
+        toolTipText = buildString {
+            append("When enabled, auto-infer the enum value field for ambiguous references: ")
+            append("enum-typed fields with a single instance field, or @see references without a specific field. ")
+            append("Explicit references (@see Enum#field, @JsonValue, enum.use.custom) always work regardless of this setting.")
+        }
+    }
 
     override val component: JComponent = FormBuilder.createFormBuilder()
         .addComponent(queryExpanded)
@@ -730,6 +737,7 @@ class IntelligentSettingsPanel : SettingsPanel {
         .addComponent(inferReturnMain)
         .addComponent(enableUrlTemplating)
         .addLabeledComponent("Path multi-select strategy:", pathMultiCombo)
+        .addComponent(enumFieldAutoInferEnabled)
         .addComponentFillVertically(JPanel(), 0)
         .panel
 
@@ -739,6 +747,7 @@ class IntelligentSettingsPanel : SettingsPanel {
         inferReturnMain.isSelected = settings?.inferReturnMain ?: true
         enableUrlTemplating.isSelected = settings?.enableUrlTemplating ?: true
         pathMultiCombo.selectedItem = settings?.pathMulti ?: "ALL"
+        enumFieldAutoInferEnabled.isSelected = settings?.enumFieldAutoInferEnabled ?: false
     }
 
     override fun applyTo(settings: Settings) {
@@ -747,6 +756,7 @@ class IntelligentSettingsPanel : SettingsPanel {
         settings.inferReturnMain = inferReturnMain.isSelected
         settings.enableUrlTemplating = enableUrlTemplating.isSelected
         settings.pathMulti = pathMultiCombo.selectedItem?.toString() ?: "ALL"
+        settings.enumFieldAutoInferEnabled = enumFieldAutoInferEnabled.isSelected
     }
 
     override fun isModified(settings: Settings?): Boolean {
@@ -755,7 +765,8 @@ class IntelligentSettingsPanel : SettingsPanel {
                 formExpanded.isSelected != s.formExpanded ||
                 inferReturnMain.isSelected != s.inferReturnMain ||
                 enableUrlTemplating.isSelected != s.enableUrlTemplating ||
-                pathMultiCombo.selectedItem?.toString() != s.pathMulti
+                pathMultiCombo.selectedItem?.toString() != s.pathMulti ||
+                enumFieldAutoInferEnabled.isSelected != s.enumFieldAutoInferEnabled
     }
 }
 

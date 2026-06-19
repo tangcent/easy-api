@@ -78,7 +78,8 @@ object ExtensionConfigRegistry : IdeaLog {
                         "field-utils", "fastjson", "enum-use-name", "enum-use-ordinal",
                         "field-order-alphabetically", "field-order-alphabetically-desc",
                         "field-order-child-first", "field-order-parent-first",
-                        "jakarta-validation-strict", "javax-validation-strict"
+                        "jakarta-validation-strict", "javax-validation-strict",
+                        "mybatis-plus"
                     )
                     for (extName in knownExtensions) {
                         loader.getResourceAsStream("$EXTENSIONS_DIR/$extName.config")?.use { stream ->
