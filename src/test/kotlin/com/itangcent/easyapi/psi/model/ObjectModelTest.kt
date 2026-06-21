@@ -169,7 +169,7 @@ class ObjectModelTest {
      * Tests that flattenFields handles circular object references without
      * producing an excessively large result.
      *
-     * This simulates the scenario from https://github.com/tangcent/easy-yapi/issues/1325
+     * This simulates the scenario from https://github.com/tangcent/easy-api/issues/1325
      * where a DTO has a field referencing itself (e.g., parentChannel: ChannelDTO).
      * The cache in DefaultPsiClassHelper can produce ObjectModel instances with
      * actual circular references (same Object instance in the tree).
