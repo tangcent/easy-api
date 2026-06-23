@@ -20,6 +20,36 @@ EasyApi is an IntelliJ IDEA plugin (v3.0 rewrite) for API development — export
 3. **Type Safety** — Use sealed classes for type hierarchies, data classes for DTOs
 4. **Dependency Injection** — Use IntelliJ `@Service` for singletons, `OperationScope` for per-operation objects
 
+## Class Types
+
+### Project Service
+
+Project-level services scoped to a specific IntelliJ project. The primary service pattern in this codebase.
+
+```kotlin
+@Service(Service.Level.PROJECT)
+class MyProjectService(private val project: Project) {
+
+    companion object {
+        fun getInstance(project: Project): MyProjectService = project.service()
+    }
+}
+```
+
+**Examples:** [ApiScanner](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/dashboard/ApiScanner.kt), [ApiDashboardService](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/dashboard/ApiDashboardService.kt), [IdeaConsoleProvider](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/logging/IdeaConsoleProvider.kt), [PostmanCollectionHelper](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/exporter/postman/PostmanCollectionHelper.kt), [HttpClientProvider](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/http/HttpClientProvider.kt)
+
+### Object Helper/Utils
+
+Static utility `object`s providing stateless helper functions.
+
+```kotlin
+object MyHelperUtils {
+    fun process(input: String): Result { /* pure computation */ }
+}
+```
+
+**Examples:** [SpringMvcConstants](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/exporter/springmvc/SpringMvcConstants.kt), [MavenHelper](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/util/ide/MavenHelper.kt), [ObjectModelUtils](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/psi/model/ObjectModelUtils.kt)
+
 ## Code Style
 
 - Follow Kotlin coding conventions
@@ -27,6 +57,159 @@ EasyApi is an IntelliJ IDEA plugin (v3.0 rewrite) for API development — export
 - Keep functions small and focused
 - Add KDoc comments for public APIs
 - Prefer expression bodies for simple functions
+
+## Threading Model
+
+All PSI/VFS operations must follow IntelliJ's threading rules. Use [IdeDispatchers](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/core/threading/IdeDispatchers.kt).
+
+### Dispatchers
+
+| Dispatcher | Purpose |
+|-----------|---------|
+| `IdeDispatchers.ReadAction` | PSI/VFS read operations |
+| `IdeDispatchers.WriteAction` | PSI/VFS write operations |
+| `IdeDispatchers.Swing` | UI operations on EDT (non-modal) |
+| `IdeDispatchers.Background` | General background work (network, CPU) |
+
+### Convenience functions
+
+```kotlin
+// Suspend (switch context when needed)
+suspend fun <T> read(block: suspend () -> T): T      // read action
+suspend fun <T> write(block: suspend () -> T): T     // write action
+suspend fun <T> swing(block: suspend () -> T): T     // EDT
+suspend fun <T> background(block: suspend () -> T): T // background
+
+// Sync (non-suspending)
+fun <T> readSync(block: () -> T): T
+fun <T> writeSync(block: () -> T): T
+fun <T> swingSync(block: () -> T): T
+
+// Fire-and-forget
+fun backgroundAsync(block: suspend () -> Unit)
+```
+
+### Thread safety checks
+
+```kotlin
+IdeDispatchers.isReadAccessAllowed   // on read thread
+IdeDispatchers.isWriteAccessAllowed  // on write thread
+IdeDispatchers.isDispatchThread      // on EDT
+```
+
+### IntelliJ context propagation warning
+
+IntelliJ wraps tasks submitted to managed executors (including `Dispatchers.Default`) with `ContextRunnable`, propagating EDT/write-intent markers across thread boundaries. **Use `IdeDispatchers.Background`** (or `actionContext.runAsync` / `backgroundAsync`) when launching from `StartupActivity` or `DumbService.runWhenSmart`, to avoid "slow operations on EDT" violations.
+
+```kotlin
+// Bad: inherits EDT context
+launch(Dispatchers.Default) { /* work */ }
+
+// Good: clean background context
+backgroundAsync { /* work */ }
+```
+
+### Document threading requirements
+
+Annotate functions with `@requires` in KDoc when they perform PSI/VFS read, PSI/VFS write, UI updates, or heavy computation:
+
+```kotlin
+/** @requires ReadAction context */
+suspend fun getDocumentation(psiClass: PsiClass): String?
+
+/** @requires WriteAction context */
+suspend fun createClassFile(packageName: String, className: String): PsiClass
+```
+
+## Logging
+
+The plugin has three output channels. **Pick one** by the first-match-wins rule below. `IdeaConsole.warn/error` and `NotificationUtils.notifyWarning/notifyError` mirror to `idea.log` automatically — so **never** pair `console.error` with `LOG.error`, nor `notifyError` with `LOG.error`. One call per event.
+
+### Channel selection (first match wins)
+
+1. **`NotificationUtils`** — terminal outcome of a user-initiated operation the user must see right now (export success/failure, blocking precondition). Use `notifyInfo` / `notifyWarning` / `notifyError` / `notifyInfoWithLinks`. Never for intermediate progress or per-item batch failures.
+2. **`IdeaConsole`** (`IdeaConsoleProvider.getInstance(project).getConsole()`) — what the plugin is doing/decided during a user-facing operation, per-item batch failures, user-fixable conditions. Levels: `info` (milestones), `warn`/`error` (recoverable/unrecoverable failures), `debug` (per-iteration detail, entry-point tracing), `trace` (fine-grained state).
+3. **`IdeaLog`** (`LOG` via `IdeaLog` interface) — developer-facing diagnostic detail, or code running with no `Project` context (startup, background indexing). Always pass the throwable as the last arg.
+
+### Placement rules (where logs MUST exist)
+
+- **Entry points** (Actions): `console.debug` on entry (action + selection); `console.error` + `NotificationUtils.notifyError` on failure; `console.info` + balloon on exit.
+- **External I/O** (network/file): log target + throwable on failure before returning a failure result. Never swallow.
+- **Error handling**: no silent `runCatching{}.getOrNull()` on a meaningful operation — add `.onFailure { …log with throwable… }`. No empty `catch` blocks — at minimum `LOG.debug` the suppressed throwable.
+- **Config & rules**: log load attempts (source + outcome), rule evaluation results, parse errors with location.
+- **Decisions**: log endpoint/field skips at `debug` (or `info` for whole-endpoint skips) with the reason.
+
+### Anti-patterns (forbidden in production code)
+
+- `LOG.error(...)` — IntelliJ treats `Logger.error` as a test failure and pops an error dialog to the user. Use `LOG.warn(msg, t)` (or `LOG.info(msg, t)` for the console/notification mirror, which already does this) instead.
+- `println(...)` / `printStackTrace()`.
+- Direct `Notifications.Bus.notify` / `NotificationGroupManager` outside `NotificationUtils`.
+- `runCatching{}.getOrNull()` / empty `catch` without a log on a meaningful operation.
+- Stringifying the throwable into the message — always pass it as the last arg.
+
+### IdeaLog interface
+
+Implement `IdeaLog` to get a `LOG` property; do **not** call `Logger.getLogger()` directly.
+
+```kotlin
+class MyService : IdeaLog {
+    fun doSomething() {
+        LOG.info("Processing started")
+        LOG.warn("Unexpected condition", exception)
+    }
+}
+```
+
+## User Interaction
+
+### Messages — simple blocking dialogs
+
+Use `com.intellij.openapi.ui.Messages` for simple input, selection, and confirmation dialogs.
+
+```kotlin
+Messages.showInfoMessage(project, "Operation completed", "Success")
+Messages.showErrorDialog(project, "Failed to export: ${error.message}", "Export Error")
+Messages.showWarningDialog("Please enter a valid token", "Invalid Input")
+
+val input = Messages.showInputDialog(project, "Enter URL", "Remote Config", Messages.getInformationIcon())
+
+val selected = Messages.showChooseDialog(
+    project, "Select format", "Export Format",
+    Messages.getQuestionIcon(), arrayOf("Markdown", "Postman", "cURL"), "Markdown"
+)
+
+val choice = Messages.showYesNoCancelDialog("Overwrite?", "Confirm", Messages.getQuestionIcon())
+```
+
+**Example:** [DefaultHttpContextCacheHelper](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/cache/http/DefaultHttpContextCacheHelper.kt) — host selection dialog.
+
+### DialogWrapper — complex multi-field dialogs
+
+Extend `DialogWrapper` for multi-field forms and custom layouts.
+
+```kotlin
+class MyConfigDialog(private val project: Project) : DialogWrapper(project) {
+    private val nameField = JBTextField()
+
+    init {
+        title = "Configure Export"
+        init()
+    }
+
+    override fun createCenterPanel(): JComponent = JPanel().apply {
+        add(JBLabel("Name:")); add(nameField)
+    }
+
+    override fun doOKAction() {
+        if (nameField.text.isBlank()) {
+            Messages.showWarningDialog("Name is required", "Validation Error"); return
+        }
+        super.doOKAction()
+    }
+}
+```
+
+**Examples:** [ExportDialog](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/ide/dialog/ExportDialog.kt), [ScriptExecutorDialog](file:///Users/tangcent/code/github/easy-api/src/main/kotlin/com/itangcent/easyapi/ide/script/ScriptExecutorDialog.kt)
 
 ## Project Structure
 
@@ -46,10 +229,11 @@ src/main/kotlin/com/itangcent/easyapi/
 
 ## Testing
 
-- Write unit tests for new functionality
-- Use `EasyApiLightCodeInsightFixtureTestCase` for PSI/Project-aware tests
-- Use `mockito-kotlin` for mocking
-- Aim for good test coverage
+Tests use JUnit 4 + Mockito/Mockito-Kotlin + the IntelliJ Platform Test Framework. **Always invoke the `write-test-case` skill before writing tests** — it guides test-pattern selection (simple unit, IDE fixture, ResultLoader, action mock, parity test) based on the target class. The brief notes below are only a reminder; the skill is the authoritative guide.
+
+- Run tests: `./gradlew test`
+- Base classes: `EasyApiLightCodeInsightFixtureTestCase` (PSI/Project-aware), plain JUnit for pure utilities
+- Mocking: `mockito-kotlin`
 
 ## Skills
 
