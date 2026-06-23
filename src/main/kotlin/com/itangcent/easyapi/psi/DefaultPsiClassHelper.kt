@@ -269,7 +269,8 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
                 runCatching {
                     JavaPsiFacade.getInstance(project).elementFactory
                         .createTypeFromText(elementText, contextElement)
-                }.getOrNull()
+                }.onFailure { LOG.warn("DefaultPsiClassHelper: failed to create PsiType from text '$elementText'", it) }
+                    .getOrNull()
             }
             if (psiType != null) {
                 val resolved = readSync { TypeResolver.resolve(psiType, genericContext) }
@@ -394,7 +395,9 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
             val fieldAdvancedStr =
                 engine.evaluate(RuleKeys.FIELD_ADVANCED, accessibleField.psi, fieldContext = fieldPath)
             val fieldAdvanced = if (!fieldAdvancedStr.isNullOrBlank()) {
-                runCatching { GsonUtils.fromJson<Map<String, Any?>>(fieldAdvancedStr) }.getOrNull()
+                runCatching { GsonUtils.fromJson<Map<String, Any?>>(fieldAdvancedStr) }
+                    .onFailure { LOG.warn("DefaultPsiClassHelper: failed to parse field_advanced JSON: '$fieldAdvancedStr'", it) }
+                    .getOrNull()
             } else null
 
             val fieldComment = if (JsonOption.has(option, JsonOption.READ_COMMENT)) {
@@ -469,7 +472,8 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
                             fields[addFieldName] = addFieldModel
                         }
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    LOG.warn("DefaultPsiClassHelper: failed to parse additional field line '$trimmed'", e)
                 }
             }
         }
