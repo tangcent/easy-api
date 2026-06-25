@@ -123,7 +123,7 @@ suspend fun createClassFile(packageName: String, className: String): PsiClass
 
 ## Logging
 
-The plugin has three output channels. **Pick one** by the first-match-wins rule below. `IdeaConsole.warn/error` and `NotificationUtils.notifyWarning/notifyError` mirror to `idea.log` automatically — so **never** pair `console.error` with `LOG.error`, nor `notifyError` with `LOG.error`. One call per event.
+The plugin has three output channels. **Pick one** by the first-match-wins rule below. `IdeaConsole.warn/error` and `NotificationUtils.notifyWarning/notifyError` mirror to `idea.log` automatically — so **never** pair `console.error` with `LOG.error`, nor `notifyError` with `LOG.error`. One call per event. The console is **off by default** (`logLevel=SILENT`); `console.warn`/`console.error` still mirror to `idea.log`, the rest are no-ops until the user lowers the log level.
 
 ### Channel selection (first match wins)
 
