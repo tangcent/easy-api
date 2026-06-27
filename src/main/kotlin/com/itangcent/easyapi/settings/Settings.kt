@@ -1,5 +1,6 @@
 package com.itangcent.easyapi.settings
 
+import com.itangcent.easyapi.ai.AiProvider
 import com.itangcent.easyapi.extension.ExtensionConfigRegistry
 import com.itangcent.easyapi.settings.state.ApplicationSettingsSupport
 import com.itangcent.easyapi.settings.state.ProjectSettingsSupport
@@ -62,7 +63,15 @@ data class Settings(
     override var hoppscotchServerUrl: String? = "https://hoppscotch.io",
     override var hoppscotchBackendUrl: String? = null,
     override var hoppscotchRefreshToken: String? = null,
-    override var enumFieldAutoInferEnabled: Boolean = false
+    override var enumFieldAutoInferEnabled: Boolean = false,
+    override var disabledGlobalRuleFiles: Array<String> = emptyArray(),
+    override var aiProvider: String = "OPENAI",
+    override var aiBaseUrl: String = "",
+    override var aiModel: String = "",
+    override var aiRequestTimeoutSec: Int = 60,
+    override var aiMaxRequests: Int = 100,
+    override var aiContextWindow: Int = AiProvider.DEFAULT_CONTEXT_WINDOW,
+    override var disabledAutoRuleFiles: Array<String> = emptyArray()
 ) : ProjectSettingsSupport, ApplicationSettingsSupport {
 
     companion object {
@@ -119,6 +128,14 @@ data class Settings(
         if (hoppscotchBackendUrl != other.hoppscotchBackendUrl) return false
         if (hoppscotchRefreshToken != other.hoppscotchRefreshToken) return false
         if (enumFieldAutoInferEnabled != other.enumFieldAutoInferEnabled) return false
+        if (!disabledGlobalRuleFiles.contentEquals(other.disabledGlobalRuleFiles)) return false
+        if (aiProvider != other.aiProvider) return false
+        if (aiBaseUrl != other.aiBaseUrl) return false
+        if (aiModel != other.aiModel) return false
+        if (aiRequestTimeoutSec != other.aiRequestTimeoutSec) return false
+        if (aiMaxRequests != other.aiMaxRequests) return false
+        if (aiContextWindow != other.aiContextWindow) return false
+        if (!disabledAutoRuleFiles.contentEquals(other.disabledAutoRuleFiles)) return false
 
         return true
     }
@@ -166,6 +183,14 @@ data class Settings(
         result = 31 * result + (hoppscotchBackendUrl?.hashCode() ?: 0)
         result = 31 * result + (hoppscotchRefreshToken?.hashCode() ?: 0)
         result = 31 * result + enumFieldAutoInferEnabled.hashCode()
+        result = 31 * result + disabledGlobalRuleFiles.contentHashCode()
+        result = 31 * result + aiProvider.hashCode()
+        result = 31 * result + aiBaseUrl.hashCode()
+        result = 31 * result + aiModel.hashCode()
+    result = 31 * result + aiRequestTimeoutSec
+    result = 31 * result + aiMaxRequests
+    result = 31 * result + aiContextWindow
+    result = 31 * result + disabledAutoRuleFiles.contentHashCode()
         return result
     }
 }

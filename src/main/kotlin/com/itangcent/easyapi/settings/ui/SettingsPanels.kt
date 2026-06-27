@@ -3,16 +3,29 @@ package com.itangcent.easyapi.settings.ui
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
+import com.intellij.icons.AllIcons
 import com.intellij.ui.CheckBoxList
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.*
 import com.intellij.ui.table.TableView
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.FormBuilder
+import com.intellij.ui.JBIntSpinner
 import com.intellij.util.ui.ListTableModel
 import com.intellij.util.ui.UIUtil
+import com.itangcent.easyapi.ai.AiApiKeyStore
+import com.itangcent.easyapi.ai.AIService
+import com.itangcent.easyapi.ai.AIServiceFactory
+import com.itangcent.easyapi.ai.AiProvider
+import com.itangcent.easyapi.ai.AiSettings
+import com.itangcent.easyapi.ai.TokenSizeUtils
+import com.itangcent.easyapi.ai.credentials.CredentialScanner
+import com.itangcent.easyapi.ai.credentials.DefaultCredentialScanner
+import com.itangcent.easyapi.ai.credentials.DetectionResult
 import com.itangcent.easyapi.cache.AppCacheRepository
 import com.itangcent.easyapi.cache.ProjectCacheRepository
+import com.itangcent.easyapi.core.threading.backgroundAsync
+import com.itangcent.easyapi.core.threading.swingAsync
 import com.itangcent.easyapi.exporter.postman.PostmanApiClient
 import com.itangcent.easyapi.exporter.postman.Workspace
 import com.itangcent.easyapi.exporter.postman.asCached
@@ -24,6 +37,7 @@ import com.itangcent.easyapi.http.ApacheHttpClient
 import com.itangcent.easyapi.extension.ExtensionConfigRegistry
 import com.itangcent.easyapi.logging.IdeaLog
 import com.itangcent.easyapi.util.json.GsonUtils
+import com.itangcent.easyapi.util.text.ByteSizeUtil
 import com.itangcent.easyapi.settings.HttpClientType
 import com.itangcent.easyapi.settings.MarkdownFormatType
 import com.itangcent.easyapi.settings.PostmanExportMode
@@ -37,31 +51,31 @@ import kotlin.concurrent.thread
 
 /**
  * Interface for settings UI panels.
- * 
+ *
  * Provides a contract for panels that display and edit plugin settings.
  * Each panel handles a specific category of settings.
  */
 interface SettingsPanel {
     /** The UI component for this panel */
     val component: JComponent
-    
+
     /**
      * Resets the panel UI to reflect the given settings.
-     * 
+     *
      * @param settings The settings to display
      */
     fun resetFrom(settings: Settings?)
-    
+
     /**
      * Applies the panel UI values to the given settings.
-     * 
+     *
      * @param settings The settings to modify
      */
     fun applyTo(settings: Settings)
-    
+
     /**
      * Checks if the panel has unsaved changes.
-     * 
+     *
      * @param settings The current settings
      * @return true if the panel has modifications
      */
@@ -70,7 +84,7 @@ interface SettingsPanel {
 
 /**
  * General settings panel for basic plugin configuration.
- * 
+ *
  * Provides UI for:
  * - Framework support toggles (Feign, JAX-RS, Actuator)
  * - Logging level selection
@@ -95,7 +109,8 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
         toolTipText = "Use multiple threads for API scanning (may improve performance but is experimental)"
     }
     private val gutterIconEnabled = JBCheckBox("Show gutter icon on API methods", true).apply {
-        toolTipText = "Show a gutter icon on API methods for quick navigation to the API Dashboard. Disable if it conflicts with other plugins."
+        toolTipText =
+            "Show a gutter icon on API methods for quick navigation to the API Dashboard. Disable if it conflicts with other plugins."
     }
     private val switchNotice = JBCheckBox("Show notification on settings switch", true).apply {
         toolTipText = "Show a notification when switching between different setting profiles"
@@ -197,23 +212,11 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
             SwingUtilities.invokeLater {
                 projectCacheSizeLabel.text = when {
                     projectSize < 0 -> "N/A"
-                    else -> formatFileSize(projectSize)
+                    else -> ByteSizeUtil.format(projectSize)
                 }
                 projectCacheSizeLabel.toolTipText = null
-                globalCacheSizeLabel.text = if (globalSize < 0) "N/A" else formatFileSize(globalSize)
+                globalCacheSizeLabel.text = if (globalSize < 0) "N/A" else ByteSizeUtil.format(globalSize)
             }
-        }
-    }
-
-    /**
-     * Formats a file size in bytes to human-readable format.
-     */
-    private fun formatFileSize(size: Long): String {
-        return when {
-            size < 1024 -> "$size B"
-            size < 1024 * 1024 -> String.format("%.1f KB", size / 1024.0)
-            size < 1024 * 1024 * 1024 -> String.format("%.1f MB", size / (1024.0 * 1024.0))
-            else -> String.format("%.1f GB", size / (1024.0 * 1024.0 * 1024.0))
         }
     }
 
@@ -724,13 +727,14 @@ class IntelligentSettingsPanel : SettingsPanel {
         toolTipText = "Use RFC 6570 URI template syntax for path variables in exported URLs (e.g., /users/{id})"
     }
     private val pathMultiCombo = ComboBox(PathSelector.values().map { it.name }.toTypedArray())
-    private val enumFieldAutoInferEnabled = JBCheckBox("Auto-infer enum value field for ambiguous references", false).apply {
-        toolTipText = buildString {
-            append("When enabled, auto-infer the enum value field for ambiguous references: ")
-            append("enum-typed fields with a single instance field, or @see references without a specific field. ")
-            append("Explicit references (@see Enum#field, @JsonValue, enum.use.custom) always work regardless of this setting.")
+    private val enumFieldAutoInferEnabled =
+        JBCheckBox("Auto-infer enum value field for ambiguous references", false).apply {
+            toolTipText = buildString {
+                append("When enabled, auto-infer the enum value field for ambiguous references: ")
+                append("enum-typed fields with a single instance field, or @see references without a specific field. ")
+                append("Explicit references (@see Enum#field, @JsonValue, enum.use.custom) always work regardless of this setting.")
+            }
         }
-    }
 
     override val component: JComponent = FormBuilder.createFormBuilder()
         .addComponent(queryExpanded)
@@ -936,7 +940,8 @@ class RemoteConfigPanel : SettingsPanel {
         preview.putClientProperty("url", target)
         preview.text = "Loading..."
         thread {
-            val content = runCatching { java.net.URI(target).toURL().readText() }.getOrElse { "Load failed: ${it.message}" }
+            val content =
+                runCatching { java.net.URI(target).toURL().readText() }.getOrElse { "Load failed: ${it.message}" }
             SwingUtilities.invokeLater {
                 if (list.selectedIndex == index) {
                     preview.text = content
@@ -946,33 +951,592 @@ class RemoteConfigPanel : SettingsPanel {
     }
 }
 
-class BuiltInConfigPanel : SettingsPanel {
-    private val editor = JBTextArea()
-    override val component: JComponent = JPanel(BorderLayout()).apply {
-        add(JScrollPane(editor), BorderLayout.CENTER)
+/**
+ * AI Assistant configuration section embedded in the Other tab.
+ *
+ * Form fields:
+ * - Provider combo (pre-fills base URL + model on change if user hasn't edited)
+ * - Base URL, API Key (PasswordSafe), Model
+ * - Request Timeout, Max Requests spinners
+ * - "Test Connection" button — builds `AiSettings` from
+ * on-screen fields, calls `AIServiceFactory.create(settings).testConnection()`
+ * on `backgroundAsync`, surfaces result via `NotificationUtils`)
+ *
+ * The API key round-trips through [PasswordSafe] directly, not through
+ * [Settings]. All other fields are backed by [Settings] and tracked via
+ * [resetFrom]/[applyTo]/[isModified].
+ */
+class AiAssistantSection : SettingsPanel {
+
+    private val providerCombo = ComboBox(AiProvider.values().map { it.displayName }.toTypedArray()).apply {
+        toolTipText =
+            "Pick your LLM provider. Use 'Custom (OpenAI-compatible)' for a LiteLLM proxy, LM Studio, or vLLM."
+    }
+    private val baseUrlField = JBTextField().apply {
+        columns = 28
+        toolTipText = "API base URL — auto-filled from the provider; editable."
+    }
+    private val apiKeyField = JBPasswordField().apply {
+        columns = 28
+        toolTipText =
+            "Stored securely in PasswordSafe; never written to settings XML. Optional for providers that don't require a key."
     }
 
+    /**
+     * Default masking character for [apiKeyField], captured once so the eye
+     * toggle can restore it after revealing (the LaF's echo char, not a
+     * hard-coded bullet).
+     */
+    private val apiKeyEchoChar: Char = apiKeyField.echoChar
+
+    /**
+     * Toggle that reveals [apiKeyField]'s value by clearing its echo char, and
+     * re-masks by restoring it. Holding the key visible is a deliberate user
+     * action; the default is masked.
+     */
+    private val revealApiKeyButton: JButton = JButton().apply {
+        icon = AllIcons.Actions.Preview
+        toolTipText = "Show API key"
+        isFocusable = false
+        margin = Insets(0, 2, 0, 2)
+        addActionListener {
+            val revealed = apiKeyField.echoChar == 0.toChar()
+            if (revealed) {
+                apiKeyField.echoChar = apiKeyEchoChar
+                icon = AllIcons.Actions.Preview
+                toolTipText = "Show API key"
+            } else {
+                apiKeyField.echoChar = 0.toChar()
+                icon = AllIcons.Actions.PreviewDetails
+                toolTipText = "Hide API key"
+            }
+        }
+    }
+    private val modelField = JBTextField().apply {
+        columns = 22
+        toolTipText = "Model name — auto-filled from the provider; editable."
+    }
+    private val timeoutSpinner = JBIntSpinner(60, 5, 300).apply {
+        toolTipText = "LLM request timeout in seconds (default 60)."
+    }
+    private val maxAgentStepsSpinner = JBIntSpinner(100, 1, 1000).apply {
+        toolTipText =
+            "The maximum number of requests to allow per-turn when using an agent. When the limit is reached, will ask to confirm to continue."
+    }
+
+    /**
+     * Dropdown option for the Context Window combo. [tokens] is the stored
+     * value; [label] is shown in the UI. The presets themselves live in
+     * [TokenSizeUtils].
+     */
+    data class ContextWindowOption(val tokens: Int, val label: String) {
+        override fun toString(): String = label
+    }
+
+    private val contextWindowOptions: Array<ContextWindowOption> =
+        TokenSizeUtils.presets
+            .map { label -> ContextWindowOption(TokenSizeUtils.parse(label), label) }
+            .toTypedArray()
+
+    private val contextWindowCombo = ComboBox(contextWindowOptions).apply {
+        isEditable = true
+        toolTipText =
+            "Model context window in tokens. Used to derive how much conversation history the agent keeps."
+    }
+    private val testConnectionButton = JButton("Test Connection").apply {
+        toolTipText = "Send a tiny request to verify the provider, key, and model."
+    }
+    private val autoDetectButton = JButton("Auto-detect").apply {
+        toolTipText = "Scan env vars, CLI tool configs, and local servers for AI credentials."
+    }
+
+    /**
+     * Inline status label. The Settings dialog is
+     * modal, so `NotificationUtils` balloons are suppressed — Test Connection /
+     * Auto-detect feedback is shown here instead.
+     */
+    private val statusLabel = JBLabel(" ").apply {
+        foreground = UIUtil.getContextHelpForeground()
+    }
+
+    private var userEditedBaseUrl = false
+    private var userEditedModel = false
+    private var userEditedApiKey = false
+
+    /**
+     * When true, the user manually changed the Context Window spinner, so
+     * provider-switch auto-fill no longer touches it. Reset to false in
+     * `resetFrom` after the spinner is programmatically set.
+     */
+    private var userEditedContextWindow = false
+
+    /**
+     * When true, document listeners on baseUrl/model/apiKey fields are
+     * suppressed so programmatic updates (e.g. `preFillFromHit`,
+     * `resetFrom`) don't mark the field as user-edited.
+     */
+    private var suppressUserEditedListeners = false
+
+    override val component: JComponent = FormBuilder.createFormBuilder()
+        .addComponent(
+            createTitledPanel(
+                "AI Assistant", listOf(
+            compactRow("Provider:", providerCombo),
+            compactRow("Base URL:", baseUrlField),
+            compactRow("API Key:", apiKeyField, revealApiKeyButton),
+            compactRow("Model:", modelField),
+            compactRow("Request Timeout (sec):", timeoutSpinner),
+            compactRow("Max Requests:", maxAgentStepsSpinner),
+            compactRow("Context Window:", contextWindowCombo),
+            JPanel(FlowLayout(FlowLayout.LEFT, 6, 2)).apply {
+                add(testConnectionButton)
+                add(autoDetectButton)
+            },
+            JPanel(FlowLayout(FlowLayout.LEFT, 6, 2)).apply { add(statusLabel) }
+        )))
+        .panel
+
+    init {
+        testConnectionButton.addActionListener { onTestConnectionClicked() }
+
+        providerCombo.addActionListener {
+            val provider = currentProvider()
+            preFillProviderDefaults(provider)
+            updateContextWindowTooltip(provider)
+        }
+
+        baseUrlField.document.addDocumentListener(simpleDocListener {
+            if (!suppressUserEditedListeners) userEditedBaseUrl = true
+        })
+        modelField.document.addDocumentListener(simpleDocListener {
+            if (!suppressUserEditedListeners) userEditedModel = true
+        })
+        apiKeyField.document.addDocumentListener(simpleDocListener {
+            if (!suppressUserEditedListeners) userEditedApiKey = true
+        })
+        contextWindowCombo.addActionListener {
+            if (!suppressUserEditedListeners) {
+                userEditedContextWindow = true
+            }
+        }
+        // Also mark as edited when the user types a custom value in the editor.
+        (contextWindowCombo.editor.editorComponent as? JTextField)?.document?.addDocumentListener(
+            simpleDocListener { if (!suppressUserEditedListeners) userEditedContextWindow = true }
+        )
+
+        autoDetectButton.addActionListener { onAutoDetectClicked() }
+    }
+
+    /**
+     * Reflects the provider's default context window in the combo tooltip so a
+     * user who hasn't touched the field can see the provider's typical value.
+     */
+    private fun updateContextWindowTooltip(provider: AiProvider) {
+        val eff = provider.contextWindow
+        contextWindowCombo.toolTipText =
+            "Model context window in tokens. ${provider.displayName} default is $eff. " +
+                    "Used to derive how much conversation history the agent keeps."
+    }
+
+    /**
+     * Pre-fills base URL, model, and context window from the [provider]'s
+     * defaults — but only for fields the user hasn't manually edited. A real
+     * custom edit is sticky and survives provider switches; programmatic fills
+     * (here, or from `reset`/auto-detect) don't count as edits.
+     *
+     * Edit-tracking is suppressed around the writes so the fields' own document
+     * listeners don't latch `userEdited*` to `true` on a provider switch — that
+     * would otherwise make the pre-fill stick only on the *first* switch.
+     *
+     * The API key is always cleared on switch: a key is specific to a provider,
+     * so reusing it against a different one would just produce a 401. The user
+     * can re-enter it (or use Auto-detect). Recovery: cancelling the dialog
+     * abandons the clear, since PasswordSafe is only written on Apply.
+     */
+    private fun preFillProviderDefaults(provider: AiProvider) {
+        val previous = suppressUserEditedListeners
+        suppressUserEditedListeners = true
+        try {
+            if (!userEditedBaseUrl) {
+                baseUrlField.text = provider.defaultBaseUrl ?: ""
+            }
+            if (!userEditedModel) {
+                modelField.text = provider.defaultModel ?: ""
+            }
+            // Auto-set the context window to the provider's default when the
+            // user hasn't manually edited it. This makes the effective token
+            // budget visible in the UI.
+            if (!userEditedContextWindow) {
+                setContextWindowValue(provider.contextWindow)
+            }
+            // Always clear: a key is provider-specific. Latching userEditedApiKey
+            // would freeze it empty, so we DON'T set that flag here — the field's
+            // own listener does, but only on a real keystroke (the empty string
+            // write is suppressed above).
+            apiKeyField.text = ""
+        } finally {
+            suppressUserEditedListeners = previous
+        }
+    }
+
+    /**
+     * Sets the context window combo to [tokens]. If [tokens] matches a preset,
+     * the preset is selected; otherwise the raw number is placed in the
+     * editable editor. Listeners are suppressed so programmatic sets don't
+     * mark the field as user-edited.
+     */
+    private fun setContextWindowValue(tokens: Int) {
+        val previous = suppressUserEditedListeners
+        suppressUserEditedListeners = true
+        try {
+            val match = contextWindowOptions.firstOrNull { it.tokens == tokens }
+            if (match != null) {
+                contextWindowCombo.selectedItem = match
+            } else {
+                contextWindowCombo.selectedItem = tokens.toString()
+            }
+        } finally {
+            suppressUserEditedListeners = previous
+        }
+    }
+
+    /**
+     * Reads the current context window value from the combo. Handles preset
+     * selections, raw integer strings, and "8k"/"1m" style shorthand via
+     * [TokenSizeUtils.parse].
+     */
+    private fun contextWindowValue(): Int {
+        val item = contextWindowCombo.selectedItem ?: return 0
+        return when (item) {
+            is ContextWindowOption -> item.tokens
+            is Number -> item.toInt()
+            is String -> TokenSizeUtils.parse(item)
+            else -> 0
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Test Connection
+    // -------------------------------------------------------------------------
+
+    /**
+     * Factory seam for the AI service. Production uses [AIServiceFactory.create];
+     * tests override this to inject a fake.
+     */
+    internal var aiServiceFactory: (AiSettings) -> AIService =
+        { settings -> AIServiceFactory.create(settings) }
+
+    /**
+     * Result handler seam (mirrors [detectHandler]).
+     *
+     * Production is `null` — the handler posts a notification. Tests override
+     * to capture the [Result] without going through the notification system.
+     */
+    internal var testConnectionResultHandler: ((Result<String>) -> Unit)? = null
+
+    private fun onTestConnectionClicked() {
+        // Build AiSettings from the on-screen fields (not from persisted settings).
+        val settings = AiSettings(
+            provider = currentProvider(),
+            baseUrl = baseUrlField.text.trim(),
+            apiKey = String(apiKeyField.password),
+            model = modelField.text.trim(),
+            requestTimeoutSec = (timeoutSpinner.value as Number).toInt(),
+            maxRequests = (maxAgentStepsSpinner.value as Number).toInt()
+        )
+        testConnectionButton.isEnabled = false
+        val previousLabel = testConnectionButton.text
+        testConnectionButton.text = "Testing…"
+        setStatus("Testing connection…", ok = true)
+
+        backgroundAsync {
+            val result = runCatching { aiServiceFactory(settings).testConnection() }
+                .getOrElse { Result.failure(it) }
+            swingAsync {
+                testConnectionButton.isEnabled = true
+                testConnectionButton.text = previousLabel
+                if (testConnectionResultHandler != null) {
+                    testConnectionResultHandler?.invoke(result)
+                } else {
+                    result.fold(
+                        onSuccess = { msg ->
+                            setStatus("Connection OK: $msg", ok = true)
+                        },
+                        onFailure = { err ->
+                            setStatus("Connection failed: ${err.message}", ok = false)
+                            // Modal dialog is visible over the (modal) settings dialog,
+                            // unlike a balloon notification.
+                            Messages.showErrorDialog(
+                                component,
+                                err.message ?: "Unknown error",
+                                "EasyApi AI — Connection Failed"
+                            )
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Auto-detect
+    // -------------------------------------------------------------------------
+
+    /**
+     * Scan result handler seam.
+     *
+     * Tests override this to capture the [DetectionResult] without launching
+     * the real background coroutine. Production wires [DefaultCredentialScanner]
+     * and posts notifications / pre-fills fields on the Swing thread.
+     */
+    internal var detectHandler: ((DetectionResult) -> Unit)? = null
+
+    /** Scanner instance seam (overridable in tests). */
+    internal var credentialScanner: CredentialScanner = DefaultCredentialScanner()
+
+    private fun onAutoDetectClicked() {
+        // Disable + relabel while the scan runs.
+        autoDetectButton.isEnabled = false
+        val previousLabel = autoDetectButton.text
+        autoDetectButton.text = "Detecting…"
+
+        backgroundAsync {
+            val result = runCatching { credentialScanner.scan() }
+                .getOrElse {
+                    swingAsync {
+                        setStatus("Auto-detect failed: ${it.message}", ok = false)
+                    }
+                    DetectionResult.Miss
+                }
+            swingAsync {
+                autoDetectButton.isEnabled = true
+                autoDetectButton.text = previousLabel
+                if (detectHandler != null) {
+                    detectHandler?.invoke(result)
+                } else {
+                    applyDetectionResult(result)
+                }
+            }
+        }
+    }
+
+    /**
+     * Pre-fills form fields from a successful scan and surfaces the result in
+     * the inline status label (balloons are suppressed over the modal
+     * settings dialog).
+     */
+    internal fun applyDetectionResult(result: DetectionResult) {
+        when (result) {
+            is DetectionResult.Miss -> {
+                setStatus(
+                    "No local AI credentials found. Enter your API key manually.",
+                    ok = true
+                )
+            }
+
+            is DetectionResult.Hit -> {
+                preFillFromHit(result)
+                setStatus(
+                    "Detected ${result.provider.displayName} from ${result.sourceLabel}. Click Apply to save.",
+                    ok = true
+                )
+            }
+
+            is DetectionResult.MultipleFound -> {
+                preFillFromHit(result.primary)
+                val others = result.others.joinToString(", ") { "${it.provider.displayName} (${it.sourceLabel})" }
+                setStatus(
+                    "Detected ${result.primary.provider.displayName} from ${result.primary.sourceLabel}. " +
+                            "Also found: $others. Apply to save, or switch provider manually.",
+                    ok = true
+                )
+            }
+        }
+    }
+
+    private fun preFillFromHit(hit: DetectionResult.Hit) {
+        suppressUserEditedListeners = true
+        try {
+            providerCombo.selectedIndex = hit.provider.ordinal
+            // Respect user-edited fields.
+            if (!userEditedApiKey && !hit.apiKey.isNullOrBlank()) {
+                apiKeyField.text = hit.apiKey
+            }
+            if (!userEditedBaseUrl && !hit.baseUrl.isNullOrBlank()) {
+                baseUrlField.text = hit.baseUrl
+            } else if (!userEditedBaseUrl) {
+                baseUrlField.text = hit.provider.defaultBaseUrl ?: ""
+            }
+            if (!userEditedModel) {
+                modelField.text = hit.model ?: hit.provider.defaultModel ?: ""
+            }
+        } finally {
+            suppressUserEditedListeners = false
+        }
+    }
+
+    private fun currentProvider(): AiProvider =
+        AiProvider.values().getOrElse(providerCombo.selectedIndex) { AiProvider.OPENAI }
+
     override fun resetFrom(settings: Settings?) {
-        editor.text = settings?.builtInConfig?.takeIf { it.isNotBlank() } ?: defaultBuiltInConfig()
+        val s = settings ?: return
+        val provider = runCatching { AiProvider.valueOf(s.aiProvider) }.getOrDefault(AiProvider.OPENAI)
+        providerCombo.selectedIndex = provider.ordinal
+        // Show exactly what's in settings — do NOT pre-fill from provider defaults here.
+        // Pre-fill only happens on provider combo change (see init block).
+        baseUrlField.text = s.aiBaseUrl
+        modelField.text = s.aiModel
+        timeoutSpinner.value = s.aiRequestTimeoutSec.coerceIn(5, 300)
+        maxAgentStepsSpinner.value = s.aiMaxRequests.coerceIn(1, 1000)
+        setContextWindowValue(s.aiContextWindow)
+        updateContextWindowTooltip(provider)
+        // API key from PasswordSafe
+        apiKeyField.text = AiApiKeyStore.loadApiKey()
+        // Reset edit flags AFTER writing fields — the document listeners above would
+        // have set them to true.
+        userEditedBaseUrl = false
+        userEditedModel = false
+        userEditedApiKey = false
+        userEditedContextWindow = false
     }
 
     override fun applyTo(settings: Settings) {
-        val content = editor.text
-        settings.builtInConfig = if (content == defaultBuiltInConfig()) "" else content
+        val provider = currentProvider()
+        settings.aiProvider = provider.name
+        settings.aiBaseUrl = baseUrlField.text.trim()
+        settings.aiModel = modelField.text.trim()
+        settings.aiRequestTimeoutSec = (timeoutSpinner.value as Number).toInt()
+        settings.aiMaxRequests = (maxAgentStepsSpinner.value as Number).toInt()
+        settings.aiContextWindow = contextWindowValue()
+        // API key to PasswordSafe
+        val key = String(apiKeyField.password)
+        AiApiKeyStore.saveApiKey(key)
     }
 
     override fun isModified(settings: Settings?): Boolean {
         val s = settings ?: return false
-        val current = editor.text
-        val stored = s.builtInConfig?.takeIf { it.isNotBlank() } ?: defaultBuiltInConfig()
-        return current != stored
+        val provider = currentProvider()
+        if (provider.name != s.aiProvider) return true
+        if (baseUrlField.text.trim() != s.aiBaseUrl) return true
+        if (modelField.text.trim() != s.aiModel) return true
+        if ((timeoutSpinner.value as Number).toInt() != s.aiRequestTimeoutSec) return true
+        if ((maxAgentStepsSpinner.value as Number).toInt() != s.aiMaxRequests) return true
+        if (contextWindowValue() != s.aiContextWindow) return true
+        // Password field — compare against PasswordSafe
+        val storedKey = AiApiKeyStore.loadApiKey()
+        if (String(apiKeyField.password) != storedKey) return true
+        return false
     }
 
-    private fun defaultBuiltInConfig(): String {
-        return javaClass.classLoader.getResourceAsStream("config/builtin.easyapi.config")
-            ?.bufferedReader(Charsets.UTF_8)
-            ?.use { it.readText() }
-            ?: ""
+    private fun compactRow(label: String, field: JComponent, vararg extras: JComponent): JComponent {
+        val panel = JPanel(FlowLayout(FlowLayout.LEFT, 6, 2))
+        if (label.isNotEmpty()) {
+            val l = JLabel(label)
+            l.preferredSize = Dimension(150, l.preferredSize.height)
+            panel.add(l)
+        }
+        panel.add(field)
+        extras.forEach { panel.add(it) }
+        return panel
+    }
+
+    /**
+     * Updates the inline status label. [ok] = true → neutral/positive
+     * colour; false → error colour.
+     */
+    private fun setStatus(text: String, ok: Boolean) {
+        statusLabel.text = text
+        statusLabel.foreground = if (ok) UIUtil.getContextHelpForeground() else com.intellij.ui.JBColor.RED
+    }
+
+    /** Test-only: the current inline status text. */
+    internal fun statusTextForTest(): String = statusLabel.text
+
+    private fun simpleDocListener(onChange: () -> Unit) = object : javax.swing.event.DocumentListener {
+        override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = onChange()
+        override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = onChange()
+        override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = onChange()
+    }
+
+    // --- Test helpers (used by AiAssistantSectionTest) ---
+
+    internal fun selectProvider(provider: AiProvider) {
+        providerCombo.selectedIndex = provider.ordinal
+        // In headless test environments, JComboBox may not fire ActionEvent.
+        // Perform the same pre-fill the action listener does.
+        preFillProviderDefaults(provider)
+        updateContextWindowTooltip(provider)
+    }
+
+    internal fun setBaseUrl(url: String) {
+        baseUrlField.text = url
+    }
+
+    /** Simulates a user typing the API key (marks the field as edited). */
+    internal fun setApiKey(key: String) {
+        apiKeyField.text = key
+    }
+
+    internal fun setModel(model: String) {
+        modelField.text = model
+    }
+
+    internal fun setTimeoutSec(sec: Int) {
+        timeoutSpinner.value = sec
+    }
+
+    internal fun setMaxRequests(steps: Int) {
+        maxAgentStepsSpinner.value = steps
+    }
+
+    internal fun setContextWindow(tokens: Int) {
+        // Simulates a user edit: mark as edited, then set the combo value.
+        userEditedContextWindow = true
+        setContextWindowValue(tokens)
+    }
+
+    // --- Auto-detect test helpers (used by AiAssistantSectionAutoDetectTest) ---
+
+    /** Returns the current provider selection (test-only). */
+    internal fun currentProviderForTest(): AiProvider = currentProvider()
+
+    /** Returns the current API key field text (test-only). */
+    internal fun apiKeyText(): String = String(apiKeyField.password)
+
+    /** Whether the API key is currently shown in clear text (test-only). */
+    internal fun isApiKeyRevealedForTest(): Boolean = apiKeyField.echoChar == 0.toChar()
+
+    /** Simulates clicking the reveal toggle (test-only). */
+    internal fun toggleRevealApiKeyForTest() {
+        revealApiKeyButton.doClick()
+    }
+
+    /** Returns the current base URL text (test-only). */
+    internal fun baseUrlText(): String = baseUrlField.text
+
+    /** Returns the current model text (test-only). */
+    internal fun modelText(): String = modelField.text
+
+    /** Returns the auto-detect button's label (test-only). */
+    internal fun autoDetectButtonLabel(): String = autoDetectButton.text
+
+    /** Returns whether the auto-detect button is enabled (test-only). */
+    internal fun isAutoDetectButtonEnabled(): Boolean = autoDetectButton.isEnabled
+
+    /** Returns the test-connection button's label (test-only). */
+    internal fun testConnectionButtonLabel(): String = testConnectionButton.text
+
+    /** Returns whether the test-connection button is enabled (test-only). */
+    internal fun isTestConnectionButtonEnabled(): Boolean = testConnectionButton.isEnabled
+
+    /** Triggers the Test Connection action directly (test-only). */
+    internal fun triggerTestConnectionForTest() {
+        onTestConnectionClicked()
+    }
+
+    /** Invokes [applyDetectionResult] directly, bypassing the background scan. */
+    internal fun applyDetectionResultForTest(result: DetectionResult) {
+        applyDetectionResult(result)
     }
 }
 
@@ -988,6 +1552,7 @@ class OtherSettingsPanel : SettingsPanel {
         buttonPanel.add(exportButton)
         add(buttonPanel, BorderLayout.NORTH)
 
+        val content = JPanel(GridLayout(0, 1, 0, 10))
         val infoPanel = JPanel(BorderLayout()).apply {
             border = BorderFactory.createTitledBorder("Info")
             val infoText = JBTextArea().apply {
@@ -1003,7 +1568,8 @@ class OtherSettingsPanel : SettingsPanel {
             }
             add(JScrollPane(infoText), BorderLayout.CENTER)
         }
-        add(infoPanel, BorderLayout.CENTER)
+        content.add(infoPanel)
+        add(content, BorderLayout.CENTER)
     }
 
     init {
@@ -1044,9 +1610,13 @@ class OtherSettingsPanel : SettingsPanel {
     }
 
     override fun applyTo(settings: Settings) {
+        // No mutable Other-specific state remaining; AI settings live in the
+        // dedicated AI tab.
     }
 
-    override fun isModified(settings: Settings?): Boolean = false
+    override fun isModified(settings: Settings?): Boolean {
+        return false
+    }
 
     private fun applyImported(settings: Settings, imported: Settings) {
         settings.feignEnable = imported.feignEnable

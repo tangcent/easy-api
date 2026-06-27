@@ -3,6 +3,7 @@ package com.itangcent.easyapi.settings.state
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
+import com.itangcent.easyapi.ai.AiProvider
 import com.itangcent.easyapi.settings.HttpClientType
 import com.itangcent.easyapi.settings.MarkdownFormatType
 import com.itangcent.easyapi.settings.PostmanJson5FormatType
@@ -44,7 +45,7 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
         override var unsafeSsl: Boolean = false,
         override var httpClient: String = HttpClientType.APACHE.value,
         override var extensionConfigs: String = Settings().extensionConfigs,
-        override var logLevel: Int = 100, // SILENT — console off by default (FR-CH-13)
+        override var logLevel: Int = 100, // SILENT — console off by default
         override var outputDemo: Boolean = true,
         override var outputCharset: String = "UTF-8",
         override var markdownFormatType: String = MarkdownFormatType.SIMPLE.name,
@@ -62,7 +63,14 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
         override var hoppscotchServerUrl: String? = "https://hoppscotch.io",
         override var hoppscotchBackendUrl: String? = null,
         override var hoppscotchRefreshToken: String? = null,
-        override var enumFieldAutoInferEnabled: Boolean = false
+        override var enumFieldAutoInferEnabled: Boolean = false,
+        override var disabledGlobalRuleFiles: Array<String> = emptyArray(),
+        override var aiProvider: String = "OPENAI",
+        override var aiBaseUrl: String = "",
+        override var aiModel: String = "",
+        override var aiRequestTimeoutSec: Int = 60,
+        override var aiMaxRequests: Int = 100,
+        override var aiContextWindow: Int = AiProvider.DEFAULT_CONTEXT_WINDOW
     ) : ApplicationSettingsSupport {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -107,6 +115,13 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
             if (hoppscotchBackendUrl != other.hoppscotchBackendUrl) return false
             if (hoppscotchRefreshToken != other.hoppscotchRefreshToken) return false
             if (enumFieldAutoInferEnabled != other.enumFieldAutoInferEnabled) return false
+            if (!disabledGlobalRuleFiles.contentEquals(other.disabledGlobalRuleFiles)) return false
+            if (aiProvider != other.aiProvider) return false
+            if (aiBaseUrl != other.aiBaseUrl) return false
+            if (aiModel != other.aiModel) return false
+            if (aiRequestTimeoutSec != other.aiRequestTimeoutSec) return false
+            if (aiMaxRequests != other.aiMaxRequests) return false
+            if (aiContextWindow != other.aiContextWindow) return false
 
             return true
         }
@@ -149,6 +164,13 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
             result = 31 * result + (hoppscotchBackendUrl?.hashCode() ?: 0)
             result = 31 * result + (hoppscotchRefreshToken?.hashCode() ?: 0)
             result = 31 * result + enumFieldAutoInferEnabled.hashCode()
+            result = 31 * result + disabledGlobalRuleFiles.contentHashCode()
+            result = 31 * result + aiProvider.hashCode()
+            result = 31 * result + aiBaseUrl.hashCode()
+            result = 31 * result + aiModel.hashCode()
+            result = 31 * result + aiRequestTimeoutSec
+            result = 31 * result + aiMaxRequests
+            result = 31 * result + aiContextWindow
             return result
         }
     }
