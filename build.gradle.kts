@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.itangcent"
-version = "3.1.4.252.0"
+version = "3.1.5.252.0"
 
 changelog {
     val v = project.version.toString()

@@ -5,6 +5,26 @@ All notable changes to the EasyAPI plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.5] - 2026-06-28
+
+### Added
+- feat(rules): add folder-based rule management with AI assistant
+- feat(logging): hide EasyAPI console tool window when log level is SILENT (#1396)
+- feat(logging): enforce logging channel discipline with SILENT default console (#1394)
+- feat: add Postman environment sync with dashboard integration (#722)
+- feat(logging): make the plugin self-explanatory when it fails
+
+### Fixed
+- fix: settings/AI-panel UI interactions (modality, stale proposals, unsaved edits)
+- fix(test): add AwaitUtils and stabilize flaky ApiIndexManagerTest
+- fix(dashboard): prevent header duplication when switching APIs in ApiDashboard (#1397)
+
+### Improved
+- build(skill): sync shared knowledge base to skill
+- style: replace tool window icons for EasyAPI and API Dashboard (#1395)
+
+---
+
 ## [3.1.4] - 2026-06-21
 
 ### Added
