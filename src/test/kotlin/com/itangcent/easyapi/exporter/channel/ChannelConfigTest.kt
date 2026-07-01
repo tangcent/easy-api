@@ -121,11 +121,13 @@ class ChannelConfigTest {
             is ChannelConfig.FileConfig -> "file:${config.fileName}"
             is ChannelConfig.PostmanConfig -> "postman:${config.collectionName}"
             is ChannelConfig.HoppscotchConfig -> "hoppscotch:${config.collectionName}"
+            is ChannelConfig.MarkdownConfig -> "markdown:${config.fileName}"
         }
 
         assertEquals("empty", describe(ChannelConfig.Empty))
         assertEquals("file:api.md", describe(ChannelConfig.FileConfig(fileName = "api.md")))
         assertEquals("postman:MyAPI", describe(ChannelConfig.PostmanConfig(collectionName = "MyAPI")))
         assertEquals("hoppscotch:MyAPI", describe(ChannelConfig.HoppscotchConfig(collectionName = "MyAPI")))
+        assertEquals("markdown:api.md", describe(ChannelConfig.MarkdownConfig(fileName = "api.md")))
     }
 }
