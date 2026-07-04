@@ -158,4 +158,25 @@ object JsonType {
 
         return fromJavaType(canonical)
     }
+
+    /**
+     * Maps a JSON type name (as used by [fromJavaType]/[fromPsiType]) to its
+     * JSON Schema data type. Exposed to rule scripts via the shared
+     * `ScriptHelper.jsonTypeToSchemaType` helper.
+     */
+    fun toSchemaType(type: String?): String {
+        if (type.isNullOrBlank()) return STRING
+        return when (type) {
+            STRING, DATE, DATETIME, FILE -> "string"
+            SHORT, INT, LONG -> "integer"
+            FLOAT, DOUBLE -> "number"
+            BOOLEAN -> "boolean"
+            ARRAY -> "array"
+            OBJECT -> "object"
+            "null" -> "null"
+            "text" -> "string"
+            "file" -> "string"
+            else -> "string"
+        }
+    }
 }

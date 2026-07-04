@@ -3,6 +3,7 @@ package com.itangcent.easyapi.rule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Test
 
 /**
  * Tests for [RuleProposalValidator].
@@ -268,5 +269,48 @@ class RuleProposalValidatorTest {
         assertTrue(ok.ok)
         val notOk = RuleValidation(errors = listOf("e"), warnings = emptyList())
         assertFalse(notOk.ok)
+    }
+
+    // -------------------------------------------------------------------------
+    // No-project fallback path: only general RuleKeys are recognized.
+    // Channel-specific keys (hopp.*, yapi.*) and implicit keys (max.deep,
+    // markdown.template.url.*) are NOT recognized when project == null.
+    // The project-scoped path (which DOES recognize them) needs a real
+    // IntelliJ Project + ChannelRegistry and is covered by integration tests.
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun testNoProjectAcceptsGeneralKey() {
+        // Regression: the no-project fallback path still accepts general keys.
+        val result = RuleProposalValidator.validate("api.name=Foo", project = null)
+        assertTrue("errors: ${result.errors}", result.ok)
+    }
+
+    @Test
+    fun testNoProjectRejectsChannelSpecificKey() {
+        // hopp.prerequest is a channel-specific key (HoppscotchRuleKeys) —
+        // without a project, the fallback path only knows general RuleKeys,
+        // so it must be rejected as unknown.
+        val result = RuleProposalValidator.validate("hopp.prerequest=script", project = null)
+        assertFalse(result.ok)
+        assertTrue(result.errors.any { it.contains("unknown rule key") && it.contains("hopp.prerequest") })
+    }
+
+    @Test
+    fun testNoProjectRejectsImplicitKey() {
+        // max.deep is an implicit key (read by DefaultPsiClassHelper via
+        // configReader.getFirst("max.deep")) — without a project, the
+        // fallback path doesn't know about implicit keys.
+        val result = RuleProposalValidator.validate("max.deep=5", project = null)
+        assertFalse(result.ok)
+        assertTrue(result.errors.any { it.contains("unknown rule key") && it.contains("max.deep") })
+    }
+
+    @Test
+    fun testDefaultValidateUsesNoProjectFallback() {
+        // Calling validate(content) without the project argument must still
+        // work (backward compatibility) and use the general-only fallback.
+        val result = RuleProposalValidator.validate("api.name=Foo")
+        assertTrue("errors: ${result.errors}", result.ok)
     }
 }

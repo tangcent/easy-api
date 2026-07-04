@@ -24,6 +24,7 @@ import com.itangcent.easyapi.psi.type.SpecialTypeHandler
 import com.itangcent.easyapi.psi.type.TypeResolver
 import com.itangcent.easyapi.rule.RuleKeys
 import com.itangcent.easyapi.rule.engine.RuleEngine
+import com.itangcent.easyapi.settings.module.IntelligentSettings
 import com.itangcent.easyapi.settings.settings
 import com.itangcent.easyapi.util.text.PathVariablePattern
 import com.itangcent.easyapi.util.ide.ProjectClassAvailabilityService
@@ -58,7 +59,6 @@ class SpringMvcClassExporter(
     override val frameworkName: String = "SpringMVC"
 
     override suspend fun isEnabled(): Boolean {
-        val settings = project.settings
         val availabilityService = ProjectClassAvailabilityService.getInstance(project)
         return availabilityService.hasAnyClassInProject(SpringControllerRecognizer.CONTROLLER_ANNOTATIONS)
     }
@@ -350,7 +350,7 @@ class SpringMvcClassExporter(
     private suspend fun expandFormParameter(
         resolvedParamType: ResolvedType
     ): List<ApiParameter> {
-        val formExpanded = project.settings.formExpanded
+        val formExpanded = project.settings<IntelligentSettings>().formExpanded
         if (!formExpanded) {
             return emptyList()
         }
@@ -360,7 +360,7 @@ class SpringMvcClassExporter(
     private suspend fun expandQueryParameter(
         resolvedParamType: ResolvedType
     ): List<ApiParameter> {
-        val queryExpanded = project.settings.queryExpanded
+        val queryExpanded = project.settings<IntelligentSettings>().queryExpanded
         if (!queryExpanded) {
             return emptyList()
         }

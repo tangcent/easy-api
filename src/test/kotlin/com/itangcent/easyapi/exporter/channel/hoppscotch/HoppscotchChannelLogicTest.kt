@@ -1,9 +1,9 @@
 package com.itangcent.easyapi.exporter.channel.hoppscotch
 
 import com.itangcent.easyapi.exporter.channel.ChannelConfig
-import com.itangcent.easyapi.exporter.hoppscotch.HoppscotchExportMetadata
-import com.itangcent.easyapi.exporter.hoppscotch.model.HoppCollection
-import com.itangcent.easyapi.exporter.hoppscotch.model.HoppRESTRequest
+import com.itangcent.easyapi.exporter.channel.hoppscotch.HoppscotchExportMetadata
+import com.itangcent.easyapi.exporter.channel.hoppscotch.model.HoppCollection
+import com.itangcent.easyapi.exporter.channel.hoppscotch.model.HoppRESTRequest
 import com.itangcent.easyapi.exporter.model.ExportResult
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
 import kotlinx.coroutines.runBlocking

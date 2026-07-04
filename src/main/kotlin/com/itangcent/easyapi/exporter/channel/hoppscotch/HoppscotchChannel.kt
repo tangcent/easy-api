@@ -8,25 +8,28 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileWrapper
 import com.itangcent.easyapi.core.threading.IdeDispatchers
 import com.itangcent.easyapi.core.threading.swing
-import com.itangcent.easyapi.exporter.channel.ApiChannel
+import com.itangcent.easyapi.exporter.channel.Channel
 import com.itangcent.easyapi.exporter.channel.ChannelConfig
 import com.itangcent.easyapi.exporter.channel.ChannelOptionsPanel
-import com.itangcent.easyapi.exporter.hoppscotch.*
-import com.itangcent.easyapi.exporter.hoppscotch.model.HoppCollection
-import com.itangcent.easyapi.exporter.hoppscotch.model.hoppscotchGson
+import com.itangcent.easyapi.exporter.channel.hoppscotch.*
+import com.itangcent.easyapi.exporter.channel.hoppscotch.model.HoppCollection
+import com.itangcent.easyapi.exporter.channel.hoppscotch.model.hoppscotchGson
 import com.itangcent.easyapi.exporter.model.ExportContext
 import com.itangcent.easyapi.exporter.model.ExportResult
+import com.itangcent.easyapi.rule.RuleKey
 import com.itangcent.easyapi.http.HttpClientProvider
 import com.itangcent.easyapi.ide.support.NotificationUtils
 import com.itangcent.easyapi.logging.IdeaConsoleProvider
 import com.itangcent.easyapi.logging.IdeaLog
 import com.itangcent.easyapi.settings.SettingBinder
+import com.itangcent.easyapi.settings.settings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.reflect.KClass
 
 /**
- * [ApiChannel] implementation for exporting API endpoints to Hoppscotch.
+ * [Channel] implementation for exporting API endpoints to Hoppscotch.
  *
  * Supports two export modes:
  * 1. **File export** — when no Hoppscotch access token is configured, serializes the
@@ -45,22 +48,30 @@ import java.io.File
  * @see HoppscotchOptionsPanel for the dual-mode options UI
  * @see HoppscotchApiClient for the GraphQL API client
  */
-class HoppscotchChannel : ApiChannel, IdeaLog {
+class HoppscotchChannel : Channel, IdeaLog {
 
     override val id: String = "hoppscotch"
     override val displayName: String = "Hoppscotch (Beta)"
     override val supportsGrpc: Boolean = false
     override val exposeAsAction: Boolean = true
     override val actionText: String = "Export to Hoppscotch (Beta)"
+    override val settingsType: KClass<out com.itangcent.easyapi.settings.Settings> = HoppscotchSettings::class
 
     override fun createOptionsPanel(project: Project): ChannelOptionsPanel {
         return HoppscotchOptionsPanel(project)
     }
 
+    override fun createSettingsPanel(project: Project): com.itangcent.easyapi.settings.ui.SettingsPanel<*>? =
+        HoppscotchSettingsPanel(project)
+
+    override fun configFiles(): List<String> = emptyList()
+
+    override fun ruleKeys(): List<RuleKey<*>> = RuleKey.collectFrom(HoppscotchRuleKeys)
+
     override suspend fun export(context: ExportContext): ExportResult {
         val project = context.project
-        val settings = SettingBinder.getInstance(project).read()
-        val token = settings.hoppscotchToken
+        val hoppscotchSettings = project.settings<HoppscotchSettings>()
+        val token = hoppscotchSettings.hoppscotchToken
         val collectionName = project.name
 
         val formatter = HoppscotchFormatter(project)
@@ -77,16 +88,16 @@ class HoppscotchChannel : ApiChannel, IdeaLog {
             )
         }
 
-        val hoppscotchConfig = context.channelConfig as? ChannelConfig.HoppscotchConfig
-        return uploadToHoppscotch(project, token, collection, settings, hoppscotchConfig)
+        val hoppscotchConfig = context.channelConfig as? HoppscotchConfig
+        return uploadToHoppscotch(project, token, collection, hoppscotchSettings, hoppscotchConfig)
     }
 
     private suspend fun uploadToHoppscotch(
         project: Project,
         token: String,
         collection: HoppCollection,
-        settings: com.itangcent.easyapi.settings.Settings,
-        hoppscotchConfig: ChannelConfig.HoppscotchConfig?
+        settings: HoppscotchSettings,
+        hoppscotchConfig: HoppscotchConfig?
     ): ExportResult {
         val console = IdeaConsoleProvider.getInstance(project).getConsole()
         val serverUrl = settings.hoppscotchServerUrl?.takeIf { it.isNotBlank() } ?: "https://hoppscotch.io"
@@ -168,17 +179,17 @@ class HoppscotchChannel : ApiChannel, IdeaLog {
         serverUrl: String,
         backendUrl: String?,
         httpClient: com.itangcent.easyapi.http.HttpClient,
-        hoppscotchConfig: ChannelConfig.HoppscotchConfig?,
+        hoppscotchConfig: HoppscotchConfig?,
         console: com.itangcent.easyapi.logging.IdeaConsole = IdeaConsoleProvider.getInstance(project).getConsole()
     ): ExportResult {
         console.info("Token expired, attempting refresh...")
         LOG.info("Hoppscotch token expired, attempting refresh...")
-        val authService = HoppscotchAuthService.getInstance()
-        val refreshed = authService.refreshToken(project)
+        val authService = HoppscotchAuthService.getInstance(project)
+        val refreshed = authService.refreshToken()
         if (refreshed) {
             console.info("Token refreshed successfully, retrying upload...")
             LOG.info("Token refreshed successfully, retrying upload...")
-            val newSettings = SettingBinder.getInstance(project).read()
+            val newSettings = SettingBinder.getInstance(project).read(HoppscotchSettings::class)
             val newToken = newSettings.hoppscotchToken ?: return handleAuthError(
                 project, HoppscotchAuthException("Token lost after refresh"), console
             )

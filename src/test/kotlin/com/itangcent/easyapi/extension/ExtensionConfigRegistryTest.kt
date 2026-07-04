@@ -1,8 +1,12 @@
 package com.itangcent.easyapi.extension
 
+import com.intellij.openapi.project.Project
+import com.itangcent.easyapi.exporter.channel.ChannelRegistry
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 class ExtensionConfigRegistryTest {
 
@@ -154,6 +158,166 @@ class ExtensionConfigRegistryTest {
     fun testStringToCodes_emptyString() {
         val codes = ExtensionConfigRegistry.stringToCodes("")
         assertTrue(codes.isEmpty())
+    }
+
+    // ── loadExtensions(project) with channel configs ──
+
+    @Test
+    fun testLoadExtensionsWithNullProjectLoadsBaseConfigs() {
+        ExtensionConfigRegistry.loadExtensions(null)
+        val extensions = ExtensionConfigRegistry.allExtensions()
+        assertNotNull(extensions)
+        assertTrue("Expected base extensions with null project", extensions.isNotEmpty())
+    }
+
+    @Test
+    fun testLoadExtensionsWithProjectResolvesChannelConfigs() {
+        val project = mock<Project>()
+        val channelRegistry = mock<ChannelRegistry>()
+        whenever(project.getService(ChannelRegistry::class.java)).thenReturn(channelRegistry)
+        whenever(channelRegistry.configFiles()).thenReturn(listOf("custom-channel"))
+
+        ExtensionConfigRegistry.loadExtensions(project)
+        // Should not throw; base extensions should still be loaded
+        val extensions = ExtensionConfigRegistry.allExtensions()
+        assertNotNull(extensions)
+        assertTrue(extensions.isNotEmpty())
+    }
+
+    @Test
+    fun testLoadExtensionsWithProjectHandlesChannelRegistryFailure() {
+        val project = mock<Project>()
+        // getService returns null → ChannelRegistry.getInstance would NPE,
+        // but runCatching swallows it → empty channel configs
+        whenever(project.getService(ChannelRegistry::class.java)).thenReturn(null)
+
+        ExtensionConfigRegistry.loadExtensions(project)
+        val extensions = ExtensionConfigRegistry.allExtensions()
+        assertNotNull(extensions)
+        assertTrue(extensions.isNotEmpty())
+    }
+
+    // ── buildConfig with negation codes ──
+
+    @Test
+    fun testBuildConfigWithNegationExcludesDefaultEnabled() {
+        val extensions = ExtensionConfigRegistry.allExtensions()
+        val defaultEnabled = extensions.firstOrNull { it.defaultEnabled } ?: return
+        val config = ExtensionConfigRegistry.buildConfig(arrayOf("-${defaultEnabled.code}"))
+        assertFalse(
+            "Negated default-enabled extension '${defaultEnabled.code}' should be excluded",
+            config.contains(defaultEnabled.content)
+        )
+    }
+
+    @Test
+    fun testBuildConfigWithExplicitCodeAndNegation() {
+        val extensions = ExtensionConfigRegistry.allExtensions()
+        val defaultEnabled = extensions.first { it.defaultEnabled }
+        val disabled = extensions.firstOrNull { !it.defaultEnabled } ?: return
+        val config = ExtensionConfigRegistry.buildConfig(arrayOf(disabled.code, "-${defaultEnabled.code}"))
+        assertTrue("Explicitly selected '${disabled.code}' should be included", config.contains(disabled.content))
+        assertFalse("Negated '${defaultEnabled.code}' should be excluded", config.contains(defaultEnabled.content))
+    }
+
+    @Test
+    fun testBuildConfigWithCustomSeparator() {
+        val extensions = ExtensionConfigRegistry.allExtensions()
+        if (extensions.isNotEmpty()) {
+            val extension = extensions.first()
+            val config = ExtensionConfigRegistry.buildConfig(arrayOf(extension.code), separator = "|")
+            // With a single code, separator doesn't matter for count, but verify it doesn't crash
+            assertNotNull(config)
+        }
+    }
+
+    // ── selectedCodes with negation ──
+
+    @Test
+    fun testSelectedCodesWithNegationExcludesDefaultEnabled() {
+        val extensions = ExtensionConfigRegistry.allExtensions()
+        val defaultEnabled = extensions.firstOrNull { it.defaultEnabled } ?: return
+        val selected = ExtensionConfigRegistry.selectedCodes(arrayOf("-${defaultEnabled.code}"))
+        assertFalse(
+            "Negated default-enabled '${defaultEnabled.code}' should not be selected",
+            selected.contains(defaultEnabled.code)
+        )
+    }
+
+    @Test
+    fun testSelectedCodesReturnsAllDefaultEnabledWhenEmpty() {
+        val selected = ExtensionConfigRegistry.selectedCodes(emptyArray())
+        val defaultExtensions = ExtensionConfigRegistry.allExtensions().filter { it.defaultEnabled }
+        assertEquals(defaultExtensions.size, selected.size)
+        defaultExtensions.forEach { ext ->
+            assertTrue("Default-enabled '${ext.code}' should be selected", selected.contains(ext.code))
+        }
+    }
+
+    // ── addSelectedConfig / removeSelectedConfig edge cases ──
+
+    @Test
+    fun testAddSelectedConfigTrimsCodes() {
+        val result = ExtensionConfigRegistry.addSelectedConfig(arrayOf("spring"), "  jaxrs  ")
+        assertTrue(result.contains("jaxrs"))
+        assertFalse(result.contains("  jaxrs  "))
+    }
+
+    @Test
+    fun testAddSelectedConfigFiltersBlanks() {
+        val result = ExtensionConfigRegistry.addSelectedConfig(arrayOf("spring", ""), "jaxrs")
+        assertFalse(result.any { it.isBlank() })
+        assertTrue(result.contains("spring"))
+        assertTrue(result.contains("jaxrs"))
+    }
+
+    @Test
+    fun testRemoveSelectedConfigRemovesMultipleCodes() {
+        val result = ExtensionConfigRegistry.removeSelectedConfig(arrayOf("spring", "mvc", "jaxrs"), "mvc", "jaxrs")
+        assertTrue(result.contains("spring"))
+        assertFalse(result.contains("mvc"))
+        assertFalse(result.contains("jaxrs"))
+        assertTrue(result.contains("-mvc"))
+        assertTrue(result.contains("-jaxrs"))
+    }
+
+    @Test
+    fun testRemoveSelectedConfigTrimsCodes() {
+        val result = ExtensionConfigRegistry.removeSelectedConfig(arrayOf("spring", "mvc"), "  mvc  ")
+        assertFalse(result.contains("mvc"))
+        assertTrue(result.contains("-mvc"))
+    }
+
+    // ── codesToString / stringToCodes edge cases ──
+
+    @Test
+    fun testCodesToStringFiltersBlanks() {
+        val codes = arrayOf("spring", "", "  ", "jaxrs")
+        val str = ExtensionConfigRegistry.codesToString(codes)
+        assertEquals("spring,jaxrs", str)
+    }
+
+    @Test
+    fun testStringToCodesWithExtraCommas() {
+        val codes = ExtensionConfigRegistry.stringToCodes("spring,,mvc,,,jaxrs")
+        assertEquals(3, codes.size)
+        assertTrue(codes.contains("spring"))
+        assertTrue(codes.contains("mvc"))
+        assertTrue(codes.contains("jaxrs"))
+    }
+
+    @Test
+    fun testStringToCodesWithOnlyCommas() {
+        val codes = ExtensionConfigRegistry.stringToCodes(",,,")
+        assertTrue(codes.isEmpty())
+    }
+
+    @Test
+    fun testCodesToStringRoundTripsWithStringToCodes() {
+        val original = arrayOf("spring", "mvc", "jaxrs")
+        val str = ExtensionConfigRegistry.codesToString(original)
+        val roundTripped = ExtensionConfigRegistry.stringToCodes(str)
+        assertArrayEquals(original, roundTripped)
     }
 
     // ── Per-extension config tests ───────────────────────────────

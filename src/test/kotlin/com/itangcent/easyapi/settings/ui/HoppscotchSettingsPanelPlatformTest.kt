@@ -1,5 +1,8 @@
 package com.itangcent.easyapi.settings.ui
 
+import com.itangcent.easyapi.exporter.channel.hoppscotch.HoppscotchSettings
+import com.itangcent.easyapi.exporter.channel.hoppscotch.HoppscotchSettingsPanel
+import com.itangcent.easyapi.settings.state.UnifiedAppSettingsState
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
 
 class HoppscotchSettingsPanelPlatformTest : EasyApiLightCodeInsightFixtureTestCase() {
@@ -9,47 +12,58 @@ class HoppscotchSettingsPanelPlatformTest : EasyApiLightCodeInsightFixtureTestCa
     override fun setUp() {
         super.setUp()
         panel = HoppscotchSettingsPanel(project)
+        // Reset Hoppscotch settings state to defaults so tests are independent
+        // of PersistentStateComponent deserialization behavior.
+        setHoppscotchField("hoppscotchToken", null)
+        setHoppscotchField("hoppscotchServerUrl", "https://hoppscotch.io")
+        setHoppscotchField("hoppscotchBackendUrl", null)
+    }
+
+    private fun setHoppscotchField(property: String, value: String?) {
+        UnifiedAppSettingsState.getInstance().setValue("com.itangcent.easyapi.exporter.channel.hoppscotch.HoppscotchSettings", property, value)
+    }
+
+    private fun getHoppscotchField(property: String): String? {
+        return UnifiedAppSettingsState.getInstance().getValue("com.itangcent.easyapi.exporter.channel.hoppscotch.HoppscotchSettings", property)
     }
 
     fun testResetFromDefaultSettings() {
-        val settings = com.itangcent.easyapi.settings.Settings()
+        val settings = HoppscotchSettings()
         panel.resetFrom(settings)
         assertFalse("Panel should not be modified after reset with defaults", panel.isModified(settings))
     }
 
     fun testResetFromCustomSettings() {
-        val settings = com.itangcent.easyapi.settings.Settings().apply {
-            hoppscotchToken = "my-token-12345678"
-            hoppscotchServerUrl = "https://custom.hoppscotch.io"
-            hoppscotchBackendUrl = "http://localhost:3170/v1"
-        }
+        setHoppscotchField("hoppscotchToken", "my-token-12345678")
+        setHoppscotchField("hoppscotchServerUrl", "https://custom.hoppscotch.io")
+        setHoppscotchField("hoppscotchBackendUrl", "http://localhost:3170/v1")
+        val settings = HoppscotchSettings()
         panel.resetFrom(settings)
         assertFalse("Panel should not be modified after reset with custom values", panel.isModified(settings))
     }
 
     fun testApplyToDefaultSettings() {
-        val settings = com.itangcent.easyapi.settings.Settings()
+        val settings = HoppscotchSettings()
         panel.resetFrom(settings)
 
-        val target = com.itangcent.easyapi.settings.Settings()
+        val target = HoppscotchSettings()
         panel.applyTo(target)
 
         // Default server URL
-        assertNotNull(target.hoppscotchServerUrl)
+        assertNotNull(getHoppscotchField("hoppscotchServerUrl"))
     }
 
     fun testApplyToCustomSettings() {
-        val settings = com.itangcent.easyapi.settings.Settings().apply {
-            hoppscotchServerUrl = "https://custom.hoppscotch.io"
-            hoppscotchBackendUrl = "http://localhost:3170/v1"
-        }
+        setHoppscotchField("hoppscotchServerUrl", "https://custom.hoppscotch.io")
+        setHoppscotchField("hoppscotchBackendUrl", "http://localhost:3170/v1")
+        val settings = HoppscotchSettings()
         panel.resetFrom(settings)
 
-        val target = com.itangcent.easyapi.settings.Settings()
+        val target = HoppscotchSettings()
         panel.applyTo(target)
 
-        assertEquals("https://custom.hoppscotch.io", target.hoppscotchServerUrl)
-        assertEquals("http://localhost:3170/v1", target.hoppscotchBackendUrl)
+        assertEquals("https://custom.hoppscotch.io", getHoppscotchField("hoppscotchServerUrl"))
+        assertEquals("http://localhost:3170/v1", getHoppscotchField("hoppscotchBackendUrl"))
     }
 
     fun testIsModifiedNullSettings() {
@@ -66,17 +80,15 @@ class HoppscotchSettingsPanelPlatformTest : EasyApiLightCodeInsightFixtureTestCa
     }
 
     fun testResetFromWithToken() {
-        val settings = com.itangcent.easyapi.settings.Settings().apply {
-            hoppscotchToken = "test-token-12345678"
-        }
+        setHoppscotchField("hoppscotchToken", "test-token-12345678")
+        val settings = HoppscotchSettings()
         panel.resetFrom(settings)
         // Should not throw
     }
 
     fun testResetFromWithBlankServerUrl() {
-        val settings = com.itangcent.easyapi.settings.Settings().apply {
-            hoppscotchServerUrl = ""
-        }
+        setHoppscotchField("hoppscotchServerUrl", "")
+        val settings = HoppscotchSettings()
         panel.resetFrom(settings)
         // Should not throw
     }

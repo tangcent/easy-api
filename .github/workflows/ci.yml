@@ -54,6 +54,7 @@ jobs:
             17
             ${{ matrix.java-version }}
           distribution: 'zulu'
+          cache: gradle
 
       - name: test
         run: ./gradlew test --stacktrace

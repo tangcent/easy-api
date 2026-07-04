@@ -1,6 +1,6 @@
 package com.itangcent.easyapi.ai.tools
 
-import com.itangcent.easyapi.ai.AiSettings
+import com.itangcent.easyapi.ai.AiRuntimeConfig
 import com.itangcent.easyapi.ai.agent.AgentMemory
 import com.itangcent.easyapi.ai.agent.ApprovalGate
 import com.itangcent.easyapi.config.ConfigReader
@@ -29,7 +29,7 @@ class PerceptionToolsTest : EasyApiLightCodeInsightFixtureTestCase() {
     ): ToolContext = ToolContext(
         project = project,
         configReader = configReader,
-        aiSettings = AiSettings(
+        aiSettings = AiRuntimeConfig(
             provider = com.itangcent.easyapi.ai.AiProvider.OPENAI,
             baseUrl = "", apiKey = "", model = "",
             requestTimeoutSec = 30, maxRequests = 8
@@ -63,7 +63,7 @@ class PerceptionToolsTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     fun testGetPluginDocReturnsRuleGuide() {
-        // The rule-guide doc IS wired (Phase 4) — the tool should return its content.
+        // The rule-guide doc IS wired — the tool should return its content.
         val result = runBlocking {
             GetPluginDocTool().execute(mapOf("name" to "rule-guide"), ctx())
         }
@@ -75,7 +75,7 @@ class PerceptionToolsTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     fun testGetPluginDocReturnsScriptReference() {
-        // The easyapi-script-reference doc IS wired (task 2.7) — the tool
+        // The easyapi-script-reference doc IS wired — the tool
         // should return its content.
         val result = runBlocking {
             GetPluginDocTool().execute(mapOf("name" to "easyapi-script-reference"), ctx())
