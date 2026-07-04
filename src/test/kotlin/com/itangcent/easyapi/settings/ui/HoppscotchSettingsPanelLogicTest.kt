@@ -1,44 +1,44 @@
 package com.itangcent.easyapi.settings.ui
 
-import com.itangcent.easyapi.settings.Settings
+import com.itangcent.easyapi.exporter.channel.hoppscotch.HoppscotchSettings
 import org.junit.Assert.*
 import org.junit.Test
 
 class HoppscotchSettingsPanelLogicTest {
 
-    // --- Settings Hoppscotch fields ---
+    // --- HoppscotchSettings Hoppscotch fields ---
 
     @Test
     fun testSettings_hoppscotchDefaults() {
-        val settings = Settings()
-        assertNull(settings.hoppscotchToken)
-        assertEquals("https://hoppscotch.io", settings.hoppscotchServerUrl)
-        assertNull(settings.hoppscotchBackendUrl)
-        assertNull(settings.hoppscotchRefreshToken)
+        val state = HoppscotchSettings()
+        assertNull(state.hoppscotchToken)
+        assertEquals("https://hoppscotch.io", state.hoppscotchServerUrl)
+        assertNull(state.hoppscotchBackendUrl)
+        assertNull(state.hoppscotchRefreshToken)
     }
 
     @Test
     fun testSettings_hoppscotchCustomValues() {
-        val settings = Settings(
+        val state = HoppscotchSettings(
             hoppscotchToken = "my-token",
             hoppscotchServerUrl = "https://custom.hoppscotch.io",
             hoppscotchBackendUrl = "http://localhost:3170/v1",
             hoppscotchRefreshToken = "refresh-token"
         )
-        assertEquals("my-token", settings.hoppscotchToken)
-        assertEquals("https://custom.hoppscotch.io", settings.hoppscotchServerUrl)
-        assertEquals("http://localhost:3170/v1", settings.hoppscotchBackendUrl)
-        assertEquals("refresh-token", settings.hoppscotchRefreshToken)
+        assertEquals("my-token", state.hoppscotchToken)
+        assertEquals("https://custom.hoppscotch.io", state.hoppscotchServerUrl)
+        assertEquals("http://localhost:3170/v1", state.hoppscotchBackendUrl)
+        assertEquals("refresh-token", state.hoppscotchRefreshToken)
     }
 
     @Test
     fun testSettings_hoppscotchEquality() {
-        val s1 = Settings(
+        val s1 = HoppscotchSettings(
             hoppscotchToken = "token",
             hoppscotchServerUrl = "https://hoppscotch.io",
             hoppscotchBackendUrl = "http://localhost:3170"
         )
-        val s2 = Settings(
+        val s2 = HoppscotchSettings(
             hoppscotchToken = "token",
             hoppscotchServerUrl = "https://hoppscotch.io",
             hoppscotchBackendUrl = "http://localhost:3170"
@@ -49,29 +49,29 @@ class HoppscotchSettingsPanelLogicTest {
 
     @Test
     fun testSettings_hoppscotchInequality() {
-        val s1 = Settings(hoppscotchToken = "token1")
-        val s2 = Settings(hoppscotchToken = "token2")
+        val s1 = HoppscotchSettings(hoppscotchToken = "token1")
+        val s2 = HoppscotchSettings(hoppscotchToken = "token2")
         assertNotEquals(s1, s2)
     }
 
     @Test
     fun testSettings_hoppscotchServerUrlInequality() {
-        val s1 = Settings(hoppscotchServerUrl = "https://a.com")
-        val s2 = Settings(hoppscotchServerUrl = "https://b.com")
+        val s1 = HoppscotchSettings(hoppscotchServerUrl = "https://a.com")
+        val s2 = HoppscotchSettings(hoppscotchServerUrl = "https://b.com")
         assertNotEquals(s1, s2)
     }
 
     @Test
     fun testSettings_hoppscotchBackendUrlInequality() {
-        val s1 = Settings(hoppscotchBackendUrl = "http://a:3170")
-        val s2 = Settings(hoppscotchBackendUrl = "http://b:3170")
+        val s1 = HoppscotchSettings(hoppscotchBackendUrl = "http://a:3170")
+        val s2 = HoppscotchSettings(hoppscotchBackendUrl = "http://b:3170")
         assertNotEquals(s1, s2)
     }
 
     @Test
     fun testSettings_hoppscotchRefreshTokenInequality() {
-        val s1 = Settings(hoppscotchRefreshToken = "rt1")
-        val s2 = Settings(hoppscotchRefreshToken = "rt2")
+        val s1 = HoppscotchSettings(hoppscotchRefreshToken = "rt1")
+        val s2 = HoppscotchSettings(hoppscotchRefreshToken = "rt2")
         assertNotEquals(s1, s2)
     }
 
@@ -81,7 +81,7 @@ class HoppscotchSettingsPanelLogicTest {
 
     @Test
     fun testSettings_hoppscotchCopy() {
-        val s1 = Settings(hoppscotchToken = "token1", hoppscotchServerUrl = "https://a.com")
+        val s1 = HoppscotchSettings(hoppscotchToken = "token1", hoppscotchServerUrl = "https://a.com")
         val s2 = s1.copy(hoppscotchToken = "token2")
         assertEquals("token2", s2.hoppscotchToken)
         assertEquals("https://a.com", s2.hoppscotchServerUrl)
@@ -90,19 +90,19 @@ class HoppscotchSettingsPanelLogicTest {
 
     @Test
     fun testSettings_hoppscotchNullToken() {
-        val settings = Settings(hoppscotchToken = null)
-        assertNull(settings.hoppscotchToken)
+        val state = HoppscotchSettings(hoppscotchToken = null)
+        assertNull(state.hoppscotchToken)
     }
 
     @Test
     fun testSettings_hoppscotchBlankServerUrl() {
-        val settings = Settings(hoppscotchServerUrl = "")
-        assertEquals("", settings.hoppscotchServerUrl)
+        val state = HoppscotchSettings(hoppscotchServerUrl = "")
+        assertEquals("", state.hoppscotchServerUrl)
     }
 
     @Test
     fun testSettings_hoppscotchNullBackendUrl() {
-        val settings = Settings(hoppscotchBackendUrl = null)
-        assertNull(settings.hoppscotchBackendUrl)
+        val state = HoppscotchSettings(hoppscotchBackendUrl = null)
+        assertNull(state.hoppscotchBackendUrl)
     }
 }

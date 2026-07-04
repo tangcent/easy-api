@@ -1,5 +1,6 @@
 package com.itangcent.easyapi.psi.model
 
+import com.itangcent.easyapi.exporter.model.Extension
 import com.itangcent.easyapi.psi.type.JsonType
 
 /**
@@ -32,6 +33,7 @@ data class FieldOption(
  * @param options Available options (for enum fields)
  * @param demo Demo value for documentation
  * @param advanced Additional advanced properties
+ * @param extensions Pluggable carrier for feature/channel-specific attributes
  */
 data class FieldModel(
     val model: ObjectModel,
@@ -42,7 +44,8 @@ data class FieldModel(
     val demo: String? = null,
     val advanced: Map<String, Any?>? = null,
     /** True if this field's declared type is a generic type parameter (e.g., `T` in `Result<T>`) */
-    val generic: Boolean = false
+    val generic: Boolean = false,
+    val extensions: Extension = Extension.EMPTY
 ) {
     override fun toString(): String =
         "FieldModel(model=$model, comment=$comment, required=$required, defaultValue=$defaultValue, generic=$generic)"
@@ -223,9 +226,10 @@ class ObjectModelBuilder {
         defaultValue: String? = null,
         options: List<FieldOption>? = null,
         demo: String? = null,
-        advanced: Map<String, Any?>? = null
+        advanced: Map<String, Any?>? = null,
+        extensions: Extension = Extension.EMPTY
     ): ObjectModelBuilder = apply {
-        fields[name] = FieldModel(model, comment, required, defaultValue, options, demo, advanced)
+        fields[name] = FieldModel(model, comment, required, defaultValue, options, demo, advanced, generic = false, extensions = extensions)
     }
 
     fun stringField(

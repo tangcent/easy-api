@@ -8,6 +8,7 @@ import com.itangcent.easyapi.core.threading.readSync
 import com.itangcent.easyapi.http.HttpClientProvider
 import com.itangcent.easyapi.logging.IdeaLog
 import com.itangcent.easyapi.psi.helper.SourceHelper
+import com.itangcent.easyapi.psi.type.JsonType
 import com.itangcent.easyapi.rule.RuleKey
 import com.itangcent.easyapi.rule.context.RuleContext
 import com.itangcent.easyapi.rule.context.ScriptPsiClassContext
@@ -162,6 +163,30 @@ class ScriptHelper(private val context: RuleContext) {
 
     private val linkResolver: com.itangcent.easyapi.psi.LinkResolver? by lazy {
         com.itangcent.easyapi.psi.LinkResolver.getInstance(context.project)
+    }
+
+    /**
+     * Converts a JSON type string to a JSON Schema data type string.
+     *
+     * Mapping:
+     * - string/date/datetime/file → "string"
+     * - short/int/long → "integer"
+     * - float/double → "number"
+     * - boolean → "boolean"
+     * - array → "array"
+     * - object → "object"
+     * - null/unknown → "string"
+     *
+     * ## Usage in Scripts
+     * ```
+     * helper.jsonTypeToSchemaType("int")    // "integer"
+     * helper.jsonTypeToSchemaType("string") // "string"
+     * H.jsonTypeToSchemaType("long")        // "integer"
+     * ```
+     */
+    fun jsonTypeToSchemaType(jsonType: String?): String {
+        if (jsonType.isNullOrBlank()) return "string"
+        return JsonType.toSchemaType(jsonType)
     }
 
     /**

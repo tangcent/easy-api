@@ -9,7 +9,6 @@ import com.itangcent.easyapi.rule.RuleProvider
 import com.itangcent.easyapi.rule.RuleResult
 import com.itangcent.easyapi.rule.context.RuleContext
 import com.itangcent.easyapi.rule.parser.*
-import com.itangcent.easyapi.util.asBoolean
 import com.itangcent.easyapi.util.asBooleanOrNull
 import com.itangcent.easyapi.util.asInt
 import kotlinx.coroutines.flow.flow

@@ -1,5 +1,8 @@
 package com.itangcent.easyapi.exporter.channel
 
+import com.itangcent.easyapi.exporter.channel.hoppscotch.HoppscotchConfig
+import com.itangcent.easyapi.exporter.channel.markdown.MarkdownConfig
+import com.itangcent.easyapi.exporter.channel.postman.PostmanConfig
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -60,7 +63,7 @@ class ChannelConfigTest {
 
     @Test
     fun testPostmanConfigDefaults() {
-        val config = ChannelConfig.PostmanConfig()
+        val config = PostmanConfig()
         assertNull(config.workspaceId)
         assertNull(config.workspaceName)
         assertNull(config.collectionId)
@@ -70,7 +73,7 @@ class ChannelConfigTest {
 
     @Test
     fun testPostmanConfigWithValues() {
-        val config = ChannelConfig.PostmanConfig(
+        val config = PostmanConfig(
             workspaceId = "ws-123",
             workspaceName = "My Workspace",
             collectionId = "col-456",
@@ -86,7 +89,7 @@ class ChannelConfigTest {
 
     @Test
     fun testPostmanConfigCopy() {
-        val original = ChannelConfig.PostmanConfig(collectionName = "V1")
+        val original = PostmanConfig(collectionName = "V1")
         val modified = original.copy(collectionName = "V2", isUpdate = true)
         assertEquals("V1", original.collectionName)
         assertFalse(original.isUpdate)
@@ -96,22 +99,22 @@ class ChannelConfigTest {
 
     @Test
     fun testPostmanConfigEquality() {
-        val config1 = ChannelConfig.PostmanConfig(collectionName = "Test", isUpdate = true)
-        val config2 = ChannelConfig.PostmanConfig(collectionName = "Test", isUpdate = true)
+        val config1 = PostmanConfig(collectionName = "Test", isUpdate = true)
+        val config2 = PostmanConfig(collectionName = "Test", isUpdate = true)
         assertEquals(config1, config2)
     }
 
     @Test
-    fun testSealedClassHierarchy() {
+    fun testConfigHierarchy() {
         val configs: List<ChannelConfig> = listOf(
             ChannelConfig.Empty,
             ChannelConfig.FileConfig(outputDir = "/tmp"),
-            ChannelConfig.PostmanConfig(collectionName = "Test")
+            PostmanConfig(collectionName = "Test")
         )
         assertEquals(3, configs.size)
         assertTrue(configs[0] is ChannelConfig.Empty)
         assertTrue(configs[1] is ChannelConfig.FileConfig)
-        assertTrue(configs[2] is ChannelConfig.PostmanConfig)
+        assertTrue(configs[2] is PostmanConfig)
     }
 
     @Test
@@ -119,15 +122,16 @@ class ChannelConfigTest {
         fun describe(config: ChannelConfig): String = when (config) {
             is ChannelConfig.Empty -> "empty"
             is ChannelConfig.FileConfig -> "file:${config.fileName}"
-            is ChannelConfig.PostmanConfig -> "postman:${config.collectionName}"
-            is ChannelConfig.HoppscotchConfig -> "hoppscotch:${config.collectionName}"
-            is ChannelConfig.MarkdownConfig -> "markdown:${config.fileName}"
+            is PostmanConfig -> "postman:${config.collectionName}"
+            is HoppscotchConfig -> "hoppscotch:${config.collectionName}"
+            is MarkdownConfig -> "markdown:${config.fileName}"
+            else -> "other"
         }
 
         assertEquals("empty", describe(ChannelConfig.Empty))
         assertEquals("file:api.md", describe(ChannelConfig.FileConfig(fileName = "api.md")))
-        assertEquals("postman:MyAPI", describe(ChannelConfig.PostmanConfig(collectionName = "MyAPI")))
-        assertEquals("hoppscotch:MyAPI", describe(ChannelConfig.HoppscotchConfig(collectionName = "MyAPI")))
-        assertEquals("markdown:api.md", describe(ChannelConfig.MarkdownConfig(fileName = "api.md")))
+        assertEquals("postman:MyAPI", describe(PostmanConfig(collectionName = "MyAPI")))
+        assertEquals("hoppscotch:MyAPI", describe(HoppscotchConfig(collectionName = "MyAPI")))
+        assertEquals("markdown:api.md", describe(MarkdownConfig(fileName = "api.md")))
     }
 }

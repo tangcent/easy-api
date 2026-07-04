@@ -6,7 +6,7 @@ import com.itangcent.easyapi.config.model.ConfigSource
 import com.itangcent.easyapi.config.parser.ConfigTextParser
 import com.itangcent.easyapi.config.parser.DirectiveSnapshot
 import com.itangcent.easyapi.settings.SettingBinder
-import com.itangcent.easyapi.settings.Settings
+import com.itangcent.easyapi.testFramework.ConstantSettingBinder
 import org.junit.Assert.*
 import org.junit.Test
 import kotlinx.coroutines.runBlocking
@@ -17,8 +17,7 @@ class LayeredConfigReaderTest {
 
     private val parser: ConfigTextParser = run {
         val project = mock<Project>()
-        val settingBinder = mock<SettingBinder>()
-        whenever(settingBinder.read()).thenReturn(Settings())
+        val settingBinder = ConstantSettingBinder()
         whenever(project.getService(SettingBinder::class.java)).thenReturn(settingBinder)
         ConfigTextParser(project)
     }

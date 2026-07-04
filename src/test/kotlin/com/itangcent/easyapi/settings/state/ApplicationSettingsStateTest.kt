@@ -26,7 +26,7 @@ class ApplicationSettingsStateTest {
         assertTrue(s.inferReturnMain)
         assertTrue(s.enableUrlTemplating)
         assertTrue(s.switchNotice)
-        assertEquals(5, s.httpTimeOut)
+        assertEquals(30, s.httpTimeOut)
         assertFalse(s.unsafeSsl)
         assertEquals(HttpClientType.APACHE.value, s.httpClient)
         assertEquals(100, s.logLevel) // SILENT — console off by default

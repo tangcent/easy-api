@@ -51,6 +51,7 @@ object RuleKeys {
     val FIELD_DEFAULT_VALUE = RuleKey.string("field.default.value")
     val FIELD_DOC = RuleKey.string("field.doc", StringRuleMode.MERGE_DISTINCT, aliases = listOf("doc.field"))
     val FIELD_DEMO = RuleKey.string("field.demo")
+    val FIELD_MOCK = RuleKey.string("field.mock")
     val FIELD_ORDER = RuleKey.string("field.order")
     val FIELD_ORDER_WITH = RuleKey.string("field.order.with")
     val FIELD_ADVANCED = RuleKey.string("field.advanced", StringRuleMode.MERGE)
@@ -102,19 +103,6 @@ object RuleKeys {
     val POSTMAN_HOST = RuleKey.string("postman.host")
     val POSTMAN_FORMAT_AFTER = RuleKey.event("postman.format.after", EventRuleMode.THROW_IN_ERROR)
 
-    // ── Hoppscotch rules ──────────────────────────────────────────
-    val HOPP_PREREQUEST = RuleKey.string("hopp.prerequest", StringRuleMode.MERGE)
-    val HOPP_CLASS_PREREQUEST =
-        RuleKey.string("hopp.class.prerequest", StringRuleMode.MERGE, aliases = listOf("class.hopp.prerequest"))
-    val HOPP_COLLECTION_PREREQUEST =
-        RuleKey.event("hopp.collection.prerequest", aliases = listOf("collection.hopp.prerequest"))
-    val HOPP_TEST = RuleKey.string("hopp.test", StringRuleMode.MERGE)
-    val HOPP_CLASS_TEST =
-        RuleKey.string("hopp.class.test", StringRuleMode.MERGE, aliases = listOf("class.hopp.test"))
-    val HOPP_COLLECTION_TEST = RuleKey.event("hopp.collection.test", aliases = listOf("collection.hopp.test"))
-    val HOPP_HOST = RuleKey.string("hopp.host")
-    val HOPP_FORMAT_AFTER = RuleKey.event("hopp.format.after", EventRuleMode.THROW_IN_ERROR)
-
     // ── Enum rules ────────────────────────────────────────────────
     val ENUM_USE_CUSTOM = RuleKey.string("enum.use.custom")
     val CONSTANT_FIELD_IGNORE = RuleKey.boolean("constant.field.ignore")
@@ -125,8 +113,7 @@ object RuleKeys {
     // ── Markdown export templates ─────────────────────────────────
     // NOTE: These are document-level config read via `ConfigReader.getFirst(...)`,
     // never evaluated by `RuleEngine` against a PSI element. They live here only so
-    // `list_rule_keys` surfaces them . The AI proposal half of markdown
-    // template discovery is added in Phase 4.
+    // `list_rule_keys` surfaces them.
     //
     // `markdown.template` accepts either a local file path OR a remote http(s) URL —
     // the resolver auto-detects by the `http(s)://` prefix. The separate `.file` and

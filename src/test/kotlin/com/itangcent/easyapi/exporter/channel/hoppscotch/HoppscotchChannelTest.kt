@@ -1,10 +1,10 @@
 package com.itangcent.easyapi.exporter.channel.hoppscotch
 
-import com.itangcent.easyapi.exporter.channel.ApiChannel
-import com.itangcent.easyapi.exporter.channel.ApiChannelRegistry
-import com.itangcent.easyapi.exporter.hoppscotch.HoppscotchExportMetadata
-import com.itangcent.easyapi.exporter.hoppscotch.model.HoppCollection
-import com.itangcent.easyapi.exporter.hoppscotch.model.HoppRESTRequest
+import com.itangcent.easyapi.exporter.channel.Channel
+import com.itangcent.easyapi.exporter.channel.ChannelRegistry
+import com.itangcent.easyapi.exporter.channel.hoppscotch.HoppscotchExportMetadata
+import com.itangcent.easyapi.exporter.channel.hoppscotch.model.HoppCollection
+import com.itangcent.easyapi.exporter.channel.hoppscotch.model.HoppRESTRequest
 import com.itangcent.easyapi.exporter.model.ExportResult
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
 
@@ -26,7 +26,7 @@ class HoppscotchChannelTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     fun testChannelRegistered() {
-        val registry = ApiChannelRegistry.getInstance(project)
+        val registry = ChannelRegistry.getInstance(project)
         val channels = registry.getAvailableChannels(emptyList())
         val hoppscotchChannel = channels.find { it.id == "hoppscotch" }
         assertNotNull("Hoppscotch channel should be registered", hoppscotchChannel)

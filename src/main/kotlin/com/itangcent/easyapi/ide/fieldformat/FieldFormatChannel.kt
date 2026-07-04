@@ -9,7 +9,7 @@ import com.intellij.psi.PsiClass
  * Each implementation owns one output format (JSON, JSON5, Properties, YAML, …).
  * Registered via the `com.itangcent.idea.plugin.easy-api.fieldFormatChannel`
  * extension point in `plugin.xml`. Mirrors
- * [com.itangcent.easyapi.exporter.channel.ApiChannel].
+ * [com.itangcent.easyapi.exporter.channel.Channel].
  *
  * ## Implementing
  *

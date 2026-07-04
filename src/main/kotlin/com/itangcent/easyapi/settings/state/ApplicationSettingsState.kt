@@ -4,72 +4,80 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.itangcent.easyapi.ai.AiProvider
+import com.itangcent.easyapi.extension.ExtensionConfigRegistry
 import com.itangcent.easyapi.settings.HttpClientType
 import com.itangcent.easyapi.settings.PostmanJson5FormatType
-import com.itangcent.easyapi.settings.Settings
 
 /**
  * Application-level settings state for EasyAPI plugin.
- * 
- * Stores global settings that apply across all projects,
- * persisted in `easyapi_app.xml`.
- * 
+ *
+ * **Deprecated.** Kept only as a readable fallback for the one-time settings
+ * migration ([com.itangcent.easyapi.settings.migration.SettingsMigrationActivity])
+ * that reads legacy `easyapi_app.xml` and ports it into the unified map-backed
+ * state ([UnifiedAppSettingsState]).
+ *
+ * New code must NOT read or write this state — use
+ * [com.itangcent.easyapi.settings.SettingBinder] with the appropriate
+ * [com.itangcent.easyapi.settings.Settings] subtype instead. This class will
+ * be removed once the migration window closes.
+ *
+ * Persisted in `easyapi_app.xml`.
+ *
  * Settings include:
  * - Framework support toggles (Feign, JAX-RS, Actuator)
  * - HTTP client configuration
  * - Logging and output preferences
  */
+@Deprecated(
+    "Legacy state kept only for one-time settings migration; use SettingBinder with a Settings subtype instead",
+    level = DeprecationLevel.WARNING
+)
 @State(name = "EasyApiApplicationSettings", storages = [Storage("easyapi_app.xml")])
 class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsState.State> {
     /**
      * Data class holding all application-level settings.
-     * Implements ApplicationSettingsSupport for consistent access.
      */
     data class State(
-        override var feignEnable: Boolean = false,
-        override var jaxrsEnable: Boolean = true,
-        override var actuatorEnable: Boolean = false,
-        override var grpcEnable: Boolean = true,
-        override var postmanToken: String? = null,
-        override var wrapCollection: Boolean = false,
-        override var autoMergeScript: Boolean = false,
-        override var postmanJson5FormatType: String = PostmanJson5FormatType.EXAMPLE_ONLY.name,
-        override var queryExpanded: Boolean = true,
-        override var formExpanded: Boolean = true,
-        override var pathMulti: String = "ALL",
-        override var inferReturnMain: Boolean = true,
-        override var enableUrlTemplating: Boolean = true,
-        override var switchNotice: Boolean = true,
-        override var httpTimeOut: Int = 5,
-        override var unsafeSsl: Boolean = false,
-        override var httpClient: String = HttpClientType.APACHE.value,
-        override var extensionConfigs: String = Settings().extensionConfigs,
-        override var logLevel: Int = 100, // SILENT — console off by default
-        override var outputDemo: Boolean = true,
-        override var outputCharset: String = "UTF-8",
-        override var builtInConfig: String? = null,
-        override var remoteConfig: Array<String> = emptyArray(),
-        override var autoScanEnabled: Boolean = true,
-        override var grpcArtifactConfigs: Array<String> = emptyArray(),
-        override var grpcAdditionalJars: Array<String> = emptyArray(),
-        override var grpcCallEnabled: Boolean = false,
-        override var grpcRepositories: Array<String> = emptyArray(),
-        override var concurrentScanEnabled: Boolean = false,
-        override var gutterIconEnabled: Boolean = true,
-        override var globalEnvironments: String = "",
-        override var hoppscotchToken: String? = null,
-        override var hoppscotchServerUrl: String? = "https://hoppscotch.io",
-        override var hoppscotchBackendUrl: String? = null,
-        override var hoppscotchRefreshToken: String? = null,
-        override var enumFieldAutoInferEnabled: Boolean = false,
-        override var disabledGlobalRuleFiles: Array<String> = emptyArray(),
-        override var aiProvider: String = "OPENAI",
-        override var aiBaseUrl: String = "",
-        override var aiModel: String = "",
-        override var aiRequestTimeoutSec: Int = 60,
-        override var aiMaxRequests: Int = 100,
-        override var aiContextWindow: Int = AiProvider.DEFAULT_CONTEXT_WINDOW
-    ) : ApplicationSettingsSupport {
+        var feignEnable: Boolean = false,
+        var jaxrsEnable: Boolean = true,
+        var actuatorEnable: Boolean = false,
+        var grpcEnable: Boolean = true,
+        var postmanToken: String? = null,
+        var wrapCollection: Boolean = false,
+        var autoMergeScript: Boolean = false,
+        var postmanJson5FormatType: String = PostmanJson5FormatType.EXAMPLE_ONLY.name,
+        var queryExpanded: Boolean = true,
+        var formExpanded: Boolean = true,
+        var pathMulti: String = "ALL",
+        var inferReturnMain: Boolean = true,
+        var enableUrlTemplating: Boolean = true,
+        var switchNotice: Boolean = true,
+        var httpTimeOut: Int = 30,
+        var unsafeSsl: Boolean = false,
+        var httpClient: String = HttpClientType.APACHE.value,
+        var extensionConfigs: String = ExtensionConfigRegistry.codesToString(ExtensionConfigRegistry.defaultCodes()),
+        var logLevel: Int = 100, // SILENT — console off by default
+        var outputDemo: Boolean = true,
+        var outputCharset: String = "UTF-8",
+        var builtInConfig: String? = null,
+        var remoteConfig: Array<String> = emptyArray(),
+        var autoScanEnabled: Boolean = true,
+        var grpcArtifactConfigs: Array<String> = emptyArray(),
+        var grpcAdditionalJars: Array<String> = emptyArray(),
+        var grpcCallEnabled: Boolean = false,
+        var grpcRepositories: Array<String> = emptyArray(),
+        var concurrentScanEnabled: Boolean = false,
+        var gutterIconEnabled: Boolean = true,
+        var globalEnvironments: String = "",
+        var enumFieldAutoInferEnabled: Boolean = false,
+        var disabledGlobalRuleFiles: Array<String> = emptyArray(),
+        var aiProvider: String = "OPENAI",
+        var aiBaseUrl: String = "",
+        var aiModel: String = "",
+        var aiRequestTimeoutSec: Int = 60,
+        var aiMaxRequests: Int = 100,
+        var aiContextWindow: Int = AiProvider.DEFAULT_CONTEXT_WINDOW
+    ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
@@ -107,10 +115,6 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
             if (concurrentScanEnabled != other.concurrentScanEnabled) return false
             if (gutterIconEnabled != other.gutterIconEnabled) return false
             if (globalEnvironments != other.globalEnvironments) return false
-            if (hoppscotchToken != other.hoppscotchToken) return false
-            if (hoppscotchServerUrl != other.hoppscotchServerUrl) return false
-            if (hoppscotchBackendUrl != other.hoppscotchBackendUrl) return false
-            if (hoppscotchRefreshToken != other.hoppscotchRefreshToken) return false
             if (enumFieldAutoInferEnabled != other.enumFieldAutoInferEnabled) return false
             if (!disabledGlobalRuleFiles.contentEquals(other.disabledGlobalRuleFiles)) return false
             if (aiProvider != other.aiProvider) return false
@@ -155,10 +159,6 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
             result = 31 * result + concurrentScanEnabled.hashCode()
             result = 31 * result + gutterIconEnabled.hashCode()
             result = 31 * result + globalEnvironments.hashCode()
-            result = 31 * result + (hoppscotchToken?.hashCode() ?: 0)
-            result = 31 * result + (hoppscotchServerUrl?.hashCode() ?: 0)
-            result = 31 * result + (hoppscotchBackendUrl?.hashCode() ?: 0)
-            result = 31 * result + (hoppscotchRefreshToken?.hashCode() ?: 0)
             result = 31 * result + enumFieldAutoInferEnabled.hashCode()
             result = 31 * result + disabledGlobalRuleFiles.contentHashCode()
             result = 31 * result + aiProvider.hashCode()
@@ -168,6 +168,48 @@ class ApplicationSettingsState : PersistentStateComponent<ApplicationSettingsSta
             result = 31 * result + aiMaxRequests
             result = 31 * result + aiContextWindow
             return result
+        }
+
+        fun copyTo(target: State) {
+            target.feignEnable = feignEnable
+            target.jaxrsEnable = jaxrsEnable
+            target.actuatorEnable = actuatorEnable
+            target.grpcEnable = grpcEnable
+            target.postmanToken = postmanToken
+            target.wrapCollection = wrapCollection
+            target.autoMergeScript = autoMergeScript
+            target.postmanJson5FormatType = postmanJson5FormatType
+            target.queryExpanded = queryExpanded
+            target.formExpanded = formExpanded
+            target.pathMulti = pathMulti
+            target.inferReturnMain = inferReturnMain
+            target.enableUrlTemplating = enableUrlTemplating
+            target.switchNotice = switchNotice
+            target.httpTimeOut = httpTimeOut
+            target.unsafeSsl = unsafeSsl
+            target.httpClient = httpClient
+            target.extensionConfigs = extensionConfigs
+            target.logLevel = logLevel
+            target.outputDemo = outputDemo
+            target.outputCharset = outputCharset
+            target.builtInConfig = builtInConfig
+            target.remoteConfig = remoteConfig
+            target.autoScanEnabled = autoScanEnabled
+            target.grpcArtifactConfigs = grpcArtifactConfigs
+            target.grpcAdditionalJars = grpcAdditionalJars
+            target.grpcCallEnabled = grpcCallEnabled
+            target.grpcRepositories = grpcRepositories
+            target.concurrentScanEnabled = concurrentScanEnabled
+            target.gutterIconEnabled = gutterIconEnabled
+            target.globalEnvironments = globalEnvironments
+            target.enumFieldAutoInferEnabled = enumFieldAutoInferEnabled
+            target.disabledGlobalRuleFiles = disabledGlobalRuleFiles
+            target.aiProvider = aiProvider
+            target.aiBaseUrl = aiBaseUrl
+            target.aiModel = aiModel
+            target.aiRequestTimeoutSec = aiRequestTimeoutSec
+            target.aiMaxRequests = aiMaxRequests
+            target.aiContextWindow = aiContextWindow
         }
     }
 

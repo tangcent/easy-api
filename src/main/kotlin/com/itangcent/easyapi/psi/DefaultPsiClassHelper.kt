@@ -12,6 +12,8 @@ import com.itangcent.easyapi.psi.DefaultPsiClassHelper.Companion.DEFAULT_MAX_ELE
 import com.itangcent.easyapi.psi.helper.DocHelper
 import com.itangcent.easyapi.psi.helper.DocMetadataResolver
 import com.itangcent.easyapi.psi.helper.UnifiedDocHelper
+import com.itangcent.easyapi.exporter.model.Extension
+import com.itangcent.easyapi.exporter.model.MutableExtension
 import com.itangcent.easyapi.psi.model.FieldModel
 import com.itangcent.easyapi.psi.model.FieldOption
 import com.itangcent.easyapi.psi.model.ObjectModel
@@ -791,6 +793,18 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
                 }
             }
         }
+
+        // Resolve field-level mock (e.g. `field.mock=#mock` in the yapi extension).
+        // Populated onto the extension carrier so channel-specific accessors
+        // (e.g. `FieldModel.mock`) can read it without coupling the shared model.
+        var fieldExtensions: Extension = Extension.EMPTY
+        if (psiElement != null) {
+            val mockValue = engine.evaluate(RuleKeys.FIELD_MOCK, psiElement)
+            if (!mockValue.isNullOrBlank()) {
+                fieldExtensions = MutableExtension().apply { this["mock"] = mockValue }
+            }
+        }
+
         return FieldModel(
             model = reconciledModel,
             comment = comment,
@@ -799,7 +813,8 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
             options = options,
             demo = demo,
             advanced = advanced,
-            generic = generic
+            generic = generic,
+            extensions = fieldExtensions
         )
     }
 

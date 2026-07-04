@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.flow.takeWhile
 
 /**
  * Defines how multiple rule values are aggregated into a single result.

@@ -8,13 +8,13 @@ import com.itangcent.easyapi.core.threading.IdeDispatchers
 import com.itangcent.easyapi.core.threading.backgroundAsync
 import com.itangcent.easyapi.exporter.channel.ChannelConfig
 import com.itangcent.easyapi.exporter.channel.ChannelOptionsPanel
-import com.itangcent.easyapi.exporter.hoppscotch.CachedHoppscotchApiClient
-import com.itangcent.easyapi.exporter.hoppscotch.HoppCollectionInfo
-import com.itangcent.easyapi.exporter.hoppscotch.HoppscotchApiClient
-import com.itangcent.easyapi.exporter.hoppscotch.asCached
+import com.itangcent.easyapi.exporter.channel.hoppscotch.CachedHoppscotchApiClient
+import com.itangcent.easyapi.exporter.channel.hoppscotch.HoppCollectionInfo
+import com.itangcent.easyapi.exporter.channel.hoppscotch.HoppscotchApiClient
+import com.itangcent.easyapi.exporter.channel.hoppscotch.asCached
 import com.itangcent.easyapi.http.HttpClientProvider
 import com.itangcent.easyapi.logging.IdeaLog
-import com.itangcent.easyapi.settings.SettingBinder
+import com.itangcent.easyapi.settings.settings
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.event.ItemEvent
@@ -34,7 +34,7 @@ import javax.swing.*
  *
  * @param project the IntelliJ project context
  * @see HoppscotchChannel
- * @see ChannelConfig.HoppscotchConfig
+ * @see HoppscotchConfig
  */
 class HoppscotchOptionsPanel(private val project: Project) : ChannelOptionsPanel, IdeaLog {
 
@@ -109,7 +109,7 @@ class HoppscotchOptionsPanel(private val project: Project) : ChannelOptionsPanel
     }
 
     private fun initializeMode() {
-        val settings = SettingBinder.getInstance(project).read()
+        val settings = project.settings<HoppscotchSettings>()
         val token = settings.hoppscotchToken
 
         if (token.isNullOrBlank()) {
@@ -156,7 +156,7 @@ class HoppscotchOptionsPanel(private val project: Project) : ChannelOptionsPanel
     }
 
     override fun buildConfig(): ChannelConfig {
-        val settings = SettingBinder.getInstance(project).read()
+        val settings = project.settings<HoppscotchSettings>()
         val token = settings.hoppscotchToken
 
         return if (token.isNullOrBlank()) {
@@ -165,7 +165,7 @@ class HoppscotchOptionsPanel(private val project: Project) : ChannelOptionsPanel
                 fileName = fileNameField.text.takeIf { it.isNotBlank() }
             )
         } else {
-            ChannelConfig.HoppscotchConfig(
+            HoppscotchConfig(
                 collectionId = selectedCollection?.id,
                 collectionName = selectedCollection?.name,
                 isUpdate = selectedCollection != null
