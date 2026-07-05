@@ -5,6 +5,27 @@ All notable changes to the EasyAPI plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.6] - 2026-07-05
+
+### Added
+-  refactor BodyView to carry ObjectModel with render helpers (#726)
+-  free-form Markdown export templates with i18n and remote source support (#1411)
+-  support `###include <path-or-url>` directive for loading config from local files and remote URLs (#1410)
+
+### Fixed
+-  YAML export drops @ConfigurationProperties prefix (#728)
+-  FieldsTo* resolves caret class instead of first class in file (#727)
+-  respect method-level selection when exporting APIs
+
+### Changed
+-  restructure settings modules, rename Intelligent tab, group panel sections (#725)
+-  consolidate exporters into self-contained channel folders with modular settings (#724)
+
+### Improved
+- docs: add DeepWiki badge to READMEs
+
+---
+
 ## [3.1.5] - 2026-06-28
 
 ### Added
