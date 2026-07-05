@@ -63,12 +63,13 @@ Convert class fields to various formats:
 - **To JSON** — Standard JSON with default values
 - **To JSON5** — JSON5 format with comments support
 - **To Properties** — Java `.properties` format
+- **To YAML** — YAML format with Spring Boot `application.yml` semantics (honors `@ConfigurationProperties` prefix)
 
 ## Supported Frameworks
 
 | Category | Supported |
 |----------|-----------|
-| **Languages** | Java, Kotlin, Scala (optional) |
+| **Languages** | Java, Kotlin, Scala (optional), Groovy (optional) |
 | **Web Frameworks** | Spring MVC, Spring Cloud OpenFeign, JAX-RS (Quarkus / Jersey) |
 | **RPC** | gRPC |
 | **Validation** | javax.validation / Jakarta Validation |
@@ -143,7 +144,7 @@ Support for gRPC service implementations:
 ### Convert Fields
 
 1. Right-click on a class in the editor
-2. Select **EasyApi → ToJson / ToJson5 / ToProperties**
+2. Select **EasyApi → ToJson / ToJson5 / ToProperties / ToYaml**
 
 ## Configuration
 
@@ -216,12 +217,12 @@ The built-in assistant reads [`docs/knowledge-base/rule-guide.md`](src/main/reso
 
 ### Architecture
 
-The plugin follows a layered architecture:
+The plugin follows a layered, extension-point-driven architecture:
 
 ```mermaid
 graph TB
-    IDE["IDE Integration Layer<br/>(Actions, Dashboard, Line Markers, Search)"]
-    Export["Export Layer<br/>(ExportOrchestrator → ClassExporter → ApiExporter)"]
+    IDE["IDE Integration Layer<br/>(Actions, Dashboard, Line Markers, Search, AI Assistant)"]
+    Export["Export Layer<br/>(ExportOrchestrator → ClassExporter EP + Channel EP)"]
     Core["Core Services<br/>(RuleEngine, ConfigReader, ApiIndex, HttpClient)"]
     PSI["PSI Analysis<br/>(TypeResolver, DocHelper, AnnotationHelper)"]
 
@@ -230,8 +231,9 @@ graph TB
     Core --> PSI
 ```
 
-- **ClassExporter** — Extracts `ApiEndpoint` models from PSI classes (Spring MVC, JAX-RS, Feign, gRPC)
-- **ApiExporter** — Converts `ApiEndpoint` models to output formats (Markdown, Postman, cURL, HTTP Client)
-- **ExportOrchestrator** — Coordinates the full export pipeline from scanning to output
+- **ExportOrchestrator** — Coordinates the full export pipeline: scans endpoints via `ApiScanner`, then hands them to the selected `Channel` for output
+- **ClassExporter** *(extension point)* — Extracts `ApiEndpoint` models from PSI classes; built-in implementations: Spring MVC, Spring Cloud OpenFeign, JAX-RS, Spring Actuator, gRPC
+- **Channel** *(extension point)* — Converts `ApiEndpoint` models to an output format and handles file write / remote upload; built-in channels: Markdown, Postman, cURL, HTTP Client, Hoppscotch *(Beta)*. Adding a new output target only requires implementing `Channel` — no core edits
 - **ApiIndex** — Caches discovered endpoints for fast search and dashboard access
-- **RuleEngine** — Evaluates rule expressions to customize parsing behavior
+- **RuleEngine** — Evaluates rule expressions (Groovy, regex, annotation, tag) to customize parsing behavior
+- **AI Assistant** — Optional built-in agent that inspects the project via PSI tools and authors rule files; see the [Skills](#skills) section for the external-skill equivalent
