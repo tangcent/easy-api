@@ -5,6 +5,24 @@ All notable changes to the EasyAPI plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.7] - 2026-07-14
+
+### Added
+- feat(ai): enrich PSI perception tools with name resolution, type FQNs, and method bodies (#734)
+- feat(ai): add loop-safety and chat-retry to rule authoring agent (#733)
+- feat(ai): namespace per-app env vars across exporters and agent
+- feat(ai): teach rule agent cross-endpoint workflow patterns (#732)
+- feat(curl): add variable rendering, output options, pre-scripts, and reusable cURL builder (#731)
+
+### Fixed
+-  inherit mapping annotations from bounded-generic interfaces
+
+### Improved
+- chore: drop spec reference from LangChain4j build comment
+- docs(readme): sync Architecture section with v3.0 channel EP and add YAML field conversion (#730)
+
+---
+
 ## [3.1.6] - 2026-07-05
 
 ### Added
