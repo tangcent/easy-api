@@ -604,6 +604,11 @@ class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Pr
         .addComponent(buildFieldFormatEnablementPanel())
         .addComponentFillVertically(JPanel(), 0)
         .panel
+        // The panel's only content is checkboxes, whose preferred width is
+        // narrow text. Match the width of the other panels (whose wide content
+        // — the repositories table, 150px labeledRow labels — drives a near-600px
+        // preferred width) so this tab doesn't render noticeably narrower.
+        .apply { preferredSize = Dimension(600, preferredSize.height) }
 
     override fun resetFrom(settings: GeneralSettings?) {
         // Framework enablement is handled by [resetFrameworkEnablementFrom],
