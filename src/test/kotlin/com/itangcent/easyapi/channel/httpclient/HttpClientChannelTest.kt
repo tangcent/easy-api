@@ -14,7 +14,7 @@ class HttpClientChannelTest {
 
     @Test
     fun testHttpClientChannelIsDefaultOff() {
-        // Req 1.4: HttpClientChannel ships disabled by default — users opt in via Settings.
+        // HttpClientChannel ships disabled by default — users opt in via Settings.
         assertFalse(HttpClientChannel().enabledByDefault)
     }
 

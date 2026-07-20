@@ -27,8 +27,8 @@ import com.itangcent.easyapi.core.psi.type.TypeResolver
  *   [GlobalSearchScope.allScope]. Returns the single match, or `null` with a
  *   `LOG.info` decision log when zero or >1 matches are found.
  *
- * All PSI access is performed inside a read action (NFR-1). Logging follows
- * NFR-2 — `LOG.info` is the floor; no arguments or result bodies are logged
+ * All PSI access is performed inside a read action. Logging follows
+ * the convention that `LOG.info` is the floor; no arguments or result bodies are logged
  * beyond the identifier needed to explain a decision.
  */
 internal object PsiNameResolver : IdeaLog {
@@ -174,7 +174,7 @@ internal object PsiNameResolver : IdeaLog {
     /**
      * Resolves the optional `context` argument supplied by AI tools to a
      * [PsiElement] for import-scope resolution. Non-string values are logged
-     * and treated as `null` (per REQ-4 AC-5).
+     * and treated as `null`.
      *
      * Shared by tools that accept a `context` parameter
      * ([GetPsiClassInfoTool], [GetPsiMethodInfoTool], [FindClassesByAnnotationTool],

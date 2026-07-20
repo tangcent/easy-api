@@ -132,7 +132,7 @@ class EasyApiSettingsConfigurableTest : EasyApiLightCodeInsightFixtureTestCase()
         assertTrue("General tab must precede Features; got: $tabs", generalIdx >= 0 && featuresIdx == generalIdx + 1)
     }
 
-    // --- Task 4.2: channel enablement wiring (Req 3.5, 5.1, 5.3) ---
+    // --- channel enablement wiring ---
 
     /**
      * Helper: restore GeneralSettings to a clean default state in [tearDown]
@@ -206,7 +206,7 @@ class EasyApiSettingsConfigurableTest : EasyApiLightCodeInsightFixtureTestCase()
     }
 
     /**
-     * Req 4.3 regression: a disabled channel does NOT get a Settings tab.
+     * Regression: a disabled channel does NOT get a Settings tab.
      * Hoppscotch is default-off AND contributes a settings panel, so by default
      * (no explicit enable) it must not appear as a tab.
      */
@@ -246,7 +246,7 @@ class EasyApiSettingsConfigurableTest : EasyApiLightCodeInsightFixtureTestCase()
         }
     }
 
-    // --- Task A.5: field-format enablement wiring (Req A3.5, A4) ---
+    // --- field-format enablement wiring ---
 
     fun testIsModified_includesFieldFormatEnablement() {
         try {
@@ -312,7 +312,7 @@ class EasyApiSettingsConfigurableTest : EasyApiLightCodeInsightFixtureTestCase()
     }
 
     fun testFieldFormatEnablementIndependentFromExportChannelEnablement() {
-        // Decision A4: toggling a field-format checkbox must not affect export-channel
+        // Toggling a field-format checkbox must not affect export-channel
         // isModified state, and vice versa.
         try {
             configurable.createComponent()

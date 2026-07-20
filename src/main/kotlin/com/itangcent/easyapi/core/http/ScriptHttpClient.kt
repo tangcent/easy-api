@@ -6,7 +6,7 @@ import kotlinx.coroutines.runBlocking
  * Synchronous adapter exposing the suspend-only [HttpClient] API at the blocking
  * JSR-223 script boundary.
  *
- * ## Why this exists (Spec: ai-workflow-patterns, D1 / Req 5.5)
+ * ## Why this exists
  * The 401-refresh recipe runs inside an `http.call.after` rule value. That script is
  * evaluated by [com.itangcent.easyapi.core.rule.parser.Jsr223ScriptParser] via the JSR-223
  * Groovy engine, which is a **blocking** evaluator (`ScriptEngine.eval`). Groovy scripts

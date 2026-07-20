@@ -712,7 +712,7 @@ class ApiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), 
     }
 
     fun resolveScriptScopesForEndpoint(endpoint: ApiEndpoint): List<ScriptScope> {
-        // Delegates to the CurlRenderer SPI (Decision CO8) — folder + class
+        // Delegates to the CurlRenderer SPI — folder + class
         // scopes only, matching the dashboard's prior behavior. The cURL
         // single-endpoint path (CurlRenderer.formatForCopy → CurlExportResolver)
         // additionally appends the Endpoint scope.

@@ -9,11 +9,11 @@ import com.itangcent.easyapi.core.script.ScriptScope
 /**
  * SPI for cURL rendering operations needed by `core.*` callers.
  *
- * Decisions CO3 + CO8: `core.rule.context.ScriptApiEndpoint.toCurl` and
+ * `core.rule.context.ScriptApiEndpoint.toCurl` and
  * `core.dashboard.ApiDashboardPanel` (copy-as-cURL action, scope resolution)
  * MUST NOT import concrete `channel.curl.*` types. They go through this SPI
  * instead; the implementation lives in `channel.curl.CurlRendererService` and
- * is registered in `plugin.xml` as an `<applicationService>` (Decision CO8).
+ * is registered in `plugin.xml` as an `<applicationService>`.
  *
  * ## Why application-scoped (not project-scoped)
  *

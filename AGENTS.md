@@ -229,6 +229,7 @@ com.itangcent.easyapi/
 │   ├── hoppscotch/  (+ model/)
 │   ├── httpclient/
 │   ├── markdown/    (+ template/)
+│   ├── openapi/
 │   └── postman/     (+ model/)
 │
 ├── format/                          # FIELD/OBJECT SERIALIZATION

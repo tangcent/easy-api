@@ -136,6 +136,57 @@ class AntiPatternGateTest {
         )
     }
 
+    /**
+     * OpenApi channel — focused anti-pattern gate.
+     *
+     * Asserts every `*.kt` under `channel/openapi/` adheres to the AGENTS.md
+     * logging rule: `LOG.info` and `LOG.warn` only — no `LOG.error` (triggers
+     * an intrusive IDE popup), no `LOG.debug`/`LOG.trace` (filtered out of
+     * `idea.log` by default, invisible when debugging). Also bans
+     * `println`/`printStackTrace` and direct `Notifications.Bus.notify` /
+     * `NotificationGroupManager` calls.
+     *
+     * The broader [noLogErrorInProductionCode] / [noDebugTraceOnLogChannel] /
+     * [noPrintlnInProductionCode] / [noPrintStackTraceInProductionCode] /
+     * [noDirectNotificationsOutsideNotificationUtils] tests already cover
+     * `src/main/kotlin` as a whole; this test is a focused, named guard so an
+     * OpenApi-specific regression is immediately identifiable in test output.
+     */
+    @Test
+    fun openApiChannelAdheresToLoggingAntiPatternRules() {
+        val openApiRoot = File("src/main/kotlin/com/itangcent/easyapi/channel/openapi")
+        assertTrue(
+            "OpenApi channel source root should exist at $openApiRoot",
+            openApiRoot.exists()
+        )
+
+        val offenders = mutableListOf<String>()
+        openApiRoot.walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { file ->
+            val stripped = stripComments(file.readText())
+            val patterns = listOf(
+                Regex("""\bLOG\.error\s*\(""") to "LOG.error",
+                Regex("""\bLOG\.debug\s*\(""") to "LOG.debug",
+                Regex("""\bLOG\.trace\s*\(""") to "LOG.trace",
+                Regex("""\bprintln\s*\(""") to "println",
+                Regex("""\.printStackTrace\s*\(""") to ".printStackTrace()",
+                Regex("""Notifications\.Bus\.notify""") to "Notifications.Bus.notify",
+                Regex("""NotificationGroupManager""") to "NotificationGroupManager",
+            )
+            patterns.forEach { (regex, label) ->
+                if (regex.containsMatchIn(stripped)) {
+                    offenders.add("${file.path}: $label")
+                }
+            }
+        }
+
+        assertTrue(
+            "OpenApi channel files must follow AGENTS.md logging rules (LOG.info/warn only, " +
+                "no println/printStackTrace, no direct Notifications.Bus.notify). " +
+                "Violations:\n${offenders.joinToString("\n")}",
+            offenders.isEmpty()
+        )
+    }
+
     // --- helpers ---
 
     private fun scanFiles(matcher: (content: String, file: File) -> List<String>): List<String> {

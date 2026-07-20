@@ -115,7 +115,7 @@ class HttpClientScriptInterceptorTest {
         assertEquals(200, response.code)
     }
 
-    // ---- T2.2: mutation + recursion guard (Spec: ai-workflow-patterns, D2/D3) ----
+    // ---- mutation + recursion guard ----
 
     /**
      * Minimal [RuleContext] double that records `setExt` calls into a map and

@@ -17,7 +17,7 @@ import com.itangcent.easyapi.framework.spi.FrameworkRegistry
  * across any supported framework. All code that needs to check "is this an API class?"
  * should use this class instead of checking annotations directly.
  *
- * ## EP-based discovery (Decision CO9)
+ * ## EP-based discovery
  *
  * Recognizer instances are discovered via the `com.itangcent.idea.plugin.easy-api.apiClassRecognizer`
  * extension point (declared in `plugin.xml`). Each framework registers its recognizer
@@ -49,10 +49,10 @@ class CompositeApiClassRecognizer(private val project: Project) : Disposable {
     private fun buildRecognizers(): List<ApiClassRecognizer> {
         // EP-discovered recognizers are constructed with no-arg constructors.
         // Framework enablement is resolved by FrameworkRegistry (the single
-        // chokepoint — PR4), overlaying the stored user preference on each
+        // chokepoint), overlaying the stored user preference on each
         // recognizer's `enabledByDefault`. The `&& it.isEnabled(project)`
         // clause preserves the per-recognizer project-state gate (default
-        // `true` for all 5 in-tree recognizers after task 26 — they no longer
+        // `true` for all 5 in-tree recognizers — they no longer
         // override). This composite never imports concrete framework.* classes.
         return EP_NAME.getExtensions(project).toList()
             .filter { FrameworkRegistry.getInstance(project).isEnabled(it) && it.isEnabled(project) }
@@ -80,7 +80,7 @@ class CompositeApiClassRecognizer(private val project: Project) : Disposable {
         get() = cachedRecognizers.flatMap { it.targetAnnotations }.toSet()
 
     /**
-     * Returns the cached list of enabled [ApiClassRecognizer]s (Decision CO5).
+     * Returns the cached list of enabled [ApiClassRecognizer]s.
      *
      * Exposes the existing private [cachedRecognizers] field so callers can
      * iterate the EP-respecting seam rather than hard-coding imports of the
@@ -108,7 +108,7 @@ class CompositeApiClassRecognizer(private val project: Project) : Disposable {
 
     companion object {
         /**
-         * EP name for framework recognizers (Decision CO9).
+         * EP name for framework recognizers.
          *
          * Declared in `plugin.xml` as `<extensionPoint name="apiClassRecognizer"
          * interface="...ApiClassRecognizer" area="IDEA_PROJECT" dynamic="true"/>`.

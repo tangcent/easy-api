@@ -105,7 +105,7 @@ class GetPsiClassInfoToolTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     // ------------------------------------------------------------------
-    // Task 6 — type enrichment (typeFqn / returnTypeFqn — inline type args)
+    // type enrichment (typeFqn / returnTypeFqn — inline type args)
     // ------------------------------------------------------------------
 
     fun testFieldIncludesTypeFqnForClassType() {
@@ -223,7 +223,7 @@ class GetPsiClassInfoToolTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     // ------------------------------------------------------------------
-    // Task 7 — tolerance + context parameter
+    // tolerance + context parameter
     // ------------------------------------------------------------------
 
     /**

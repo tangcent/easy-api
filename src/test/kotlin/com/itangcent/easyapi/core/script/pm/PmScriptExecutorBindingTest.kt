@@ -8,7 +8,7 @@ import java.io.File
 import javax.script.ScriptEngineManager
 
 /**
- * Binding lock-in test for [PmScriptExecutor] (Spec: ai-workflow-patterns, T2.3 / review Issue #2).
+ * Binding lock-in test for [PmScriptExecutor].
  *
  * Verifies that `httpClient` is **NOT** bound in the `pm.*` script execution context
  * (`postman.test` / `postman.prerequest`). This is a deliberate security-surface

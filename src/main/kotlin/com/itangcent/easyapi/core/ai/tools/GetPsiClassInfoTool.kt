@@ -76,8 +76,8 @@ class GetPsiClassInfoTool : AiTool, IdeaLog {
     /**
      * Builds the error message for a missing class. When the lookup was a
      * simple name without context and `PsiNameResolver` found multiple
-     * matches, the message guides the agent to `find_classes_by_name`
-     * (Design Decision 4). Otherwise a plain "class not found" is returned.
+     * matches, the message guides the agent to `find_classes_by_name`.
+     * Otherwise a plain "class not found" is returned.
      */
     private suspend fun buildNotFoundMessage(
         fqn: String,
@@ -106,7 +106,7 @@ class GetPsiClassInfoTool : AiTool, IdeaLog {
         val psiClass = PsiNameResolver.resolveClass(fqn, ctx.project, contextElement)
             ?: return@read null
         // Implicit contextElement for type enrichment: when no explicit context
-        // was supplied, use the resolved class's containing file (REQ-4 AC-9).
+        // was supplied, use the resolved class's containing file.
         val enrichmentContext = contextElement ?: psiClass.containingFile
         PsiSignatureBuilder.classToMap(psiClass, ctx.project, enrichmentContext)
     }

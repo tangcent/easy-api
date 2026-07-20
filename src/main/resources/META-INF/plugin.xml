@@ -24,10 +24,10 @@
         <extensionPoint name="classExporter" interface="com.itangcent.easyapi.core.export.ClassExporter" area="IDEA_PROJECT" dynamic="true"/>
         <extensionPoint name="channel" interface="com.itangcent.easyapi.channel.spi.Channel" area="IDEA_PROJECT" dynamic="true"/>
         <extensionPoint name="fieldFormatChannel" interface="com.itangcent.easyapi.format.spi.FieldFormatChannel" dynamic="true"/>
-        <!-- Decision CO9: EP-based discovery for framework recognizers.
+        <!-- EP-based discovery for framework recognizers.
              CompositeApiClassRecognizer iterates EP-discovered instances and
              filters by ApiClassRecognizer.isEnabled(project) — so core.*
-             no longer hard-imports framework.<id>.* recognizer classes (DAG rule CO3). -->
+             no longer hard-imports framework.<id>.* recognizer classes (DAG rule). -->
         <extensionPoint name="apiClassRecognizer" interface="com.itangcent.easyapi.core.export.recognizer.ApiClassRecognizer" area="IDEA_PROJECT" dynamic="true"/>
     </extensionPoints>
 
@@ -37,7 +37,7 @@
         <classExporter implementation="com.itangcent.easyapi.framework.jaxrs.JaxRsClassExporter"/>
         <classExporter implementation="com.itangcent.easyapi.framework.springmvc.ActuatorEndpointExporter"/>
         <classExporter implementation="com.itangcent.easyapi.framework.grpc.GrpcClassExporter"/>
-        <!-- Decision CO9: register framework recognizers via EP.
+        <!-- register framework recognizers via EP.
              CompositeApiClassRecognizer discovers these via ExtensionPointName
              and filters by isEnabled(project) (settings-driven). -->
         <apiClassRecognizer implementation="com.itangcent.easyapi.framework.springmvc.SpringControllerRecognizer"/>
@@ -50,6 +50,7 @@
         <channel implementation="com.itangcent.easyapi.channel.curl.CurlChannel"/>
         <channel implementation="com.itangcent.easyapi.channel.httpclient.HttpClientChannel"/>
         <channel implementation="com.itangcent.easyapi.channel.hoppscotch.HoppscotchChannel"/>
+        <channel implementation="com.itangcent.easyapi.channel.openapi.OpenApiChannel"/>
         <fieldFormatChannel implementation="com.itangcent.easyapi.format.json.JsonFieldFormatChannel"/>
         <fieldFormatChannel implementation="com.itangcent.easyapi.format.json5.Json5FieldFormatChannel"/>
         <fieldFormatChannel implementation="com.itangcent.easyapi.format.properties.PropertiesFieldFormatChannel"/>
@@ -64,7 +65,7 @@
         <!-- Migration flag + activity -->
         <applicationService serviceImplementation="com.itangcent.easyapi.core.settings.migration.MigrationFlag"/>
         <applicationService serviceImplementation="com.itangcent.easyapi.core.cache.AppCacheRepository"/>
-        <!-- Decision CO8: register CurlRenderer SPI → cURL impl.
+        <!-- register CurlRenderer SPI → cURL impl.
              core.* callers (ScriptApiEndpoint.toCurl, ApiDashboardPanel copy-as-cURL)
              look up via CurlRenderer.getInstance(); never import the concrete
              CurlBuilder/CurlExportResolver/CurlScriptScopes/CurlSettings from core
@@ -96,7 +97,7 @@
         <projectService serviceImplementation="com.itangcent.easyapi.core.export.ClassExporterRegistry"/>
         <projectService serviceImplementation="com.itangcent.easyapi.channel.spi.ChannelRegistry"/>
         <projectService serviceImplementation="com.itangcent.easyapi.framework.spi.FrameworkRegistry"/>
-        <!-- Decision CO7: register EnvironmentSyncSupport SPI → Postman impl.
+        <!-- register EnvironmentSyncSupport SPI → Postman impl.
              core.* callers look up via EnvironmentSyncSupport.getInstance(project);
              never import the concrete EnvironmentSyncService from core (DAG rule CO3). -->
         <projectService serviceInterface="com.itangcent.easyapi.channel.spi.EnvironmentSyncSupport"

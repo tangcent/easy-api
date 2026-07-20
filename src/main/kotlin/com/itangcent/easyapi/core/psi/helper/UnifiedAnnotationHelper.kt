@@ -95,6 +95,7 @@ class UnifiedAnnotationHelper : AnnotationHelper, com.itangcent.easyapi.core.log
 
     private fun normalizeValue(value: PsiAnnotationMemberValue, project: Project): Any? {
         return when (value) {
+            is PsiAnnotation -> normalizeAttributes(value, project)
             is PsiLiteralExpression -> value.value
             is PsiClassObjectAccessExpression -> value.operand.type.canonicalText
             is PsiArrayInitializerMemberValue -> value.initializers.mapNotNull { normalizeValue(it, project) }

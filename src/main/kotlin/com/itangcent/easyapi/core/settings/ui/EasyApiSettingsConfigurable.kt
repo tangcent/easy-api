@@ -219,10 +219,10 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
 
         // Re-apply the enablement filter to the quick-action group so newly
         // enabled channels appear and disabled channels are hidden without an
-        // IDE restart (Req 5.1, 5.2). Safe to call when no group is registered.
+        // IDE restart. Safe to call when no group is registered.
         ChannelQuickActionGroup.refreshActions(project)
         // Mirror for field-format actions: re-register newly-enabled formats and
-        // let per-context update() hide disabled ones (Req A4, Decision A5).
+        // let per-context update() hide disabled ones.
         FieldFormatActionGroup.refreshActions(project)
     }
 

@@ -30,7 +30,7 @@ import javax.swing.SwingUtilities
  *
  * Uses [PostmanApiClient] for API calls and [EnvironmentService] for local persistence.
  *
- * **Decision CO7**: Implements [EnvironmentSyncSupport] (the SPI in
+ * Implements [EnvironmentSyncSupport] (the SPI in
  * `channel.spi`) so `core.*` callers can depend on the abstraction rather than
  * this concrete class. Registered in `plugin.xml` as a project service with
  * `serviceInterface="...EnvironmentSyncSupport"`. Callers MUST look it up via

@@ -81,7 +81,7 @@ class CompositeApiClassRecognizerTest : EasyApiLightCodeInsightFixtureTestCase()
     }
 
     /**
-     * Decision CO5: `CompositeApiClassRecognizer.recognizers()` exposes the cached
+     * `CompositeApiClassRecognizer.recognizers()` exposes the cached
      * recognizer list (populated by `buildRecognizers()` based on project settings)
      * so callers can iterate the EP-respecting seam instead of hard-coding concrete
      * framework recognizer imports.

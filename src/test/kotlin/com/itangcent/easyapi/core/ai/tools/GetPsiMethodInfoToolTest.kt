@@ -266,7 +266,7 @@ class GetPsiMethodInfoToolTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     // ------------------------------------------------------------------
-    // Task 8 — type enrichment (returnType/returnTypeFqn/per-param typeFqn)
+    // type enrichment (returnType/returnTypeFqn/per-param typeFqn)
     // ------------------------------------------------------------------
 
     /**
@@ -363,7 +363,7 @@ class GetPsiMethodInfoToolTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     // ------------------------------------------------------------------
-    // Task 9 — detail / maxBodyChars / body (REQ-3 core)
+    // detail / maxBodyChars / body
     // ------------------------------------------------------------------
 
     /**
@@ -609,7 +609,7 @@ class GetPsiMethodInfoToolTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     // ------------------------------------------------------------------
-    // Task 10 — tolerance + context parameter
+    // tolerance + context parameter
     // ------------------------------------------------------------------
 
     /**

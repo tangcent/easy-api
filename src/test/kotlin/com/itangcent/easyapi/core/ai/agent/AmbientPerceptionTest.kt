@@ -190,7 +190,7 @@ class AmbientPerceptionTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     fun testFeignHintGatedWhenFeignDisabled() {
-        // Req 9.3: with feignEnable=false (the default), the FeignClient
+        // With feignEnable=false (the default), the FeignClient
         // annotation FQN is excluded from allTargetAnnotations, so even with a
         // @FeignClient class present in the fixture, "Feign" must NOT appear
         // in frameworkHints — settings gates are respected automatically.
@@ -225,7 +225,7 @@ class AmbientPerceptionTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     fun testFrameworkHintsCarryNoEnvVarKeysOrValues() {
-        // NFR-5 / Req 9.5: frameworkHints carries only short framework labels
+        // frameworkHints carries only short framework labels
         // — never env-var keys or values from the Environments panel. Even with
         // a controller present (so capture ran the recognizer scan) and an
         // env-var key/value in the process environment, neither may appear in

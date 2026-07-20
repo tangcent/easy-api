@@ -6,12 +6,11 @@ import com.itangcent.easyapi.core.settings.module.GeneralSettings
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
 
 /**
- * IDE-fixture tests for the "Field Format Channels" section of [FeaturesSettingsPanel]
- * (Task A.4, Req A3.1–A3.7).
+ * IDE-fixture tests for the "Field Format Channels" section of [FeaturesSettingsPanel].
  *
  * Mirrors [FeaturesSettingsPanelChannelEnablementTest]. The test fixture loads
  * `plugin.xml`, so [FieldFormatChannelRegistry.allChannels] returns the four
- * production formats (json, json5, properties, yaml), all default-on (Decision A2).
+ * production formats (json, json5, properties, yaml), all default-on.
  */
 class FeaturesSettingsPanelFieldFormatEnablementTest : EasyApiLightCodeInsightFixtureTestCase() {
 
@@ -20,14 +19,14 @@ class FeaturesSettingsPanelFieldFormatEnablementTest : EasyApiLightCodeInsightFi
     override fun setUp() {
         super.setUp()
         // Constructing the panel builds the "Field Format Channels" section from
-        // FieldFormatChannelRegistry.allChannels() (unfiltered — Req A3.4).
+        // FieldFormatChannelRegistry.allChannels() (unfiltered).
         panel = FeaturesSettingsPanel(project)
     }
 
     private fun channels(): List<FieldFormatChannel> =
         FieldFormatChannelRegistry.getInstance(project).allChannels()
 
-    // --- Req A3.3: checkbox reflects effective enabled state on reset ---
+    // --- checkbox reflects effective enabled state on reset ---
 
     fun testResetFieldFormatEnablement_defaultOnNoPreference_checked() {
         val settings = GeneralSettings() // no preference
@@ -40,12 +39,12 @@ class FeaturesSettingsPanelFieldFormatEnablementTest : EasyApiLightCodeInsightFi
     }
 
     fun testResetFieldFormatEnablement_allFourFormatsCheckedByDefault() {
-        // Decision A2: all four shipping formats are default-on.
+        // All four shipping formats are default-on.
         val settings = GeneralSettings()
         panel.resetFieldFormatEnablementFrom(channels(), settings)
         listOf("json", "json5", "yaml", "properties").forEach { id ->
             assertEquals(
-                "Format '$id' should be checked by default (Decision A2)",
+                "Format '$id' should be checked by default",
                 true,
                 panel.fieldFormatCheckboxState(id)
             )
@@ -155,7 +154,7 @@ class FeaturesSettingsPanelFieldFormatEnablementTest : EasyApiLightCodeInsightFi
         )
     }
 
-    // --- Req A3.7: graceful skip when no channels ---
+    // --- graceful skip when no channels ---
 
     fun testPanelBuildsWithoutErrorWhenFieldFormatsRegistered() {
         // The fixture registers formats, so allChannels() is non-empty.
@@ -166,7 +165,7 @@ class FeaturesSettingsPanelFieldFormatEnablementTest : EasyApiLightCodeInsightFi
     }
 
     fun testFieldFormatEnablementIndependentFromExportChannelEnablement() {
-        // Decision A4: the two enablement sections use independent id spaces.
+        // The two enablement sections use independent id spaces.
         // Setting export-channel preferences must not affect field-format checkboxes.
         val settings = GeneralSettings(
             enabledChannels = arrayOf("markdown"),

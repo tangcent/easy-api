@@ -101,7 +101,7 @@ class SystemPromptBuilderTest {
         // resolve a namespace key and namespace every env var in a workflow
         // bundle by that key. The full recipe lives in rule-guide.md; the
         // preamble carries only the condensed detection + on-demand-fetch
-        // pointer (Decision 5).
+        // pointer.
         val msg = SystemPromptBuilder.build()
         val text = msg.content
         Assert.assertTrue(
@@ -296,21 +296,21 @@ class SystemPromptBuilderTest {
         )
     }
 
-    // ── Token-budget tripwire (review Issue #8) ──
+    // ── Token-budget tripwire ──
 
     @Test
     fun `preamble content stays under token-budget ceiling`() {
         // The preamble is the fixed system prompt appended once at conversation start.
-        // NFR-3 targets a ~600-token preamble budget. T5.1 added a condensed
-        // "## Workflow-pattern detection" section (~2.8k chars). This tripwire catches
+        // Targets a ~600-token preamble budget. A condensed
+        // "## Workflow-pattern detection" section (~2.8k chars) was added. This tripwire catches
         // unexpected growth beyond the current actual length + a small headroom.
         //
         // Ceiling raised from 16_500 → 17_800 for the condensed "### Multi-app
         // namespacing" subsection added under "## Workflow-pattern detection"
-        // (per Decision 5: ~600-800-char target subsection + on-demand fetch via
+        // (~600-800-char target subsection + on-demand fetch via
         // `get_plugin_doc name="rule-guide"` for the full recipe; ceiling is the new
         // actual ~16.8k + ~1k headroom).
-        // Ceiling raised 17_800 → 19_200 for the agent-psi-resolution spec (Task 14):
+        // Ceiling raised 17_800 → 19_200 for the agent-psi-resolution preamble update:
         // preamble now documents `find_classes_by_name` as the primary simple-name
         // resolver, `typeFqn` chaining, and `detail="full"` opt-in. Actual ~18.2k
         // + ~1k headroom.
@@ -319,7 +319,7 @@ class SystemPromptBuilderTest {
         val ceiling = 19_200 // raised for agent-psi-resolution preamble update: actual ~18.2k + ~1k headroom
         Assert.assertTrue(
             "Preamble content length (${content.length} chars) must stay under $ceiling chars " +
-                "to stay within NFR-3's token budget. If a future section is added, raise the " +
+                "to stay within the token budget. If a future section is added, raise the " +
                 "ceiling to the new actual length + headroom.",
             content.length < ceiling
         )

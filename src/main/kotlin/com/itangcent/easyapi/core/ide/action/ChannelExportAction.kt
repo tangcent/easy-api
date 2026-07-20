@@ -29,7 +29,7 @@ class ChannelExportAction(
         if (project != null) {
             // Re-evaluate visibility per-display-context (NOT templatePresentation,
             // which the platform forbids mutating — Presentation.assertNotTemplatePresentation).
-            // This is the chokepoint for "hide not unregister" (Decision 4): a
+            // This is the chokepoint for "hide not unregister": a
             // disabled channel's action stays registered (keymap IDs remain
             // stable) but is hidden from the menu because isVisible resolves to false.
             val registry = ChannelRegistry.getInstance(project)

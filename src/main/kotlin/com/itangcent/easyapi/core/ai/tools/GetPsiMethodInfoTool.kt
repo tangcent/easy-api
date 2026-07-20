@@ -89,7 +89,7 @@ class GetPsiMethodInfoTool : AiTool, IdeaLog {
         // All PSI access (name, signature, annotations, parameters, docComment,
         // body) must happen inside the read action — PSI element getters
         // require one. The detail="signature" fast path does NOT touch
-        // psiMethod.body?.text (REQ-3 AC-9).
+        // psiMethod.body?.text.
         val info = read {
             val psiClass = PsiNameResolver.resolveClass(fqn, ctx.project, contextElement)
                 ?: return@read null
@@ -98,8 +98,7 @@ class GetPsiMethodInfoTool : AiTool, IdeaLog {
                     (paramCount == null || m.parameterList.parameters.size == paramCount)
             } ?: return@read null
             // Implicit contextElement for type enrichment: when no explicit
-            // context was supplied, use the resolved class's containing file
-            // (REQ-4 AC-9).
+            // context was supplied, use the resolved class's containing file.
             val enrichmentContext = contextElement ?: psiClass.containingFile
             PsiSignatureBuilder.methodToInfoMap(
                 psiMethod = psiMethod,
@@ -117,8 +116,7 @@ class GetPsiMethodInfoTool : AiTool, IdeaLog {
     /**
      * Builds the error message for a missing class or method. When the
      * lookup was a simple name without context and `PsiNameResolver` found
-     * multiple matches, the message guides the agent to `find_classes_by_name`
-     * (Design Decision 4).
+     * multiple matches, the message guides the agent to `find_classes_by_name`.
      */
     private suspend fun buildNotFoundMessage(
         fqn: String,

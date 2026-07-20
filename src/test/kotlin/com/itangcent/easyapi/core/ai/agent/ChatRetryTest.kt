@@ -26,7 +26,7 @@ import java.io.IOException
 class ChatRetryTest {
 
     // ==================================================================
-    // Task 16: Transient classifier isTransient
+    // Transient classifier isTransient
     // ==================================================================
 
     // --- Transient by type ---
@@ -157,7 +157,7 @@ class ChatRetryTest {
     }
 
     // ==================================================================
-    // Task 17: chatWithRetry suspend helper
+    // chatWithRetry suspend helper
     // ==================================================================
 
     /** Fast config: zero backoff so tests run instantly (jitter 0–249 ms only). */

@@ -949,7 +949,7 @@ class AiChatPanel(
      *
      * The dialog names the offending tool (captured from
      * [AgentEvent.LoopDetected]) when available. Continuing injects a
-     * user-style anti-repetition hint (design Decision 5) and re-runs the
+     * user-style anti-repetition hint and re-runs the
      * turn — a fresh `LoopGuard` starts automatically (it is per-turn).
      * Recovery is user-initiated; there is no auto-retry.
      */
@@ -972,7 +972,7 @@ class AiChatPanel(
             options[0]
         )
         if (choice == JOptionPane.YES_OPTION) {
-            // User-style anti-repetition hint (design Decision 5) — same
+            // User-style anti-repetition hint — same
             // injection channel as the "(continue)" nudge in offerContinueOrCancel.
             val hint = "The previous turn repeated without progress. " +
                 "Try a different tool, change the arguments, or communicate your conclusion."

@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Tests for [ScriptHttpClient] (Spec: ai-workflow-patterns, T2.1 / D1).
+ * Tests for [ScriptHttpClient].
  *
  * Verifies the sync adapter:
  *  - returns the delegate's [HttpResponse]

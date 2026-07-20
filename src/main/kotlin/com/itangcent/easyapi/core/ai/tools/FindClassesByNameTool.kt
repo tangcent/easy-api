@@ -22,8 +22,7 @@ import com.itangcent.easyapi.core.util.json.GsonUtils
  * Resolution strategy:
  * - **FQN short-circuit** (input contains `.`): direct
  *   [JavaPsiFacade.findClass] in [GlobalSearchScope.projectScope]. Returns a
- *   single-element or empty array. Does NOT invoke [PsiShortNamesCache]
- *   (per REQ-1 AC-6).
+ *   single-element or empty array. Does NOT invoke [PsiShortNamesCache].
  * - **Simple name**: [PsiShortNamesCache.getClassesByName] in
  *   [GlobalSearchScope.projectScope], sorted alphabetically. When a
  *   `context` is supplied, a context-reachable match (resolved via

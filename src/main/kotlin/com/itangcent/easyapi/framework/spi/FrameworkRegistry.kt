@@ -13,7 +13,7 @@ import com.itangcent.easyapi.core.settings.read
 /**
  * Project-level service that resolves the effective enabled state of every
  * registered [ApiClassRecognizer] — the single chokepoint for framework
- * enablement (PR4).
+ * enablement.
  *
  * Mirrors [com.itangcent.easyapi.channel.spi.ChannelRegistry] structurally:
  * a pure [resolveEnabled] companion rule (testable without a [Project]),
@@ -24,7 +24,7 @@ import com.itangcent.easyapi.core.settings.read
  *
  * ## Why this lives in `framework/spi/`
  *
- * Per the broadened CO3 rule (Decision PR4 / Spec Reconciliation PR10), `core.*`
+ * Per the broadened CO3 rule, `core.*`
  * may import the `framework.spi.*` contract surface — mirroring the existing
  * allowance for `channel.spi.*` and `format.spi.*`. Concrete framework
  * implementations (`framework.<id>.*`) remain off-limits to `core.*`.
@@ -36,14 +36,14 @@ import com.itangcent.easyapi.core.settings.read
  * - [GeneralSettings.disabledFrameworks] — explicit-off overrides
  *
  * A framework id is the recognizer's [ApiClassRecognizer.frameworkName]
- * (PR5 — reuse, no new SPI member).
+ * (reuse, no new SPI member).
  *
  * ## Fallback
  *
  * If [SettingBinder] cannot read [GeneralSettings] (e.g. storage not yet
  * initialized during startup), [isEnabled] falls back to
  * [ApiClassRecognizer.enabledByDefault] and does not throw (mirrors
- * [com.itangcent.easyapi.channel.spi.ChannelRegistry.isEnabled] Req 2.6).
+ * [com.itangcent.easyapi.channel.spi.ChannelRegistry.isEnabled]).
  *
  * @see ApiClassRecognizer
  * @see CompositeApiClassRecognizer
@@ -90,7 +90,7 @@ class FrameworkRegistry(private val project: Project) : IdeaLog {
      *
      * If the settings storage cannot be read, falls back to
      * [ApiClassRecognizer.enabledByDefault] for the recognizer and does not
-     * throw (Req 2.6 — mirrors ChannelRegistry fallback).
+     * throw (mirrors ChannelRegistry fallback).
      */
     fun isEnabled(recognizer: ApiClassRecognizer): Boolean {
         val settings = try {
@@ -116,7 +116,7 @@ class FrameworkRegistry(private val project: Project) : IdeaLog {
      * registered (which is also the correct answer when the framework is
      * disabled — its recognizer is filtered out of the cache).
      *
-     * PR5: [frameworkId] must match [ApiClassRecognizer.frameworkName].
+     * [frameworkId] must match [ApiClassRecognizer.frameworkName].
      */
     fun isEnabled(frameworkId: String): Boolean {
         val recognizer = CompositeApiClassRecognizer.getInstance(project).recognizers()

@@ -92,7 +92,7 @@ class ExportContextTest {
 
         // Use ChannelConfig.FileConfig (the SPI base class) instead of a concrete
         // channel-specific subclass — the core/export package must not import
-        // channel.<id>.* per the DAG rule (Decision CO3).
+        // channel.<id>.* per the DAG rule.
         val modified = context.withChannel("postman", ChannelConfig.FileConfig(outputDir = "Test"))
         assertEquals("postman", modified.channelId)
         assertTrue(modified.channelConfig is ChannelConfig.FileConfig)

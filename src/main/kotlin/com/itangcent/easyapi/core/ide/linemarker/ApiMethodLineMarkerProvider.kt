@@ -106,10 +106,10 @@ class ApiMethodLineMarkerProvider : LineMarkerProvider {
      * - Unary/server-streaming: (Req, StreamObserver<Resp>) -> void
      * - Client/bidirectional: (StreamObserver<Resp>) -> StreamObserver<Req>
      *
-     * Uses the `apiClassRecognizer` EP seam (Decision CO9) to verify the
+     * Uses the `apiClassRecognizer` EP seam to verify the
      * containing class is claimed by at least one recognizer's
      * [ApiClassRecognizer.matchesClass] fast-path — without consulting the
-     * rule engine (PR1 contract). Only then is the more expensive
+     * rule engine. Only then is the more expensive
      * [GrpcMethodResolver.resolveStreamingType] invoked.
      */
     private suspend fun isGrpcRpcMethod(method: PsiMethod): Boolean {

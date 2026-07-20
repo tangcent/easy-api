@@ -7,7 +7,7 @@ import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCas
 
 /**
  * IDE-fixture tests for [BackupSettingsPanel] channel-enablement round-trip
- * (Task 5.1, "Additional Considerations — Settings backup/restore").
+ * ("Additional Considerations — Settings backup/restore").
  *
  * Verifies that `enabledChannels` / `disabledChannels` are included in the
  * exported JSON, restored on import, and that a legacy JSON without those
@@ -149,7 +149,7 @@ class BackupSettingsPanelChannelEnablementTest : EasyApiLightCodeInsightFixtureT
         )
     }
 
-    // --- Task A.7: field-format channel arrays backup/restore ---
+    // --- field-format channel arrays backup/restore ---
 
     fun testExportSettings_includesEnabledAndDisabledFieldFormatChannels() {
         // Persist known field-format arrays, then export and assert they round-trip

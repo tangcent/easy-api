@@ -121,7 +121,7 @@ class ChannelRegistryTest {
         assertEquals("First", found?.displayName)
     }
 
-    // --- Task 1.1: Channel.enabledByDefault ---
+    // --- Channel.enabledByDefault ---
 
     @Test
     fun testEnabledByDefaultDefaultsToTrue() {
@@ -137,7 +137,7 @@ class ChannelRegistryTest {
         assertFalse(channel.enabledByDefault)
     }
 
-    // --- Task 1.3: ChannelRegistry.resolveEnabled (pure resolution rule) ---
+    // --- ChannelRegistry.resolveEnabled (pure resolution rule) ---
     // Exercises the full truth table of the resolution rule without a Project.
     // Integrated filtering (getActionChannels/getAvailableChannels/channelsForSettings
     // via isEnabled) is covered by ExportOrchestratorTest's IDE-fixture tests.
@@ -187,13 +187,13 @@ class ChannelRegistryTest {
 
     @Test
     fun testResolveEnabled_fallsBackToEnabledByDefaultWhenPreferenceAbsent() {
-        // Req 2.6: absent preference (empty arrays) falls back to enabledByDefault.
+        // Absent preference (empty arrays) falls back to enabledByDefault.
         // This mirrors the fallback path taken when settings storage is unreadable.
         assertTrue(ChannelRegistry.resolveEnabled(defaultOn, empty, empty))
         assertFalse(ChannelRegistry.resolveEnabled(defaultOff, empty, empty))
     }
 
-    // --- Task 1.3: filtered query logic ---
+    // --- Filtered query logic ---
     // The registry query methods need a Project (covered by ExportOrchestratorTest).
     // Here we replicate the exact filtering they apply (&& resolveEnabled) to verify
     // the rule excludes disabled channels from each enumeration shape.
@@ -250,7 +250,7 @@ class ChannelRegistryTest {
 
     @Test
     fun testFilteredQueryLogic_allChannelsAndGetChannelRemainUnfiltered() {
-        // Req 4.5: allChannels()/getChannel(id) are pure registry primitives — they
+        // allChannels()/getChannel(id) are pure registry primitives — they
         // do NOT consult enablement. Here we assert the lookup-by-id logic itself
         // ignores enabledByDefault (a disabled channel is still found by id).
         val channels = listOf(

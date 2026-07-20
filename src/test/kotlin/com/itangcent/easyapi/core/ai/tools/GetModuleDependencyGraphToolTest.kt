@@ -208,7 +208,7 @@ class GetModuleDependencyGraphToolTest : EasyApiLightCodeInsightFixtureTestCase(
         )
     }
 
-    // --- Privacy (NFR-5 / Req 8.5) ---
+    // --- Privacy ---
 
     fun testRenderedOutputCarriesNoEnvVarMaterial() {
         // The renderer is structural: only module names + edges. A typical
@@ -225,7 +225,7 @@ class GetModuleDependencyGraphToolTest : EasyApiLightCodeInsightFixtureTestCase(
         Assert.assertFalse("must not leak an env-var value syntax", rendered.contains("sk-"))
     }
 
-    // --- Tool-kind (NFR-6) ---
+    // --- Tool-kind ---
 
     fun testToolKindIsPerception() {
         val tool = GetModuleDependencyGraphTool()

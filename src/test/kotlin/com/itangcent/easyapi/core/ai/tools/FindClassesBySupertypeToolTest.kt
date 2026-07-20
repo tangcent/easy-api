@@ -200,7 +200,7 @@ class FindClassesBySupertypeToolTest : EasyApiLightCodeInsightFixtureTestCase() 
     }
 
     // ------------------------------------------------------------------
-    // Task 12 — tolerance + context parameter
+    // tolerance + context parameter
     // ------------------------------------------------------------------
 
     fun testAcceptsSimpleNameForSupertypeFqn() {

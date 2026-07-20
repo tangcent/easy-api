@@ -8,7 +8,7 @@ import com.itangcent.easyapi.core.script.ScriptScope
 import com.itangcent.easyapi.core.settings.settings
 
 /**
- * Application-scoped implementation of [CurlRenderer] (Decision CO8).
+ * Application-scoped implementation of [CurlRenderer].
  *
  * Bridges the `core.*` callers (`ScriptApiEndpoint.toCurl`,
  * `ApiDashboardPanel` copy-as-cURL action) to the concrete `channel.curl.*`

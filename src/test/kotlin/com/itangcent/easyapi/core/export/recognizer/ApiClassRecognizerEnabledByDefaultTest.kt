@@ -9,7 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Test-first test for [ApiClassRecognizer.enabledByDefault] SPI addition (PR6).
+ * Test-first test for [ApiClassRecognizer.enabledByDefault] SPI addition.
  *
  * This test is written BEFORE the SPI property is added to the interface.
  * It MUST fail to compile against current code (the `enabledByDefault` property
@@ -20,9 +20,6 @@ import org.junit.Test
  * pass, and (c) passes for the default-on recognizers (SpringMVC, JAX-RS, gRPC).
  * Assertion (c) for the default-off recognizers (Feign, Actuator) only passes
  * after tasks 24/25 add the `false` overrides.
- *
- * Requirements: Framework Enablement 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7;
- * Decision: PR6
  */
 class ApiClassRecognizerEnabledByDefaultTest {
 
@@ -65,15 +62,15 @@ class ApiClassRecognizerEnabledByDefaultTest {
     /**
      * (c) Verifies the 5 in-tree recognizers' `enabledByDefault` values match
      * the pre-patch defaults:
-     * - SpringControllerRecognizer → true (inherits default — Req 1.2)
-     * - JaxRsResourceRecognizer → true (explicit — Req 1.3, preserves jaxrsEnable=true)
-     * - GrpcServiceRecognizer → true (explicit — Req 1.4, preserves grpcEnable=true)
-     * - FeignClientRecognizer → false (Req 1.5, preserves feignEnable=false)
-     * - ActuatorEndpointRecognizer → false (Req 1.6, preserves actuatorEnable=false)
+     * - SpringControllerRecognizer → true (inherits default)
+     * - JaxRsResourceRecognizer → true (explicit, preserves jaxrsEnable=true)
+     * - GrpcServiceRecognizer → true (explicit, preserves grpcEnable=true)
+     * - FeignClientRecognizer → false (preserves feignEnable=false)
+     * - ActuatorEndpointRecognizer → false (preserves actuatorEnable=false)
      *
-     * This test fails to compile before task 17 adds the SPI property, and
-     * fails on the Feign/Actuator assertions until tasks 24/25 add the
-     * `false` overrides.
+     * This test fails to compile before the SPI property is added, and
+     * fails on the Feign/Actuator assertions until the
+     * `false` overrides are added.
      */
     @Test
     fun testInTreeRecognizersMatchPrePatchDefaults() {

@@ -186,7 +186,7 @@ class GeneralSettingsPanelLogicTest {
         assertNotEquals(s1, s2)
     }
 
-    // --- Task 1.2: GeneralSettings enabledChannels / disabledChannels ---
+    // --- GeneralSettings enabledChannels / disabledChannels ---
 
     @Test
     fun testEnabledChannelsDefaultEmpty() {
@@ -237,7 +237,7 @@ class GeneralSettingsPanelLogicTest {
         assertEquals(1, s1.disabledChannels.size)
     }
 
-    // --- Task A.2: GeneralSettings enabledFieldFormatChannels / disabledFieldFormatChannels ---
+    // --- GeneralSettings enabledFieldFormatChannels / disabledFieldFormatChannels ---
 
     @Test
     fun testEnabledFieldFormatChannelsDefaultEmpty() {
@@ -299,7 +299,7 @@ class GeneralSettingsPanelLogicTest {
 
     @Test
     fun testFieldFormatChannelsIndependentFromExportChannels() {
-        // The two EPs use independent id spaces (Decision A4). Setting one pair
+        // The two EPs use independent id spaces. Setting one pair
         // must not affect the other.
         val settings = GeneralSettings(
             enabledChannels = arrayOf("markdown"),

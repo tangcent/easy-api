@@ -17,7 +17,7 @@ import org.junit.Assert.assertTrue
  * `actuatorEnable`, `grpcEnable`) on `ApplicationSettingsState.State` to the
  * unified `enabledFrameworks`/`disabledFrameworks` arrays on `GeneralSettings`.
  *
- * Coverage per PR7 (design-framework-enablement.md):
+ * Coverage:
  * - (a) `feignEnable == true` → `enabledFrameworks += "Feign"`
  * - (b) `jaxrsEnable == false` → `disabledFrameworks += "JAX-RS"`
  * - (c) `actuatorEnable == true` → `enabledFrameworks += "SpringActuator"`

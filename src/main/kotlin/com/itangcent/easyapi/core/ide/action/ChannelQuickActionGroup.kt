@@ -59,7 +59,7 @@ class ChannelQuickActionGroup : DefaultActionGroup(), IdeaLog {
          * change. Newly-enabled channels get their action registered (via
          * [ensureActionsRegistered]); disabled channels' actions are hidden
          * (presentation visible=false) without unregistering, so keymap IDs
-         * remain stable across enable/disable cycles (Req 5.1, 5.2, Decision 4).
+         * remain stable across enable/disable cycles.
          *
          * Visibility for existing actions is re-evaluated by each
          * [ChannelExportAction]'s `update(AnActionEvent)` method (per-context
@@ -67,7 +67,7 @@ class ChannelQuickActionGroup : DefaultActionGroup(), IdeaLog {
          * mutate `templatePresentation.isVisible` here — the IntelliJ Platform
          * forbids direct template-presentation mutation
          * (Presentation.assertNotTemplatePresentation). This achieves the same
-         * "hide not unregister" semantics (Decision 4) while respecting the
+         * "hide not unregister" semantics while respecting the
          * platform's presentation contract.
          *
          * Safe to call when the group is not registered (no-op) and idempotent.

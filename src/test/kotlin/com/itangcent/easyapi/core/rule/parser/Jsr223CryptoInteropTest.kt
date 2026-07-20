@@ -9,10 +9,10 @@ import javax.crypto.spec.SecretKeySpec
 import javax.script.ScriptEngineManager
 
 /**
- * Spike test (Spec: ai-workflow-patterns, T1.1 / review Issue #6).
+ * Spike test.
  *
- * Resolves Requirements Open Question #1: is `javax.crypto.Mac` reachable from
- * a `groovy:` rule value? Req 5.2's HMAC signing recipe depends on this.
+ * Resolves the open question: is `javax.crypto.Mac` reachable from
+ * a `groovy:` rule value? The HMAC signing recipe depends on this.
  *
  * `GroovyScriptParser.parse()` (see [Jsr223ScriptParser.parse]) evaluates `groovy:`
  * expressions via `enginePool.withEngine { engine -> engine.eval(script, bindings) }`
@@ -22,9 +22,9 @@ import javax.script.ScriptEngineManager
  * heavyweight `RuleContext` mocking, giving the cleanest possible signal for the
  * crypto-interop question.
  *
- * - If this test PASSES → Req 5.2 stays first-class; proceed.
- * - If this test FAILS → demote Req 5.2 to a scaffold in the catalog (T4.1) and record
- *   the failure in `review-design.md`.
+ * - If this test PASSES → the HMAC recipe stays first-class; proceed.
+ * - If this test FAILS → demote the HMAC recipe to a scaffold in the catalog and record
+ *   the failure.
  *
  * The Groovy engine comes from the optional `org.intellij.groovy` bundled plugin
  * (declared `optional` in `plugin.xml`); when absent, *all* `groovy:`/`pm.*` scripts
@@ -57,7 +57,7 @@ class Jsr223CryptoInteropTest {
         val expectedHex = expectedHmacSha256Hex(message, secret)
 
         // Groovy script that mirrors the JDK computation via Java interop — exactly the
-        // kind of code the Req 5.2 HMAC recipe generates inside a `postman.prerequest`
+        // kind of code the HMAC recipe generates inside a `postman.prerequest`
         // (or `groovy:`) rule value.
         val groovyScript = """
             import javax.crypto.Mac

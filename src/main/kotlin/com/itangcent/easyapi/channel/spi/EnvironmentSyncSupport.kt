@@ -7,7 +7,7 @@ import com.intellij.openapi.project.Project
  * SPI for channels that support bidirectional environment synchronization
  * (push local environments to a remote, pull remote environments into local).
  *
- * **Decision CO7**: Extracted to break the `core.dashboard` →
+ * Extracted to break the `core.dashboard` →
  * `channel.postman.sync` concrete-impl dependency. The Postman channel
  * provides the implementation; `core.*` callers (dashboard panels) depend
  * only on this SPI.

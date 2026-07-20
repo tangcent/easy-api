@@ -15,7 +15,7 @@ import javax.script.ScriptEngineManager
 import kotlinx.coroutines.runBlocking
 
 /**
- * Binding lock-in test for [Jsr223ScriptParser] (Spec: ai-workflow-patterns, T2.3 / review Issue #2, #7).
+ * Binding lock-in test for [Jsr223ScriptParser].
  *
  * Verifies that the `httpClient` binding in a `groovy:` evaluation context is a
  * [ScriptHttpClient] (the sync adapter that bridges the suspend-only [HttpClient]

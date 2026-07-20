@@ -33,7 +33,7 @@ import org.mockito.kotlin.mock
  * `ExportResult.Error`.
  *
  * Moved here from `core/export/ExportOrchestratorTest.kt` to keep
- * `core.export.*` free of `channel.<id>.*` imports (Decision CO3 DAG rule).
+ * `core.export.*` free of `channel.<id>.*` imports (DAG rule).
  */
 class PostmanChannelWarnPathTest : EasyApiLightCodeInsightFixtureTestCase() {
 

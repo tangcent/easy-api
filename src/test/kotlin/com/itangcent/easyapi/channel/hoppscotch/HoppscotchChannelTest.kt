@@ -26,13 +26,13 @@ class HoppscotchChannelTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     fun testHoppscotchChannelIsDefaultOff() {
-        // Req 1.3: HoppscotchChannel ships disabled by default — users opt in via Settings.
+        // HoppscotchChannel ships disabled by default — users opt in via Settings.
         assertFalse(HoppscotchChannel().enabledByDefault)
     }
 
     fun testChannelRegistered() {
         val registry = ChannelRegistry.getInstance(project)
-        // allChannels() is the unfiltered registry primitive (Req 4.5) — a
+        // allChannels() is the unfiltered registry primitive — a
         // registration check must use it because hoppscotch is default-off and
         // therefore excluded from the filtered getAvailableChannels.
         val channels = registry.allChannels()

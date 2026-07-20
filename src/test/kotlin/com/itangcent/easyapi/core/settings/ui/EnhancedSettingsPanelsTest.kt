@@ -16,7 +16,7 @@ class EnhancedSettingsPanelsTest {
 
         // EnhancedGeneralSettingsPanel.resetFrom() is a no-op (self-contained panel),
         // so any Settings subtype is acceptable as the fixture. HttpSettings avoids a
-        // concrete channel.<id>.* import from core.* (DAG rule per Decision CO3).
+        // concrete channel.<id>.* import from core.* (DAG rule).
         val settings = HttpSettings()
 
         panel.resetFrom(settings)

@@ -7,7 +7,7 @@ import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCas
 import com.itangcent.easyapi.testFramework.TestConfigReader
 
 /**
- * Test-first test for [ApiClassRecognizer.matchesClass] SPI addition (PR1).
+ * Test-first test for [ApiClassRecognizer.matchesClass] SPI addition.
  *
  * This test is written BEFORE the SPI member is added to the interface.
  * It MUST fail to compile against current code (the `matchesClass` method
@@ -18,8 +18,6 @@ import com.itangcent.easyapi.testFramework.TestConfigReader
  * and default-behavior assertions (a) and (b) pass. Assertion (c) — that
  * `GrpcServiceRecognizer.matchesClass` returns `true` on a class extending
  * `BindableService` — only passes after task 8 adds the gRPC override.
- *
- * Requirements: Recognizer Relocation 2.6, 4.6; Decision: PR1
  */
 class ApiClassRecognizerMatchesClassTest : EasyApiLightCodeInsightFixtureTestCase() {
 
@@ -71,7 +69,7 @@ class ApiClassRecognizerMatchesClassTest : EasyApiLightCodeInsightFixtureTestCas
      * FeignClientRecognizer, ActuatorEndpointRecognizer).
      *
      * These recognizers inherit the default `false` implementation and do NOT
-     * override `matchesClass` (PR1: only gRPC overrides).
+     * override `matchesClass` (only gRPC overrides).
      */
     fun testDefaultImplReturnsFalseForNonGrpcRecognizers() = runTest {
         val fixtureClass = findClass("com.itangcent.grpc.model.UserInfo")!!

@@ -218,8 +218,8 @@ class ExportOrchestratorTest : EasyApiLightCodeInsightFixtureTestCase() {
         assertTrue("Should be Error for unknown channel", result is ExportResult.Error)
     }
 
-    // --- Task 3.1: ExportOrchestrator refuses a disabled channel (Req 4.4) ---
-    // http-client is default-off (Task 2.1), so with no stored preference it is
+    // --- ExportOrchestrator refuses a disabled channel ---
+    // http-client is default-off, so with no stored preference it is
     // disabled and the export boundary must refuse it before scanning/exporting.
 
     fun testOrchestrateExportWithDefaultOffChannelReturnsError() = runTest {
@@ -273,7 +273,7 @@ class ExportOrchestratorTest : EasyApiLightCodeInsightFixtureTestCase() {
         }
     }
 
-    // --- Task 3.2: exportViaChannel LOG.warn path when channel.export returns Error ---
+    // --- exportViaChannel LOG.warn path when channel.export returns Error ---
     // Moved to channel/postman/PostmanChannelWarnPathTest.kt — co-located with the
     // Postman channel it tests (the test mocks PostmanSettings + HttpClientProvider
     // to force the upload-failure path, which is Postman-specific). The warn-path

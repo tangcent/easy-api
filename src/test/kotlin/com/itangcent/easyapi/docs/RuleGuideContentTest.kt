@@ -6,7 +6,7 @@ import org.junit.Test
 
 /**
  * Content-assertion test for the `rule-guide.md` "Multi-Application Namespace"
- * section (Req 6.1, 6.5).
+ * section.
  *
  * The existing `RuleGuideWorkflowCatalogTest.kt` is an empty stub (a single
  * `package com.itangcent` line) and cannot be extended; this dedicated test is
@@ -34,7 +34,7 @@ class RuleGuideContentTest {
 
     @Test
     fun `section documents the namespace-key resolution order`() {
-        // The three branches of the resolution order (Req 1.1/1.4/1.5).
+        // The three branches of the resolution order.
         assertTrue(
             "section must reference module name as the first resolution branch",
             ruleGuide.contains("Module name", ignoreCase = true)
@@ -51,7 +51,7 @@ class RuleGuideContentTest {
 
     @Test
     fun `section documents the per-app env-var naming convention`() {
-        // The full naming convention surface (Req 1.1, 3.1, 3.2): host, bearer
+        // The full naming convention surface: host, bearer
         // token, and login params, all namespaced by <key>.
         assertTrue(
             "section must document the host placeholder {{<key>}}",
@@ -73,7 +73,7 @@ class RuleGuideContentTest {
 
     @Test
     fun `section documents the multi-app bundle-split rule`() {
-        // Req 4.2: one propose_rule_content per app; bundle integrity still
+        // One propose_rule_content per app; bundle integrity still
         // required per app.
         assertTrue(
             "section must reference the propose_rule_content tool",
@@ -105,11 +105,11 @@ class RuleGuideContentTest {
 
     @Test
     fun `section records the body-level namespacing limitation`() {
-        // Req 5.5 (deferred per Decision 3): the v1 enabler converts header
+        // The v1 enabler converts header
         // values only; param/body conversion is deferred. The agent must not
         // promise body-level namespacing.
         assertTrue(
-            "section must document the body-level namespacing limitation (Req 5.5)",
+            "section must document the body-level namespacing limitation",
             ruleGuide.contains("body", ignoreCase = true) &&
                 (ruleGuide.contains("deferred", ignoreCase = true) ||
                     ruleGuide.contains("limitation", ignoreCase = true))
@@ -118,7 +118,7 @@ class RuleGuideContentTest {
 
     @Test
     fun `section records the resolution branch used in the proposal summary`() {
-        // Req 1.5: the proposal summary must state which branch was used and
+        // The proposal summary must state which branch was used and
         // the resulting key so the user can correct a wrong guess.
         assertTrue(
             "section must instruct the agent to record the resolution branch in the proposal summary",
@@ -128,7 +128,7 @@ class RuleGuideContentTest {
 
     @Test
     fun `section documents the dependency-graph clustering step`() {
-        // Req 4.1, 8.4: the rule-guide must name get_module_dependency_graph
+        // The rule-guide must name get_module_dependency_graph
         // as the tool to call when N > 1 to cluster modules into app groups.
         assertTrue(
             "section must reference the get_module_dependency_graph tool",
@@ -138,10 +138,10 @@ class RuleGuideContentTest {
 
     @Test
     fun `section documents the namespace-key normalization convention and examples`() {
-        // Req 2.1: the normalization convention lives as prose in the rule-guide
+        // The normalization convention lives as prose in the rule-guide
         // (it governs the LLM agent's behavior, which performs the transform in
         // its own reasoning and bakes the literal — no Kotlin code calls a
-        // normalizer). The load-bearing examples from Req 2.1 MUST be present so
+        // normalizer). The load-bearing examples MUST be present so
         // the agent (and humans) can predict the result.
         assertTrue(
             "section must state the camelCase splitting rule",
@@ -151,7 +151,7 @@ class RuleGuideContentTest {
             "section must state the allowed character class [a-z0-9-]",
             ruleGuide.contains("[a-z0-9-]")
         )
-        // The three canonical Req 2.1 examples.
+        // The three canonical examples.
         assertTrue(
             "section must show the OrderService -> order-service example",
             ruleGuide.contains("OrderService") && ruleGuide.contains("order-service")

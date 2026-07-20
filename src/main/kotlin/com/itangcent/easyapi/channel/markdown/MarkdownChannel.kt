@@ -178,7 +178,7 @@ class MarkdownChannel : Channel, IdeaLog {
      * Accepts either a [MarkdownConfig] (channel-specific) or a
      * [ChannelConfig.FileConfig] (SPI base) for the [outputDir][MarkdownConfig.outputDir]
      * / [fileName][MarkdownConfig.fileName] fields — so callers that don't want
-     * to import `channel.markdown.*` can use the SPI base class (Decision CO3).
+     * to import `channel.markdown.*` can use the SPI base class.
      */
     private suspend fun resolveTargetFile(
         project: Project,
