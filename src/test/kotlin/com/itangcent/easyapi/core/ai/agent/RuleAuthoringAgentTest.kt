@@ -504,7 +504,7 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
         )
     }
 
-    // --- Loop-detection integration tests (Phase 5, Task 25) ---
+    // --- Loop-detection integration tests ---
 
     /**
      * 3 identical `list_rule_keys` calls → `TurnOutcome.LoopDetected` via
@@ -652,7 +652,7 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
 
     /**
      * On `LoopDetected`, the event sequence must NOT contain `TurnComplete`
-     * or `ProposalReady` (abnormal exit — REQ-2 AC-2).
+     * or `ProposalReady` (abnormal exit).
      */
     fun testLoopDetectedEmitsNoTurnComplete() = runBlocking {
         val tools = ToolRegistry(listOf(ListRuleKeysFakeTool()))
@@ -677,7 +677,7 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
     /**
      * Two sequential `runTurn` calls: turn 1 loops (LoopDetected), turn 2
      * starts with a fresh `LoopGuard` (counter reset) and can call the same
-     * tool once without immediate termination (REQ-1 AC-4).
+     * tool once without immediate termination.
      */
     fun testPerTurnFreshness() = runBlocking {
         val tools = ToolRegistry(listOf(ListRuleKeysFakeTool()))
@@ -700,7 +700,7 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
         events.cancelAndCollect()
     }
 
-    // --- Retry integration tests (Phase 5, Task 26) ---
+    // --- Retry integration tests ---
 
     /**
      * Transient `IOException` on the first attempt, then a plain-text answer.
@@ -731,7 +731,7 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
     /**
      * Non-transient `IllegalArgumentException("401 unauthorized")` → fail
      * fast. Asserts `TurnOutcome.Answered`, `Failed` with "attempt(s)", NO
-     * `Retrying` (REQ-4 AC-3, NFR-2).
+     * `Retrying`.
      */
     fun testNoRetryOnAuth() = runBlocking {
         val tools = ToolRegistry(listOf(ListRuleKeysFakeTool()))
@@ -755,7 +755,7 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
     /**
      * `ChatTimeoutException` on the first attempt, then a plain-text answer.
      * Asserts the timeout is classified as transient and retried (end-to-end
-     * test for the Phase 4 fix — REQ-4 Decision 4, NFR-2).
+     * test for the timeout-classification fix).
      */
     fun testTimeoutRetriedAsTransient() = runBlocking {
         val tools = ToolRegistry(listOf(ListRuleKeysFakeTool()))
@@ -778,7 +778,7 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
     /**
      * `1 + chatMaxRetries` transient failures → retries exhausted. Asserts
      * `TurnOutcome.Answered`, `Failed` with attempt count, `Retrying` per
-     * attempt (REQ-4 AC-4, AC-8).
+     * attempt.
      */
     fun testRetriesExhaustedTerminal() = runBlocking {
         val tools = ToolRegistry(listOf(ListRuleKeysFakeTool()))
@@ -802,8 +802,7 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
 
     /**
      * Assert `Retrying(attempt, maxRetries)` is emitted on each transient
-     * failure that is retried, and NOT on success or non-transient failures
-     * (REQ-4 AC-8).
+     * failure that is retried, and NOT on success or non-transient failures.
      */
     fun testRetryingEventEmitted() = runBlocking {
         val tools = ToolRegistry(listOf(ListRuleKeysFakeTool()))
@@ -831,7 +830,7 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
 
     /**
      * Assert `Failed.reason` contains "after N attempt(s)" on terminal
-     * exhaustion (REQ-4 AC-4).
+     * exhaustion.
      */
     fun testTerminalFailedHasAttemptCount() = runBlocking {
         val tools = ToolRegistry(listOf(ListRuleKeysFakeTool()))
@@ -854,7 +853,7 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
     /**
      * Cancel the turn job mid-retry backoff → `CancellationException` must
      * propagate (not swallowed by the retry policy). Asserts the job is
-     * cancelled and no `Failed` event was emitted (REQ-4 AC-5).
+     * cancelled and no `Failed` event was emitted.
      *
      * NOTE: tested with `runBlocking` + a long backoff. The agent job is
      * launched UNDISPATCHED so it runs synchronously until it suspends in

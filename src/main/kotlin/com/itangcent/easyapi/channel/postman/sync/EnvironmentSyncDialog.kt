@@ -27,7 +27,7 @@ import javax.swing.*
  * - **Push**: Select local environments to push to Postman
  * - **Pull**: Select Postman environments to pull into local, with conflict resolution
  *
- * **Decision CO7**: Lives in `channel.postman.sync` alongside
+ * Lives in `channel.postman.sync` alongside
  * [EnvironmentSyncService] (Postman-specific — no abstraction extracted).
  */
 class EnvironmentSyncDialog(

@@ -73,14 +73,14 @@ class ChannelRegistry(private val project: Project) : IdeaLog {
      *  project area (e.g. in lightweight unit tests that do not load `plugin.xml`).
      *
      *  Unfiltered by design — returns every registered channel regardless of
-     *  enabled state (Req 4.5). Consumers that need only enabled channels must
+     *  enabled state. Consumers that need only enabled channels must
      *  use [getAvailableChannels], [getActionChannels], or [channelsForSettings]. */
     fun allChannels(): List<Channel> = extensionListSafe()
 
     /** Finds a channel by its unique [id], or `null` if not found.
      *
-     *  Unfiltered by design — returns the channel regardless of enabled state
-     *  (Req 4.5, design Decision 3). The export boundary refuses disabled
+     *  Unfiltered by design — returns the channel regardless of enabled state.
+     *  The export boundary refuses disabled
      *  channels; this lookup stays a pure registry primitive. */
     fun getChannel(id: String): Channel? =
         allChannels().firstOrNull { it.id == id }
@@ -94,7 +94,7 @@ class ChannelRegistry(private val project: Project) : IdeaLog {
      * [com.itangcent.easyapi.core.settings.DefaultSettingBinder]).
      *
      * If the settings storage cannot be read, falls back to
-     * [Channel.enabledByDefault] for every channel and does not throw (Req 2.6).
+     * [Channel.enabledByDefault] for every channel and does not throw.
      */
     fun isEnabled(channel: Channel): Boolean {
         val settings = try {

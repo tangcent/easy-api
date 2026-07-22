@@ -44,14 +44,14 @@ interface FieldFormatChannel {
      *
      * Mirrors [com.itangcent.easyapi.channel.spi.Channel.enabledByDefault].
      * All four shipping formats (JSON, JSON5, Properties, YAML) keep the default
-     * `true` (Decision A2 — none is experimental). A future experimental format
+     * `true` (none is experimental). A future experimental format
      * overrides this to `false` and the enablement machinery handles it with no
      * further work. The effective enabled state is resolved against the stored
      * user preference by
      * [FieldFormatChannelRegistry.isEnabled].
      *
      * This is a static (compile-time) declaration; it is not user-editable or
-     * persisted directly (Req A1.3).
+     * persisted directly.
      */
     val enabledByDefault: Boolean get() = true
 

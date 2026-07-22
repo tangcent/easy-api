@@ -28,7 +28,7 @@ class FieldFormatChannelRegistryTest {
         override suspend fun format(project: Project, psiClass: PsiClass): String = ""
     }
 
-    // --- Task A.1: FieldFormatChannel.enabledByDefault ---
+    // --- FieldFormatChannel.enabledByDefault ---
 
     @Test
     fun testEnabledByDefaultDefaultsToTrue() {
@@ -44,7 +44,7 @@ class FieldFormatChannelRegistryTest {
         assertFalse(channel.enabledByDefault)
     }
 
-    // --- Task A.3: FieldFormatChannelRegistry.resolveEnabled (pure resolution rule) ---
+    // --- FieldFormatChannelRegistry.resolveEnabled (pure resolution rule) ---
     // Exercises the full truth table of the resolution rule without a Project.
 
     private val defaultOn = StubFieldFormatChannel("default-on", "Default On", enabledByDefault = true)
@@ -92,13 +92,13 @@ class FieldFormatChannelRegistryTest {
 
     @Test
     fun testResolveEnabled_fallsBackToEnabledByDefaultWhenPreferenceAbsent() {
-        // Req A2.6: absent preference (empty arrays) falls back to enabledByDefault.
+        // Absent preference (empty arrays) falls back to enabledByDefault.
         // This mirrors the fallback path taken when settings storage is unreadable.
         assertTrue(FieldFormatChannelRegistry.resolveEnabled(defaultOn, empty, empty))
         assertFalse(FieldFormatChannelRegistry.resolveEnabled(defaultOff, empty, empty))
     }
 
-    // --- Task A.3: filtered query logic ---
+    // --- filtered query logic ---
     // The registry query method (getEnabledChannels) needs a Project (covered by
     // FieldFormatActionGroupRefreshTest). Here we replicate the exact filtering it
     // applies (filter resolveEnabled) to verify the rule excludes disabled formats.
@@ -124,7 +124,7 @@ class FieldFormatChannelRegistryTest {
 
     @Test
     fun testFilteredQueryLogic_allChannelsRemainUnfiltered() {
-        // Req A3.4: allChannels() is a pure registry primitive — it does NOT
+        // allChannels() is a pure registry primitive — it does NOT
         // consult enablement. Here we assert the lookup-by-id logic itself
         // ignores enabledByDefault (a disabled format is still listed).
         val channels = listOf(

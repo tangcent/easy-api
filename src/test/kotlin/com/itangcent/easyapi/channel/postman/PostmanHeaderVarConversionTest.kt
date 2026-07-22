@@ -18,11 +18,11 @@ import org.junit.Test
  * unresolved placeholders, while leaving resolved placeholders and regex-capture
  * references untouched.
  *
- * Backs Req 5.1, 5.3, 5.4 and the NFR-3 byte-parity guarantee for placeholder-free
+ * Backs the byte-parity guarantee for placeholder-free
  * single-app exports.
  *
  * The test project's rule config defines `baseUrl` so `${baseUrl}` is treated as
- * resolvable by the config layer (Decision 2 — `ConfigReader.getFirst` is the
+ * resolvable by the config layer (`ConfigReader.getFirst` is the
  * resolvability oracle). Namespaced vars like `${order-service-token}` and the
  * regex-capture `${1}` are exercised against the same config.
  */
@@ -54,7 +54,7 @@ class PostmanHeaderVarConversionTest : EasyApiLightCodeInsightFixtureTestCase() 
         val item = formatter().toItem(endpoint)
         val header = item.request?.header?.firstOrNull { it.key == "X-Base" }
         assertNotNull(header)
-        // baseUrl is resolvable via the config layer — left as ${baseUrl} (Req 5.3).
+        // baseUrl is resolvable via the config layer — left as ${baseUrl}.
         assertEquals("\${baseUrl}", header?.value)
     }
 
@@ -67,7 +67,7 @@ class PostmanHeaderVarConversionTest : EasyApiLightCodeInsightFixtureTestCase() 
         val item = formatter().toItem(endpoint)
         val header = item.request?.header?.firstOrNull { it.key == "X-Capture" }
         assertNotNull(header)
-        // ${1} is a regex-capture reference — left untouched (Req 5.4).
+        // ${1} is a regex-capture reference — left untouched.
         assertEquals("Basic \${1}", header?.value)
     }
 
@@ -80,7 +80,7 @@ class PostmanHeaderVarConversionTest : EasyApiLightCodeInsightFixtureTestCase() 
         )
         val item = formatter().toItem(endpoint)
         val actual = PostmanGson.pretty.toJson(item)
-        // NFR-3: a placeholder-free single-app endpoint exports byte-identically
+        // A placeholder-free single-app endpoint exports byte-identically
         // to the pre-feature golden. The converter fast-path returns the value
         // unchanged when no `${` is present, so the output is unaffected.
         // Explicit caller class avoids the coroutine-continuation name that

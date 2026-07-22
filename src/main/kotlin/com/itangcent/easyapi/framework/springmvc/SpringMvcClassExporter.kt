@@ -183,7 +183,7 @@ class SpringMvcClassExporter(
                             contentType = contentType,
                             body = body,
                             responseBody = responseBody,
-                            responseType = response.toString()
+                            responseType = response.qualifiedName()
                         )
                     )
                 }

@@ -9,7 +9,7 @@ import com.intellij.psi.PsiClass
  * Each framework (Spring MVC, JAX-RS, Feign, etc.) provides its own implementation.
  * Use [CompositeApiClassRecognizer] to combine them.
  *
- * ## Extension Point (Decision CO9)
+ * ## Extension Point
  *
  * Implementations are discovered via the `com.itangcent.idea.plugin.easy-api.apiClassRecognizer`
  * extension point (declared in `plugin.xml`). The [CompositeApiClassRecognizer] iterates

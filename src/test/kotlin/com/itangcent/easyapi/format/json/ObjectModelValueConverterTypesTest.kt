@@ -13,7 +13,7 @@ import junit.framework.TestCase
  * [ObjectModelValueConverter] — every test case calls
  * `ObjectModelValueConverter.toSimpleValue(...)` on a model built from a
  * [JsonType]. Co-locating the test with the converter avoids a concrete-impl
- * upward import from `core.psi` to `format.json` (DAG rule per Decision CO3).
+ * upward import from `core.psi` to `format.json` (DAG rule).
  */
 class ObjectModelValueConverterTypesTest : TestCase() {
 

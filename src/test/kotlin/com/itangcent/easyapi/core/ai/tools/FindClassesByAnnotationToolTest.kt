@@ -253,7 +253,7 @@ class FindClassesByAnnotationToolTest : EasyApiLightCodeInsightFixtureTestCase()
     }
 
     // ------------------------------------------------------------------
-    // Task 11 — tolerance + context parameter
+    // tolerance + context parameter
     // ------------------------------------------------------------------
 
     fun testAcceptsSimpleNameForAnnotationFqn() {

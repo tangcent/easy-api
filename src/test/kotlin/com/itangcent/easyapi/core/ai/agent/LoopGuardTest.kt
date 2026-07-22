@@ -17,7 +17,7 @@ import org.junit.Test
 class LoopGuardTest {
 
     // ==================================================================
-    // Task 9: Normalization & fingerprinting helpers
+    // Normalization & fingerprinting helpers
     // ==================================================================
 
     @Test
@@ -105,7 +105,7 @@ class LoopGuardTest {
     }
 
     // ==================================================================
-    // Task 10: Consecutive duplicate detection
+    // Consecutive duplicate detection
     // ==================================================================
 
     @Test
@@ -171,7 +171,7 @@ class LoopGuardTest {
     }
 
     // ==================================================================
-    // Task 11: Call-sequence cycle detection
+    // Call-sequence cycle detection
     // ==================================================================
 
     @Test
@@ -281,7 +281,7 @@ class LoopGuardTest {
     }
 
     // ==================================================================
-    // Task 12: Output stagnation detection
+    // Output stagnation detection
     // ==================================================================
 
     @Test
@@ -355,7 +355,7 @@ class LoopGuardTest {
     }
 
     // ==================================================================
-    // Task 13: Reasoning repetition detection
+    // Reasoning repetition detection
     // ==================================================================
 
     @Test
@@ -430,7 +430,7 @@ class LoopGuardTest {
     }
 
     // ==================================================================
-    // Task 14: Debounce hook
+    // Debounce hook
     // ==================================================================
 
     @Test

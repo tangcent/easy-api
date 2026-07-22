@@ -11,7 +11,7 @@ import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCas
  * [FeaturesSettingsPanelChannelEnablementTest] and
  * [FeaturesSettingsPanelFieldFormatEnablementTest].
  *
- * After the framework-enablement unification (Item 2), the panel's
+ * After the framework-enablement unification, the panel's
  * `resetFrom`/`applyTo`/`isModified` are no-ops for framework toggles —
  * the dynamic UI is driven by `resetFrameworkEnablementFrom` /
  * `applyFrameworkEnablementTo` / `isFrameworkEnablementModified`, which

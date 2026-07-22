@@ -486,15 +486,15 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
  * - **Framework support** (Feign, JAX-RS, Actuator) — moved here from
  *   [GeneralSettingsPanel] so all enable/disable checkboxes share a tab.
  * - **Export Channels** — one checkbox per registered [Channel], built
- *   dynamically from [ChannelRegistry.allChannels] (Req 3.1, 3.4).
+ *   dynamically from [ChannelRegistry.allChannels].
  * - **Field Format Channels** — one checkbox per registered
  *   [FieldFormatChannel], built from
- *   [FieldFormatChannelRegistry.allChannels] (Req A3.1, A3.4).
+ *   [FieldFormatChannelRegistry.allChannels].
  *
  * Typed by [GeneralSettings] (the same module [GeneralSettingsPanel] reads),
  * so a panel touching a module it doesn't "own" follows the existing
  * `grpcRepositories` precedent. The channel/format checkbox logic is isolated
- * in cross-module helpers that mirror that pattern (design Decision 5 / A3).
+ * in cross-module helpers that mirror that pattern.
  */
 class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Project) : SettingsPanel<GeneralSettings> {
 
@@ -502,9 +502,9 @@ class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Pr
      * Dynamic checkbox→recognizer mapping for the "Framework Support" section.
      *
      * Built once from [CompositeApiClassRecognizer.allRecognizers] (deliberately
-     * **unfiltered**, so disabled frameworks are listed and can be re-enabled —
-     * Req 4.5). Empty when no recognizers are registered, in which case the
-     * section is skipped gracefully (Req 4.6).
+     * **unfiltered**, so disabled frameworks are listed and can be re-enabled).
+     * Empty when no recognizers are registered, in which case the
+     * section is skipped gracefully.
      */
     private val frameworkEnablementCheckboxes = mutableListOf<Pair<ApiClassRecognizer, JBCheckBox>>()
 
@@ -512,31 +512,30 @@ class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Pr
      * Dynamic checkbox→channel mapping for the "Export Channels" section.
      *
      * Built once from [ChannelRegistry.allChannels] (deliberately **unfiltered**,
-     * so disabled channels are listed and can be re-enabled — Req 3.4). Empty
+     * so disabled channels are listed and can be re-enabled). Empty
      * when no channels are registered, in which case the section is skipped
-     * gracefully (Req 3.7).
+     * gracefully.
      */
     private val channelEnablementCheckboxes = mutableListOf<Pair<Channel, JBCheckBox>>()
 
     /**
-     * Dynamic checkbox→format mapping for the "Field Format Channels" section
-     * (Req A3.1, A3.4).
+     * Dynamic checkbox→format mapping for the "Field Format Channels" section.
      *
      * Built once from [FieldFormatChannelRegistry.allChannels] (deliberately
-     * **unfiltered**, so disabled formats are listed and can be re-enabled —
-     * Req A3.4). Empty when no formats are registered, in which case the
-     * section is skipped gracefully (Req A3.7).
+     * **unfiltered**, so disabled formats are listed and can be re-enabled).
+     * Empty when no formats are registered, in which case the
+     * section is skipped gracefully.
      */
     private val fieldFormatEnablementCheckboxes = mutableListOf<Pair<FieldFormatChannel, JBCheckBox>>()
 
     /**
      * Builds the "Framework Support" titled panel containing one [JBCheckBox]
-     * per registered recognizer (Req 4.1, 4.3, 4.5). Uses
+     * per registered recognizer. Uses
      * [CompositeApiClassRecognizer.allRecognizers] (unfiltered) so disabled
      * frameworks remain listed and re-enableable.
      *
-     * Returns an empty panel when no recognizers are registered (Req 4.6 —
-     * graceful skip, no error).
+     * Returns an empty panel when no recognizers are registered
+     * (graceful skip, no error).
      */
     private fun buildFrameworkEnablementPanel(): JComponent {
         val allRecognizers = CompositeApiClassRecognizer.getInstance(project).allRecognizers()
@@ -555,10 +554,10 @@ class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Pr
 
     /**
      * Builds the "Export Channels" titled panel containing one [JBCheckBox] per
-     * registered channel (Req 3.1, 3.4). Uses [ChannelRegistry.allChannels]
+     * registered channel. Uses [ChannelRegistry.allChannels]
      * (unfiltered) so disabled channels remain listed and re-enableable.
      *
-     * Returns an empty panel when no channels are registered (Req 3.7 — graceful
+     * Returns an empty panel when no channels are registered (graceful
      * skip, no error).
      */
     private fun buildChannelEnablementPanel(): JComponent {
@@ -577,11 +576,11 @@ class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Pr
 
     /**
      * Builds the "Field Format channels" titled panel containing one [JBCheckBox]
-     * per registered format (Req A3.1, A3.4). Uses
+     * per registered format. Uses
      * [FieldFormatChannelRegistry.allChannels] (unfiltered) so disabled formats
      * remain listed and re-enableable.
      *
-     * Returns an empty panel when no formats are registered (Req A3.7 — graceful
+     * Returns an empty panel when no formats are registered (graceful
      * skip, no error).
      */
     private fun buildFieldFormatEnablementPanel(): JComponent {
@@ -638,9 +637,9 @@ class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Pr
      * Resets the "Framework Support" checkboxes to the effective enabled state
      * derived from [GeneralSettings.enabledFrameworks] /
      * [GeneralSettings.disabledFrameworks] overlaid on each recognizer's
-     * [ApiClassRecognizer.enabledByDefault] (Req 4.4).
+     * [ApiClassRecognizer.enabledByDefault].
      *
-     * No-op when no recognizers are registered (Req 4.6).
+     * No-op when no recognizers are registered.
      */
     fun resetFrameworkEnablementFrom(recognizers: List<ApiClassRecognizer>, settings: GeneralSettings) {
         frameworkEnablementCheckboxes.forEach { (recognizer, cb) ->
@@ -677,7 +676,7 @@ class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Pr
     /**
      * Returns `true` if any "Framework Support" checkbox differs from the
      * effective enabled state in [settings]. No-op (returns `false`) when no
-     * recognizers are registered (Req 4.6).
+     * recognizers are registered.
      */
     fun isFrameworkEnablementModified(recognizers: List<ApiClassRecognizer>, settings: GeneralSettings): Boolean {
         frameworkEnablementCheckboxes.forEach { (recognizer, cb) ->
@@ -701,14 +700,14 @@ class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Pr
     // --- Channel enablement (cross-module methods, mirror the *Repositories* pattern) ---
     // The data lives on [GeneralSettings] (enabledChannels / disabledChannels),
     // but the UI is built from [ChannelRegistry.allChannels]. These three methods
-    // keep the checkbox-list logic isolated and testable (design Decision 5).
+    // keep the checkbox-list logic isolated and testable.
 
     /**
      * Resets the "Export Channels" checkboxes to the effective enabled state
      * derived from [GeneralSettings.enabledChannels] / [GeneralSettings.disabledChannels]
-     * overlaid on each channel's [Channel.enabledByDefault] (Req 3.6).
+     * overlaid on each channel's [Channel.enabledByDefault].
      *
-     * No-op when no channels are registered (Req 3.7).
+     * No-op when no channels are registered.
      */
     fun resetChannelEnablementFrom(channels: List<Channel>, settings: GeneralSettings) {
         channelEnablementCheckboxes.forEach { (channel, cb) ->
@@ -745,7 +744,7 @@ class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Pr
     /**
      * Returns `true` if any "Export Channels" checkbox differs from the effective
      * enabled state in [settings]. No-op (returns `false`) when no channels are
-     * registered (Req 3.7).
+     * registered.
      */
     fun isChannelEnablementModified(channels: List<Channel>, settings: GeneralSettings): Boolean {
         channelEnablementCheckboxes.forEach { (channel, cb) ->
@@ -770,15 +769,15 @@ class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Pr
     // The data lives on [GeneralSettings] (enabledFieldFormatChannels /
     // disabledFieldFormatChannels), but the UI is built from
     // [FieldFormatChannelRegistry.allChannels]. These three methods keep the
-    // checkbox-list logic isolated and testable (Decision A3).
+    // checkbox-list logic isolated and testable.
 
     /**
      * Resets the "Field Format Channels" checkboxes to the effective enabled
      * state derived from [GeneralSettings.enabledFieldFormatChannels] /
      * [GeneralSettings.disabledFieldFormatChannels] overlaid on each format's
-     * [FieldFormatChannel.enabledByDefault] (Req A3.6).
+     * [FieldFormatChannel.enabledByDefault].
      *
-     * No-op when no formats are registered (Req A3.7).
+     * No-op when no formats are registered.
      */
     fun resetFieldFormatEnablementFrom(channels: List<FieldFormatChannel>, settings: GeneralSettings) {
         fieldFormatEnablementCheckboxes.forEach { (channel, cb) ->
@@ -816,7 +815,7 @@ class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Pr
     /**
      * Returns `true` if any "Field Format Channels" checkbox differs from the
      * effective enabled state in [settings]. No-op (returns `false`) when no
-     * formats are registered (Req A3.7).
+     * formats are registered.
      */
     fun isFieldFormatEnablementModified(channels: List<FieldFormatChannel>, settings: GeneralSettings): Boolean {
         fieldFormatEnablementCheckboxes.forEach { (channel, cb) ->
@@ -1816,7 +1815,7 @@ class BackupSettingsPanel(private val project: com.intellij.openapi.project.Proj
                 ?.toTypedArray()?.let { enabledFieldFormatChannels = it }
             obj.get("disabledFieldFormatChannels")?.takeIf { it.isJsonArray }?.asJsonArray?.map { it.asString }
                 ?.toTypedArray()?.let { disabledFieldFormatChannels = it }
-            // Legacy per-framework booleans → unified arrays (mirrors PR7 migration).
+            // Legacy per-framework booleans → unified arrays.
             // A legacy `true` for a default-off framework (Feign, Actuator) adds it
             // to enabledFrameworks; a legacy `false` for a default-on framework
             // (JAX-RS, gRPC) adds it to disabledFrameworks. Default-matching legacy

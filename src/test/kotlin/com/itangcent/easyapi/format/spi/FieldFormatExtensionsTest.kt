@@ -23,10 +23,10 @@ import com.itangcent.easyapi.testFramework.TestConfigReader
  * - [toYaml] → [YamlFormatter.format]
  *
  * The `testToJson*ParityWithDirectConverterCall` / `testToJson5*ParityWithDirectConverterCall`
- * methods are the **Decision CO6 characterization tests**: they verify that the
+ * methods are the **characterization tests**: they verify that the
  * pre-migration direct call (`ObjectModelJsonConverter.toJson(model)`, as used
  * by `ScriptPsiContexts.toJson()` today) and the post-migration extension
- * (`model.toJson()`, which `ScriptPsiContexts.toJson()` will use after the CO6
+ * (`model.toJson()`, which `ScriptPsiContexts.toJson()` will use after the
  * migration) produce byte-identical output. Both must equal the golden file
  * captured from pre-refactor behavior. If either parity check fails after the
  * migration, the migration broke the output.
@@ -58,7 +58,7 @@ class FieldFormatExtensionsTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     /**
-     * **Decision CO6 characterization test (JSON).**
+     * **Characterization test (JSON).**
      *
      * Builds the same `ObjectModel` that `ScriptPsiContexts.toJson()` builds
      * (same `PsiClass`, same `JsonOption.READ_GETTER_OR_SETTER`) and asserts:
@@ -66,9 +66,9 @@ class FieldFormatExtensionsTest : EasyApiLightCodeInsightFixtureTestCase() {
      *    equals the golden output (captured from pre-refactor behavior).
      * 2. The post-migration extension `model.toJson()` equals the same golden
      *    output.
-     * 3. Therefore the two are byte-identical — the CO6 migration preserves
-     *    output. This test MUST pass both BEFORE the migration (Task 20) and
-     *    AFTER the migration (Task 21).
+     * 3. Therefore the two are byte-identical — the migration preserves
+     *    output. This test MUST pass both BEFORE the migration and
+     *    AFTER the migration.
      */
     fun testToJsonParityWithDirectConverterCall() = runTest {
         loadFile("model/UserInfo.java")
@@ -82,11 +82,11 @@ class FieldFormatExtensionsTest : EasyApiLightCodeInsightFixtureTestCase() {
 
         assertEquals("direct call must match golden", expected, directCallOutput)
         assertEquals("extension must match golden", expected, extensionOutput)
-        assertEquals("direct call must match extension (CO6 parity)", directCallOutput, extensionOutput)
+        assertEquals("direct call must match extension (parity)", directCallOutput, extensionOutput)
     }
 
     /**
-     * **Decision CO6 characterization test (JSON5).**
+     * **Characterization test (JSON5).**
      *
      * Builds the same `ObjectModel` that `ScriptPsiContexts.toJson5()` builds
      * (same `PsiClass`, same `JsonOption.ALL`) and asserts:
@@ -94,9 +94,9 @@ class FieldFormatExtensionsTest : EasyApiLightCodeInsightFixtureTestCase() {
      *    equals the golden output (captured from pre-refactor behavior).
      * 2. The post-migration extension `model.toJson5()` equals the same golden
      *    output.
-     * 3. Therefore the two are byte-identical — the CO6 migration preserves
-     *    output. This test MUST pass both BEFORE the migration (Task 20) and
-     *    AFTER the migration (Task 21).
+     * 3. Therefore the two are byte-identical — the migration preserves
+     *    output. This test MUST pass both BEFORE the migration and
+     *    AFTER the migration.
      */
     fun testToJson5ParityWithDirectConverterCall() = runTest {
         loadFile("model/UserInfo.java")
@@ -110,7 +110,7 @@ class FieldFormatExtensionsTest : EasyApiLightCodeInsightFixtureTestCase() {
 
         assertEquals("direct call must match golden", expected, directCallOutput)
         assertEquals("extension must match golden", expected, extensionOutput)
-        assertEquals("direct call must match extension (CO6 parity)", directCallOutput, extensionOutput)
+        assertEquals("direct call must match extension (parity)", directCallOutput, extensionOutput)
     }
 
     fun testToProperties() = runTest {

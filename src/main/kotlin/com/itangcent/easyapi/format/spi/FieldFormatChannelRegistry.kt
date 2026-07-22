@@ -31,7 +31,7 @@ import com.itangcent.easyapi.core.settings.read
  * [SettingBinder.getInstance] requires a [Project] to read the
  * APPLICATION-scoped [GeneralSettings] (mirroring how `ChannelRegistry` reads
  * the same settings). Query methods take no project parameter — the registry
- * holds the project internally (Decision A1).
+ * holds the project internally.
  *
  * ## Usage
  *
@@ -86,8 +86,8 @@ class FieldFormatChannelRegistry(private val project: Project) : IdeaLog {
      * the project-scoped `channel` EP).
      *
      * Unfiltered by design — returns every registered format regardless of
-     * enabled state (Req A3.4 — so a disabled format can be re-enabled in the
-     * Settings UI). Consumers that need only enabled formats must use
+     * enabled state — so a disabled format can be re-enabled in the
+     * Settings UI. Consumers that need only enabled formats must use
      * [getEnabledChannels].
      */
     fun allChannels(): List<FieldFormatChannel> =
@@ -104,7 +104,7 @@ class FieldFormatChannelRegistry(private val project: Project) : IdeaLog {
      *
      * If the settings storage cannot be read, falls back to
      * [FieldFormatChannel.enabledByDefault] for every format and does not throw
-     * (Req A2.6; AGENTS.md forbids silent `runCatching`).
+     * (AGENTS.md forbids silent `runCatching`).
      */
     fun isEnabled(channel: FieldFormatChannel): Boolean {
         val settings = try {

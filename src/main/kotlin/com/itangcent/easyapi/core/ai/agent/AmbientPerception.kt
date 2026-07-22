@@ -88,12 +88,12 @@ object AmbientPerception : IdeaLog {
      * ≥1 hit, its owning recognizer's framework label is collected into
      * [ApiPerception.frameworkHints] (deduped).
      *
-     * Settings gates (Req 9.3) are respected automatically: disabled
+     * Settings gates are respected automatically: disabled
      * recognizers are excluded from [CompositeApiClassRecognizer.allTargetAnnotations],
      * so their annotations are never searched and their framework labels never
      * surface.
      *
-     * Decision CO5: the annotation→framework map is built per call from
+     * The annotation→framework map is built per call from
      * [CompositeApiClassRecognizer.recognizers] — the EP-respecting service
      * seam — instead of hard-coding concrete framework recognizer imports.
      * The map covers exactly the enabled recognizers (the same set whose
@@ -111,7 +111,7 @@ object AmbientPerception : IdeaLog {
         val composite = CompositeApiClassRecognizer.getInstance(project)
         val annotationFqns = composite.allTargetAnnotations
         if (annotationFqns.isEmpty()) return@readSync ApiPerception(emptyList(), emptyList())
-        // Decision CO5: build the annotation→framework map per call from the
+        // Build the annotation→framework map per call from the
         // EP-respecting seam rather than hard-coding 5 concrete recognizer
         // imports. The map covers exactly the enabled recognizers, which is
         // the same set whose annotations appear in `annotationFqns` above.

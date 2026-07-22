@@ -82,7 +82,7 @@ class ConfigTextParser(
         val http = project.settings<HttpSettings>()
         val ruleFile = project.settings<RuleFileSettings>()
         // postmanToken is read via string-based lookup to avoid importing
-        // channel.postman.PostmanSettings (concrete-impl) from core.* (Decision CO3).
+        // channel.postman.PostmanSettings (concrete-impl) from core.*.
         val postmanModuleKey = "com.itangcent.easyapi.channel.postman.PostmanSettings"
         return { key ->
             when (key) {

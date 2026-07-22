@@ -201,7 +201,7 @@ class LoopGuard(private val cfg: LoopSafetyConfig) {
 }
 
 // ------------------------------------------------------------------
-// Normalization & fingerprinting helpers (Phase 2, task 9)
+// Normalization & fingerprinting helpers
 // ------------------------------------------------------------------
 
 /**

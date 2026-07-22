@@ -12,9 +12,9 @@ import com.itangcent.easyapi.core.script.env.EnvironmentScope
  *
  * Contains conflict resolution and error message conversion — logic that is
  * specific to the sync service layer. Pure data mapping functions live in
- * [PostmanApiClient.Companion] per spec tasks 2.5 and 2.6.
+ * [PostmanApiClient.Companion].
  *
- * **Decision CO7**: Lives in `channel.postman.sync` alongside
+ * Lives in `channel.postman.sync` alongside
  * [EnvironmentSyncService] (Postman-specific — no abstraction extracted).
  *
  * @see EnvironmentSyncService for the service that uses this logic
@@ -26,8 +26,7 @@ internal object EnvironmentSyncLogic {
     /**
      * Maps an EasyAPI [Environment] to a [PostmanEnvironmentDetail].
      *
-     * Delegates the variable mapping to [PostmanApiClient.environmentToVariables]
-     * (spec task 2.5).
+     * Delegates the variable mapping to [PostmanApiClient.environmentToVariables].
      *
      * @see EnvironmentSyncService.pushToPostman
      */
@@ -41,7 +40,7 @@ internal object EnvironmentSyncLogic {
     /**
      * Maps EasyAPI variables to a list of [PostmanEnvironmentValue] entries.
      *
-     * Delegates to [PostmanApiClient.variablesToPostmanValues] (spec task 2.5).
+     * Delegates to [PostmanApiClient.variablesToPostmanValues].
      */
     fun variablesToPostmanValues(variables: Map<String, String>): List<PostmanEnvironmentValue> {
         return PostmanApiClient.variablesToPostmanValues(variables)
@@ -52,7 +51,7 @@ internal object EnvironmentSyncLogic {
     /**
      * Maps Postman environment values to a simple key-value map.
      *
-     * Delegates to [PostmanApiClient.postmanVariablesToMap] (spec task 2.6).
+     * Delegates to [PostmanApiClient.postmanVariablesToMap].
      *
      * @param values Postman variable list
      * @param includeDisabled Whether to include disabled variables

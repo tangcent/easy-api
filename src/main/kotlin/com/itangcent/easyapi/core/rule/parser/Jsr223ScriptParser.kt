@@ -8,6 +8,8 @@ import com.itangcent.easyapi.core.internal.threading.readSync
 import com.itangcent.easyapi.core.http.HttpClientProvider
 import com.itangcent.easyapi.core.http.ScriptHttpClient
 import com.itangcent.easyapi.core.logging.IdeaLog
+import com.itangcent.easyapi.core.psi.LinkResolver
+import com.itangcent.easyapi.core.psi.helper.AnnotatedElementsHelper
 import com.itangcent.easyapi.core.psi.helper.SourceHelper
 import com.itangcent.easyapi.core.psi.type.JsonType
 import com.itangcent.easyapi.core.rule.RuleKey
@@ -128,7 +130,7 @@ abstract class Jsr223ScriptParser(
         // executeSync(...) (the suspend HttpClient.execute is not callable from the
         // blocking JSR-223 boundary). Scope: bound ONLY here (groovy: rule values +
         // http.call.before/after events), NOT in PmScriptExecutor (postman.* scripts
-        // use pm.sendRequest for sub-requests if ever needed). Spec: ai-workflow-patterns T2.3.
+        // use pm.sendRequest for sub-requests if ever needed).
         val rawHttpClient = runCatching {
             HttpClientProvider.getInstance(context.project).getClient()
         }.onFailure { LOG.warn("Jsr223ScriptParser: failed to get httpClient", it) }
@@ -164,10 +166,10 @@ abstract class Jsr223ScriptParser(
  *
  * @param context The rule context
  */
-class ScriptHelper(private val context: RuleContext) {
+class ScriptHelper(private val context: RuleContext) : IdeaLog {
 
-    private val linkResolver: com.itangcent.easyapi.core.psi.LinkResolver? by lazy {
-        com.itangcent.easyapi.core.psi.LinkResolver.getInstance(context.project)
+    private val linkResolver: LinkResolver? by lazy {
+        LinkResolver.getInstance(context.project)
     }
 
     /**
@@ -250,6 +252,128 @@ class ScriptHelper(private val context: RuleContext) {
                 else -> null
             }
         }
+    }
+
+    /**
+     * Finds the first class annotated with the given annotation FQN.
+     *
+     * Singular counterpart of [findClassesByAnnotation]. Returns a
+     * [ScriptPsiClassContext] wrapper for the first match, or `null` when no
+     * class is annotated or the annotation is not resolvable. Never throws —
+     * any error is logged at `warn` and `null` is returned.
+     *
+     * This is the idiomatic form for document-level annotations (e.g.
+     * `@SwaggerDefinition`, `@OpenAPIDefinition`) that live on a single config
+     * class — the rule scripts previously wrote
+     * `findClassesByAnnotation(...)[0]` with a redundant `isEmpty()` guard,
+     * which still paid for the full scan.
+     *
+     * The actual PSI lookup lives in
+     * [AnnotatedElementsHelper.findClassByAnnotation]; this wrapper is a thin
+     * context adapter that wraps the raw [com.intellij.psi.PsiClass] result in
+     * a [ScriptPsiClassContext] for the `helper` / `H` script binding.
+     *
+     * ## Usage in Scripts
+     * ```
+     * // Find the single @SwaggerDefinition config class
+     * def cls = helper.findClassByAnnotation("io.swagger.annotations.SwaggerDefinition")
+     * if (cls == null) return null
+     * return cls.annMap("io.swagger.annotations.SwaggerDefinition")?.info?.title
+     *
+     * // Short alias
+     * def cls = H.findClassByAnnotation("io.swagger.annotations.SwaggerDefinition")
+     * ```
+     *
+     * @param annotationFqn fully-qualified annotation name (e.g.
+     *   `"io.swagger.annotations.SwaggerDefinition"`). Simple names are NOT
+     *   supported — pass the FQN.
+     * @return a [ScriptPsiClassContext] for the first match, or `null`.
+     * @see findClassesByAnnotation for the all-matches variant
+     */
+    fun findClassByAnnotation(annotationFqn: String): Any? {
+        if (annotationFqn.isBlank()) return null
+        val hit = AnnotatedElementsHelper.getInstance(context.project)
+            .findClassByAnnotation(annotationFqn) ?: return null
+        return ScriptPsiClassContext(context.withElement(hit))
+    }
+
+    /**
+     * Finds all classes annotated with the given annotation FQN.
+     *
+     * Returns a list of [ScriptPsiClassContext] wrappers (empty list if no
+     * matches or the annotation is not resolvable). Never throws — any error
+     * is logged at `warn` and an empty list is returned.
+     *
+     * When only the first match is needed, prefer [findClassByAnnotation],
+     * which stops the search early and returns `null` instead of an empty list.
+     *
+     * The actual PSI lookup was
+     * extracted to [AnnotatedElementsHelper] so it can be reused by non-script
+     * callers and unit-tested in isolation (see
+     * `AnnotatedElementsHelperTest`). This wrapper is now a thin context
+     * adapter — it delegates the lookup to the helper and wraps each raw
+     * [com.intellij.psi.PsiClass] result in a [ScriptPsiClassContext] for the
+     * `helper` / `H` script binding.
+     *
+     * ## Usage in Scripts
+     * ```
+     * // Find all classes annotated with @Service
+     * def services = helper.findClassesByAnnotation("org.springframework.stereotype.Service")
+     *
+     * // Short alias
+     * def services = H.findClassesByAnnotation("org.springframework.stereotype.Service")
+     * ```
+     *
+     * Added for the `springfox-openapi.config`
+     * Springfox `Docket` extractor and any rule script that needs to locate
+     * annotated code.
+     *
+     * @param annotationFqn fully-qualified annotation name (e.g.
+     *   `"org.springframework.context.annotation.Bean"`). Simple names are NOT
+     *   supported — pass the FQN.
+     */
+    fun findClassesByAnnotation(annotationFqn: String): List<Any> {
+        if (annotationFqn.isBlank()) return emptyList()
+        val hits = AnnotatedElementsHelper.getInstance(context.project)
+            .findClassesByAnnotation(annotationFqn)
+        return hits.map { ScriptPsiClassContext(context.withElement(it)) }
+    }
+
+    /**
+     * Finds all methods annotated with the given annotation FQN.
+     *
+     * Returns a list of [ScriptPsiMethodContext] wrappers (empty list if no
+     * matches or the annotation is not resolvable). Never throws — any error
+     * is logged at `warn` and an empty list is returned.
+     *
+     * The actual PSI lookup was
+     * extracted to [AnnotatedElementsHelper] (see `findClassesByAnnotation`
+     * above). This wrapper delegates the lookup to the helper and wraps each
+     * raw [com.intellij.psi.PsiMethod] result in a [ScriptPsiMethodContext]
+     * for the `helper` / `H` script binding.
+     *
+     * ## Usage in Scripts
+     * ```
+     * // Find all @Bean methods (Springfox Docket beans)
+     * def beanMethods = helper.findMethodsByAnnotation("org.springframework.context.annotation.Bean")
+     *
+     * // Short alias
+     * def beanMethods = H.findMethodsByAnnotation("org.springframework.context.annotation.Bean")
+     * ```
+     *
+     * Added for the `springfox-openapi.config`
+     * Springfox `Docket` extractor (locates `@Bean` methods returning
+     * `springfox.documentation.spring.web.plugins.Docket`).
+     *
+     * @param annotationFqn fully-qualified annotation name (e.g.
+     *   `"org.springframework.context.annotation.Bean"`). Simple names are NOT
+     *   supported — pass the FQN.
+     */
+    fun findMethodsByAnnotation(annotationFqn: String): List<Any> {
+        if (annotationFqn.isBlank()) return emptyList()
+        val hits = AnnotatedElementsHelper.getInstance(context.project)
+            .findMethodsByAnnotation(annotationFqn)
+        return hits.map { ScriptPsiMethodContext(context.withElement(it)) }
     }
 }
 

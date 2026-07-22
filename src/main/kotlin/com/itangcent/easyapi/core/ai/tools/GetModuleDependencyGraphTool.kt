@@ -51,7 +51,7 @@ class GetModuleDependencyGraphTool : AiTool, IdeaLog {
                     val deps = ModuleRootManager.getInstance(module).orderEntries
                         .asSequence()
                         .filterIsInstance<ModuleOrderEntry>()
-                        // Req 8.1: restrict to workspace (non-external) modules —
+                        // Restrict to workspace (non-external) modules —
                         // a ModuleOrderEntry whose Module is null is an external /
                         // unloaded reference, not a structural workspace edge.
                         .filter { it.module != null }

@@ -17,10 +17,8 @@ import org.junit.Test
  * Formatter-level test for unresolved `${...}` placeholder conversion in Hoppscotch
  * header values (`${x}` → `<<x>>`).
  *
- * Symmetric to `PostmanHeaderVarConversionTest` (Task 4.1) but targets the
+ * Symmetric to `PostmanHeaderVarConversionTest` but targets the
  * Hoppscotch `<<...>>` variable syntax via [HoppscotchFormatter.buildHeaders].
- *
- * - _Requirements: Req 5.2, 5.3, 5.4; NFR-3_
  */
 class HoppHeaderVarConversionTest : EasyApiLightCodeInsightFixtureTestCase() {
 
@@ -47,7 +45,7 @@ class HoppHeaderVarConversionTest : EasyApiLightCodeInsightFixtureTestCase() {
         return method.invoke(formatter(), meta) as List<HoppKeyValue>
     }
 
-    // ==================== Req 5.2: unresolved ${x} → <<x>> ====================
+    // ==================== unresolved ${x} → <<x>> ====================
 
     @Test
     fun testUnresolvedPlaceholderConvertsToAngleBrackets() {
@@ -64,7 +62,7 @@ class HoppHeaderVarConversionTest : EasyApiLightCodeInsightFixtureTestCase() {
         assertEquals("Bearer <<order-service-token>>", headers[0].value)
     }
 
-    // ==================== Req 5.3: resolved ${x} left untouched ====================
+    // ==================== resolved ${x} left untouched ====================
 
     @Test
     fun testResolvedPlaceholderLeftUntouched() {
@@ -80,7 +78,7 @@ class HoppHeaderVarConversionTest : EasyApiLightCodeInsightFixtureTestCase() {
         assertEquals("\${baseUrl}", headers[0].value)
     }
 
-    // ==================== Req 5.4: regex-capture ${1} left untouched ====================
+    // ==================== regex-capture ${1} left untouched ====================
 
     @Test
     fun testRegexCaptureReferenceLeftUntouched() {
@@ -96,7 +94,7 @@ class HoppHeaderVarConversionTest : EasyApiLightCodeInsightFixtureTestCase() {
         assertEquals("Basic \${1}", headers[0].value)
     }
 
-    // ==================== NFR-3: byte-parity golden (placeholder-free) ====================
+    // ==================== byte-parity golden (placeholder-free) ====================
 
     /**
      * A placeholder-free header set must serialize byte-identically to the

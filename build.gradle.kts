@@ -38,6 +38,8 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.12.2")
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.12.2")
     implementation("com.fasterxml.jackson.core:jackson-core:2.12.2")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.12.2")
+    implementation("org.yaml:snakeyaml:1.33")
     implementation("org.xerial:sqlite-jdbc:3.34.0")
 
     // LangChain4j — AI agent substrate

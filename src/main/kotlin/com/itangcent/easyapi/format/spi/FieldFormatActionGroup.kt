@@ -23,7 +23,7 @@ import com.itangcent.easyapi.core.logging.IdeaLog
  * [getChildren] as a fallback. Enablement is filtered through
  * [FieldFormatChannelRegistry.getEnabledChannels] so disabled formats do not
  * get an action registered; visibility of already-registered actions is
- * re-evaluated per-context by [FieldFormatAction.update] (Decision A5).
+ * re-evaluated per-context by [FieldFormatAction.update].
  *
  * ## Adding a new format
  *
@@ -67,7 +67,7 @@ class FieldFormatActionGroup : DefaultActionGroup(), IdeaLog {
          * change. Newly-enabled formats get their action registered (via
          * [ensureActionsRegistered]); disabled formats' actions are hidden
          * (presentation visible=false) without unregistering, so keymap IDs
-         * remain stable across enable/disable cycles (Req A4.1–A4.3, Decision A5).
+         * remain stable across enable/disable cycles.
          *
          * Visibility for existing actions is re-evaluated by each
          * [FieldFormatAction]'s `update(AnActionEvent)` method (per-context
@@ -75,7 +75,7 @@ class FieldFormatActionGroup : DefaultActionGroup(), IdeaLog {
          * mutate `templatePresentation.isVisible` here — the IntelliJ Platform
          * forbids direct template-presentation mutation
          * (Presentation.assertNotTemplatePresentation). This achieves the same
-         * "hide not unregister" semantics (Decision A5) while respecting the
+         * "hide not unregister" semantics while respecting the
          * platform's presentation contract.
          *
          * Safe to call when the group is not registered (no-op) and idempotent.

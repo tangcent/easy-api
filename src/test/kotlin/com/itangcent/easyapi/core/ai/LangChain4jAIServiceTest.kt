@@ -14,7 +14,7 @@ import org.mockito.kotlin.mock
 /**
  * Regression tests for [LangChain4jAIService] timeout handling.
  *
- * Verifies design Decision 4: a chat timeout (the underlying
+ * Verifies that a chat timeout (the underlying
  * [ChatModel.chat] blocking longer than
  * [AiRuntimeConfig.requestTimeoutSec]) is surfaced as a
  * [ChatTimeoutException] — a normal transient exception the retry policy

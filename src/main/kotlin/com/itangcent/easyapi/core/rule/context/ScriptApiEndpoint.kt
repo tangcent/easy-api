@@ -112,7 +112,7 @@ class ScriptApiEndpoint(
      * - When [project] is null (e.g. unit tests, headless rule eval), falls back to
      *   the pure format path — no settings, no scripts.
      *
-     * ## SPI indirection (Decision CO8)
+     * ## SPI indirection
      *
      * Delegates to [CurlRenderer] (application-scoped SPI in `channel.spi`),
      * never to concrete `channel.curl.*` types — keeps the CO3 DAG rule

@@ -31,7 +31,7 @@ class HttpClientScriptInterceptor(
     private val ruleEngine: RuleEngine?
 ) : HttpClient {
     override suspend fun execute(request: HttpRequest): HttpResponse {
-        // Recursion guard (Spec: ai-workflow-patterns, D3 / review Issue #3).
+        // Recursion guard.
         // `depth` is a per-thread counter incremented at the top of execute() and
         // decremented in `finally`. It prevents infinite re-entry when a script
         // running in `http.call.before`/`after` issues a sub-request via
@@ -51,7 +51,7 @@ class HttpClientScriptInterceptor(
                     }
                 }
                 // Send the (possibly mutated) wrapper state, not the original request,
-                // so retries carry script-applied header changes (Spec: D2).
+                // so retries carry script-applied header changes.
                 val response = delegate.execute(wrappedRequest.toHttpRequest())
                 val wrappedResponse = HttpResponseWrapper(response, wrappedRequest)
                 if (d < MAX_HOOK_DEPTH) {
@@ -95,7 +95,7 @@ class HttpClientScriptInterceptor(
  * Used in rule scripts to inspect and modify request properties. Header mutation
  * (via [setHeader] / [removeHeader]) is reflected in [headers] and materialized
  * into a fresh [HttpRequest] by [toHttpRequest], so retries carry script-applied
- * header changes (Spec: ai-workflow-patterns, D2 — 401-refresh sets a new
+ * header changes — 401-refresh sets a new
  * `Authorization` header on the wrapper, then `response.discard()` triggers a
  * retry that sends the mutated headers).
  *

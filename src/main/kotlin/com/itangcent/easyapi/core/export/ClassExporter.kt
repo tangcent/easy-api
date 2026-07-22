@@ -35,7 +35,7 @@ interface ClassExporter {
     /**
      * Checks whether this exporter is enabled for the current project.
      *
-     * After the framework-enablement unification (Item 2), the canonical
+     * After the framework-enablement unification, the canonical
      * implementation delegates to
      * [com.itangcent.easyapi.framework.spi.FrameworkRegistry.isEnabled]:
      * ```kotlin

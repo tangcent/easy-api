@@ -6,8 +6,7 @@ import com.itangcent.easyapi.core.settings.module.GeneralSettings
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
 
 /**
- * IDE-fixture tests for the "Export Channels" section of [FeaturesSettingsPanel]
- * (Task 4.1, Req 3.1–3.7).
+ * IDE-fixture tests for the "Export Channels" section of [FeaturesSettingsPanel].
  *
  * The test fixture loads `plugin.xml`, so [ChannelRegistry.allChannels] returns
  * the five production channels (markdown, postman, curl, http-client, hoppscotch).
@@ -20,7 +19,7 @@ class FeaturesSettingsPanelChannelEnablementTest : EasyApiLightCodeInsightFixtur
     override fun setUp() {
         super.setUp()
         // Constructing the panel builds the "Export Channels" section from
-        // ChannelRegistry.allChannels() (unfiltered — Req 3.4).
+        // ChannelRegistry.allChannels() (unfiltered).
         panel = FeaturesSettingsPanel(project)
     }
 
@@ -29,7 +28,7 @@ class FeaturesSettingsPanelChannelEnablementTest : EasyApiLightCodeInsightFixtur
     private fun defaultOn(): Channel = channels().first { it.id == "markdown" }
     private fun defaultOff(): Channel = channels().first { it.id == "http-client" }
 
-    // --- Req 3.3: checkbox reflects effective enabled state on reset ---
+    // --- checkbox reflects effective enabled state on reset ---
 
     fun testResetChannelEnablement_defaultOnNoPreference_checked() {
         val settings = GeneralSettings() // no preference
@@ -174,7 +173,7 @@ class FeaturesSettingsPanelChannelEnablementTest : EasyApiLightCodeInsightFixtur
         )
     }
 
-    // --- Req 3.7: graceful skip when no channels ---
+    // --- graceful skip when no channels ---
 
     fun testPanelBuildsWithoutErrorWhenChannelsRegistered() {
         // The fixture registers channels, so allChannels() is non-empty.

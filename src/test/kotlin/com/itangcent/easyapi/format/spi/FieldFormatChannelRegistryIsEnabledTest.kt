@@ -18,7 +18,7 @@ import org.junit.Assert.*
  *
  * Coverage targets (from Codecov PR #736):
  * - The `try { ... } catch { LOG.warn(...); return enabledByDefault }` fallback
- *   path when [SettingBinder.read] throws (Req A2.6).
+ *   path when [SettingBinder.read] throws.
  * - The happy path: reading stored preferences and delegating to
  *   [FieldFormatChannelRegistry.resolveEnabled].
  */
@@ -82,7 +82,7 @@ class FieldFormatChannelRegistryIsEnabledTest : EasyApiLightCodeInsightFixtureTe
         assertTrue(registry.isEnabled(defaultOff))
     }
 
-    // --- Fallback path: SettingBinder.read throws → enabledByDefault (Req A2.6) ---
+    // --- Fallback path: SettingBinder.read throws → enabledByDefault ---
 
     fun testIsEnabled_fallbackReturnsEnabledByDefault_whenSettingsReadThrows_defaultOn() {
         project.registerServiceInstance(

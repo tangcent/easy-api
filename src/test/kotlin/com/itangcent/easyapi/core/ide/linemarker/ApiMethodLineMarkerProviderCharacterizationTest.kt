@@ -13,12 +13,12 @@ import com.itangcent.easyapi.testFramework.TestConfigReader
  * Characterization test for [ApiMethodLineMarkerProvider] behavior.
  *
  * Captures the line-marker's `getLineMarkerInfo` decisions (null vs non-null)
- * for a representative fixture set BEFORE the Item 1 refactor (recognizer
- * relocation + EP-seam refactor). The test MUST pass against current
+ * for a representative fixture set BEFORE the recognizer
+ * relocation + EP-seam refactor. The test MUST pass against current
  * (pre-patch) code AND against post-patch code &mdash; byte-identical
- * behavior per Migration Req 5.1.
+ * behavior.
  *
- * Fixture set per `requirements-recognizer-relocation.md` Req 4.7:
+ * Fixture set:
  *  (a) Spring MVC controller method (`@RequestMapping`)
  *  (b) JAX-RS resource method (`@GET` + `@Path`)
  *  (c) gRPC unary method (`(Req, StreamObserver<Resp>) -> void` on a
@@ -27,10 +27,7 @@ import com.itangcent.easyapi.testFramework.TestConfigReader
  *  (e) non-API method (plain class, no annotations)
  *  (f) class with `class.is.grpc = true` rule-engine override but NO
  *      `BindableService` supertype and NO `@GrpcService` annotation &mdash;
- *      MUST NOT be marked (PR1's "MUST NOT consult rule engine" contract)
- *
- * Requirements: Recognizer Relocation 4.7; Decision: PR1 (rule-engine
- * exclusion contract)
+ *      MUST NOT be marked (rule-engine exclusion contract)
  */
 class ApiMethodLineMarkerProviderCharacterizationTest : EasyApiLightCodeInsightFixtureTestCase() {
 
@@ -197,7 +194,7 @@ class ApiMethodLineMarkerProviderCharacterizationTest : EasyApiLightCodeInsightF
 
     // ------------------------------------------------------------------
     // Case (f): rule-engine gRPC override but no BindableService / @GrpcService
-    //           &mdash; MUST NOT be marked (PR1's "MUST NOT consult rule engine" contract)
+    //           &mdash; MUST NOT be marked (the "MUST NOT consult rule engine" contract)
     // ------------------------------------------------------------------
 
     fun testCaseFRuleEngineOverrideNotMarked() = runTest {
@@ -207,7 +204,7 @@ class ApiMethodLineMarkerProviderCharacterizationTest : EasyApiLightCodeInsightF
         // Even with `class.is.grpc = true` rule override (see createConfigReader),
         // the line marker MUST NOT mark this method &mdash; because the line marker's
         // gRPC detection is structural (BindableService/@GrpcService only), not
-        // rule-driven. This is PR1's load-bearing contract.
+        // rule-driven. This is the load-bearing contract.
         val echoMethod = findMethod(fakeService, "echo")!!
         val echoMarker = lineMarkerProvider.getLineMarkerInfo(echoMethod.nameIdentifier!!)
         assertNull(

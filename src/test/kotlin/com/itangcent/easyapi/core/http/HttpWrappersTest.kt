@@ -104,7 +104,7 @@ class HttpRequestWrapperTest {
         assertEquals("application/json", wrapper.contentType())
     }
 
-    // ---- T2.2: mutable header support (Spec: ai-workflow-patterns, D2) ----
+    // ---- mutable header support ----
 
     @Test
     fun testSetHeaderAddsNewHeader() {

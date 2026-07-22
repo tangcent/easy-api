@@ -78,7 +78,7 @@ class RuleAuthoringAgent(
             "budget=${ctx.aiSettings.maxRequests}")
 
         // Fresh per-turn loop guard + retry policy so detection state never
-        // leaks across turns (REQ-1 AC-4).
+        // leaks across turns.
         val guard = LoopGuard(ctx.aiSettings.loopSafety)
         val retry = ChatRetry(ctx.aiSettings.loopSafety)
 

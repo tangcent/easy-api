@@ -70,6 +70,20 @@ interface Channel {
      */
     val enabledByDefault: Boolean get() = true
 
+    /**
+     * Whether this channel is in beta status.
+     *
+     * Beta channels are functional but may have rough edges, incomplete
+     * features, or breaking changes in future releases. UI surfaces MAY
+     * append a "(Beta)" indicator to the [displayName] and MAY warn the
+     * user on first use. Beta channels are typically `enabledByDefault = false`
+     * so the user opts in explicitly.
+     *
+     * Default is `false` (stable). Override to `true` for channels that
+     * are not yet production-ready.
+     */
+    val beta: Boolean get() = false
+
     /** Hint for settings-tab ordering; lower = earlier. Default 100. */
     val settingsTabOrder: Int get() = 100
 

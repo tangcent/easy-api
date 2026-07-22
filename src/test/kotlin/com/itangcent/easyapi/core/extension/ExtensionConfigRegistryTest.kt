@@ -695,7 +695,9 @@ class ExtensionConfigRegistryTest {
             "mybatis-plus",
             "spring", "spring-configuration", "spring-properties",
             "spring-validations", "spring-webflux",
-            "swagger", "swagger3"
+            "springfox-openapi",
+            "swagger", "swagger-openapi",
+            "swagger3", "swagger3-openapi"
         )
         val actualCodes = ExtensionConfigRegistry.codes().toList()
         for (code in expectedCodes) {

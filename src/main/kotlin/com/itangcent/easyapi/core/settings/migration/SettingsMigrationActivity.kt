@@ -72,7 +72,7 @@ class SettingsMigrationActivity : StartupActivity {
      * Reads legacy [ApplicationSettingsState] and writes to [UnifiedAppSettingsState]
      * under each module's qualified-name key.
      *
-     * v4 branch (PR7) translates the legacy per-framework booleans
+     * v4 branch translates the legacy per-framework booleans
      * (`feignEnable`, `jaxrsEnable`, `actuatorEnable`, `grpcEnable`) to the unified
      * `enabledFrameworks`/`disabledFrameworks` arrays in `GeneralSettings`. The
      * translation is idempotent (uses [MutableSet] semantics) and only adds an
@@ -149,14 +149,14 @@ class SettingsMigrationActivity : StartupActivity {
         appState.setValue(ruleFileKey, "disabledGlobalRuleFiles", GsonUtils.toJson(legacy.disabledGlobalRuleFiles))
 
         // PostmanSettings (APP) — postmanToken standardized to APP only
-        // FQN used as string literal to avoid concrete-impl import from core.* (Decision CO3)
+        // FQN used as string literal to avoid concrete-impl import from core.*.
         val postmanKey = "com.itangcent.easyapi.channel.postman.PostmanSettings"
         appState.setValue(postmanKey, "postmanToken", legacy.postmanToken)
         appState.setValue(postmanKey, "wrapCollection", legacy.wrapCollection.toString())
         appState.setValue(postmanKey, "autoMergeScript", legacy.autoMergeScript.toString())
         appState.setValue(postmanKey, "postmanJson5FormatType", legacy.postmanJson5FormatType)
 
-        // v4 (PR7): translate legacy per-framework booleans to the unified
+        // v4: translate legacy per-framework booleans to the unified
         // enabledFrameworks/disabledFrameworks arrays in GeneralSettings.
         // Idempotent — initialized from existing arrays so re-running migration
         // does not duplicate entries. Only non-default legacy values produce an
@@ -203,7 +203,7 @@ class SettingsMigrationActivity : StartupActivity {
         projState.setValue(envKey, "projectEnvironments", legacy.projectEnvironments)
         projState.setValue(envKey, "disabledAutoRuleFiles", GsonUtils.toJson(legacy.disabledAutoRuleFiles))
 
-        // PostmanSettings (PROJ) — FQN as string literal (Decision CO3)
+        // PostmanSettings (PROJ) — FQN as string literal
         val postmanKey = "com.itangcent.easyapi.channel.postman.PostmanSettings"
         projState.setValue(postmanKey, "postmanWorkspace", legacy.postmanWorkspace)
         projState.setValue(postmanKey, "postmanExportMode", legacy.postmanExportMode)

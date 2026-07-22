@@ -13,7 +13,7 @@ import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCas
 
 /**
  * IDE-fixture tests for [FieldFormatActionGroup.refreshActions] and
- * [FieldFormatAction.update] (Task A.6, Req A4.1–A4.3, Decision A5).
+ * [FieldFormatAction.update].
  *
  * Mirrors [com.itangcent.easyapi.core.ide.action.ChannelQuickActionGroupRefreshTest].
  * Verifies that:
@@ -90,7 +90,7 @@ class FieldFormatActionGroupRefreshTest : EasyApiLightCodeInsightFixtureTestCase
     /**
      * Re-enables all formats by clearing the field-format preferences (so every
      * format falls back to its `enabledByDefault`, which is `true` for all four
-     * shipping formats — Decision A2).
+     * shipping formats).
      */
     private fun enableAllFormats() {
         SettingBinder.getInstance(project).save(GeneralSettings())
@@ -138,7 +138,7 @@ class FieldFormatActionGroupRefreshTest : EasyApiLightCodeInsightFixtureTestCase
         return event.presentation.isVisible
     }
 
-    // --- Req A4.1: disabling a format hides its action ---
+    // --- disabling a format hides its action ---
 
     fun testRefreshActions_hidesDisabledFormatAction() {
         // Start with json enabled (default-on, no preference) so its action gets registered.
@@ -165,7 +165,7 @@ class FieldFormatActionGroupRefreshTest : EasyApiLightCodeInsightFixtureTestCase
         )
     }
 
-    // --- Req A4.3: re-enabling a format shows its action ---
+    // --- re-enabling a format shows its action ---
 
     fun testRefreshActions_showsReEnabledFormatAction() {
         // Register the action while enabled, then disable+refresh to hide it.
@@ -190,7 +190,7 @@ class FieldFormatActionGroupRefreshTest : EasyApiLightCodeInsightFixtureTestCase
         )
     }
 
-    // --- Decision A5: refreshActions does NOT unregister actions ---
+    // --- refreshActions does NOT unregister actions ---
 
     fun testRefreshActions_doesNotUnregisterAction() {
         enableAllFormats()

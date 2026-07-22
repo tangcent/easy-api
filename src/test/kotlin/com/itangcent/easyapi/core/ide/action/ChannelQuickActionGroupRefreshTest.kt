@@ -13,7 +13,7 @@ import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCas
 
 /**
  * IDE-fixture tests for [ChannelQuickActionGroup.refreshActions] and
- * [ChannelExportAction.update] (Task 4.3, Req 5.1, 5.2, Decision 4).
+ * [ChannelExportAction.update].
  *
  * Verifies that:
  * - disabling a channel hides its action (per-context presentation visible=false)
@@ -136,7 +136,7 @@ class ChannelQuickActionGroupRefreshTest : EasyApiLightCodeInsightFixtureTestCas
         return event.presentation.isVisible
     }
 
-    // --- Req 5.2: disabling a channel hides its action ---
+    // --- disabling a channel hides its action ---
 
     fun testRefreshActions_hidesDisabledChannelAction() {
         // Start with hoppscotch enabled so its action gets registered.
@@ -163,7 +163,7 @@ class ChannelQuickActionGroupRefreshTest : EasyApiLightCodeInsightFixtureTestCas
         )
     }
 
-    // --- Req 5.1: re-enabling a channel shows its action ---
+    // --- re-enabling a channel shows its action ---
 
     fun testRefreshActions_showsReEnabledChannelAction() {
         // Register the action while enabled, then disable+refresh to hide it.
@@ -188,7 +188,7 @@ class ChannelQuickActionGroupRefreshTest : EasyApiLightCodeInsightFixtureTestCas
         )
     }
 
-    // --- Decision 4 / Resolved Q#2: refreshActions does NOT unregister actions ---
+    // --- refreshActions does NOT unregister actions ---
 
     fun testRefreshActions_doesNotUnregisterAction() {
         enableChannel("hoppscotch")
@@ -276,7 +276,7 @@ class ChannelQuickActionGroupRefreshTest : EasyApiLightCodeInsightFixtureTestCas
     fun testUpdate_unregisteredChannel_setsVisibleTrue() {
         // A ChannelExportAction with a channelId that is not registered in the
         // EP: getChannel returns null, so the `?: true` branch makes the action
-        // visible (Decision 4 — hide not unregister; unregistered-id actions
+        // visible (hide not unregister; unregistered-id actions
         // default to visible so they can still be discovered in Keymap).
         val action = ChannelExportAction("nonexistent-channel", "Nonexistent")
         val event = createActionEvent()

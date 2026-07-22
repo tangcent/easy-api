@@ -156,7 +156,7 @@ class FieldFormatChannelTest : EasyApiLightCodeInsightFixtureTestCase() {
         }
     }
 
-    // ---------- Task A.1: FieldFormatChannel.enabledByDefault ----------
+    // ---------- FieldFormatChannel.enabledByDefault ----------
 
     /**
      * A stub [FieldFormatChannel] that does NOT override [FieldFormatChannel.enabledByDefault],
@@ -187,7 +187,7 @@ class FieldFormatChannelTest : EasyApiLightCodeInsightFixtureTestCase() {
             "FieldFormatChannel.enabledByDefault should default to true when not overridden",
             channel.enabledByDefault
         )
-        // All four production channels also keep the default (Decision A2).
+        // All four production channels also keep the default.
         assertTrue(JsonFieldFormatChannel().enabledByDefault)
         assertTrue(Json5FieldFormatChannel().enabledByDefault)
         assertTrue(YamlFieldFormatChannel().enabledByDefault)

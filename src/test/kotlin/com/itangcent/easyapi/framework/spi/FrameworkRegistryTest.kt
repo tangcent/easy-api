@@ -12,23 +12,21 @@ import org.junit.Test
  * [com.itangcent.easyapi.channel.spi.ChannelRegistry.resolveEnabled]
  * (test: `ChannelRegistryTest`).
  *
- * Cases per `requirements-framework-enablement.md` Req 7.6 (a)-(e):
+ * Cases (a)-(e):
  *  (a) default-on framework, absent from both arrays → `true`;
  *  (b) default-on framework, in `disabledFrameworks` → `false`;
  *  (c) default-off framework, absent from both arrays → `false`;
  *  (d) default-off framework, in `enabledFrameworks` → `true`;
  *  (e) framework id in BOTH arrays (explicit-on wins) → `true`.
  *
- * Decision PR5: the framework id is `recognizer.frameworkName`.
+ * The framework id is `recognizer.frameworkName`.
  *
- * This is a **test-first** test (written BEFORE task 19 implements
- * [FrameworkRegistry]). It MUST fail to compile against current code
+ * This is a **test-first** test (written BEFORE [FrameworkRegistry] is
+ * implemented). It MUST fail to compile against current code
  * because [FrameworkRegistry] does not exist yet.
  *
  * No `Project` is needed — [FrameworkRegistry.resolveEnabled] is the pure
  * `internal` companion rule extracted for testability.
- *
- * Requirements: Framework Enablement 3.1, 7.6; Decision: PR4, PR5
  */
 class FrameworkRegistryTest {
 
