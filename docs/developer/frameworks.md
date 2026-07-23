@@ -11,7 +11,7 @@ Adding a new one is a one-package operation plus **two** `plugin.xml` lines.
 ## When to write a framework
 
 Write a framework when you have a new **source framework** that declares API
-endpoints in source code. The 5 built-in frameworks:
+endpoints in source code. The 6 built-in frameworks:
 
 | Framework | Recognizer | Exporter | `enabledByDefault` |
 |-----------|------------|-----------|--------------------|
@@ -20,6 +20,11 @@ endpoints in source code. The 5 built-in frameworks:
 | JAX-RS | [`JaxRsResourceRecognizer`](../../src/main/kotlin/com/itangcent/easyapi/framework/jaxrs/JaxRsResourceRecognizer.kt) | [`JaxRsClassExporter`](../../src/main/kotlin/com/itangcent/easyapi/framework/jaxrs/JaxRsClassExporter.kt) | `true` |
 | Feign | [`FeignClientRecognizer`](../../src/main/kotlin/com/itangcent/easyapi/framework/feign/FeignClientRecognizer.kt) | [`FeignClassExporter`](../../src/main/kotlin/com/itangcent/easyapi/framework/feign/FeignClassExporter.kt) | `false` |
 | gRPC | [`GrpcServiceRecognizer`](../../src/main/kotlin/com/itangcent/easyapi/framework/grpc/GrpcServiceRecognizer.kt) | [`GrpcClassExporter`](../../src/main/kotlin/com/itangcent/easyapi/framework/grpc/GrpcClassExporter.kt) | `true` |
+| Custom | [`CustomApiRecognizer`](../../src/main/kotlin/com/itangcent/easyapi/framework/custom/CustomApiRecognizer.kt) | [`CustomClassExporter`](../../src/main/kotlin/com/itangcent/easyapi/framework/custom/CustomClassExporter.kt) | `false` |
+
+The Custom framework is rules-driven (no hard-coded annotation detection)
+— see [`custom-framework.md`](custom-framework.md) for the rule surface
+and the Spring-equivalent reference ruleset.
 
 If you need to *export `ApiEndpoint`s* (already extracted by a framework
 exporter) to a new destination, that's a [channel](channels.md).
@@ -74,6 +79,8 @@ The full contract lives in
 | `isEnabled(project)` | `fun → Boolean` | `true` | Per-project state gate (e.g. annotation presence); AND-combined with `FrameworkRegistry`. |
 | `enabledByDefault` | `Boolean` | `true` | Compile-time enablement default. |
 | `matchesClass(psiClass)` | `fun → Boolean` | `false` | Per-class fast-path for line markers. **MUST NOT consult the rule engine.** |
+| `ruleKeys()` | `fun → List<RuleKey<*>>` | `emptyList()` | Contributes framework-specific rule keys to `RuleKeyRegistry` (surfaced to AI tools / `RuleProposalValidator`). See `CustomRuleKeys` for the pattern. |
+| `createSettingsPanel(project)` | `fun → SettingsPanel<*>?` | `null` | Contributes a settings tab to the EasyApi settings dialog (from the `SettingsPanelProvider` contract, shared with `Channel` and `FieldFormatChannel`). |
 
 Constructor signature (EP instantiates with no-arg — recognizers receive
 their dependencies via constructor parameters with defaults):
@@ -96,10 +103,17 @@ settings-change events and rebuilds its cache).
 NOT consult the rule engine (which is consulted only in `isApiClass`).
 Default `false` is correct for annotation-driven frameworks (Spring MVC,
 JAX-RS, Feign, Actuator — `isApiClass` already returns `false` quickly for
-non-matching classes). Only gRPC overrides this, because its
-`extends BindableService` walk is a per-class fast-path the line marker
-needs. See
-[`GrpcServiceRecognizer.matchesClass`](../../src/main/kotlin/com/itangcent/easyapi/framework/grpc/GrpcServiceRecognizer.kt#L52-L55).
+non-matching classes). Two frameworks override it:
+
+- **gRPC** — its `extends BindableService` walk is a per-class fast-path
+  the line marker needs. See
+  [`GrpcServiceRecognizer.matchesClass`](../../src/main/kotlin/com/itangcent/easyapi/framework/grpc/GrpcServiceRecognizer.kt#L52-L55).
+- **Custom** — gated by a settings toggle (`CustomSettings.enableLineMarker`,
+  default `false`). When the user opts in, `matchesClass` returns `true`
+  so the line-marker provider claims Custom API classes without consulting
+  the rule engine. See
+  [`CustomApiRecognizer.matchesClass`](../../src/main/kotlin/com/itangcent/easyapi/framework/custom/CustomApiRecognizer.kt#L76-L78)
+  and [custom-framework.md → Line-marker toggle](custom-framework.md#line-marker-toggle).
 
 Getting this wrong regresses line-marker behavior — rule-engine overrides
 would otherwise cause non-gRPC classes to be marked as gRPC services by the

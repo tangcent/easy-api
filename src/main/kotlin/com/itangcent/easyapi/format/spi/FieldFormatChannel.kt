@@ -2,6 +2,7 @@ package com.itangcent.easyapi.format.spi
 
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
+import com.itangcent.easyapi.core.settings.ui.SettingsPanelProvider
 
 /**
  * Extension point for field-format actions.
@@ -16,6 +17,7 @@ import com.intellij.psi.PsiClass
  * - Constructor must be no-arg (required by the application-scoped extension point).
  * - Override [id], [displayName], and [actionText] for identification/UI.
  * - Override [format] to perform the actual conversion.
+ * - Optionally override [createSettingsPanel] to contribute a persistent settings tab.
  *
  * ## Adding a new format
  *
@@ -28,7 +30,7 @@ import com.intellij.psi.PsiClass
  * @see FieldFormatActionGroup for the dynamic group that discovers extensions
  * @see FieldFormatAction for the generic action per channel
  */
-interface FieldFormatChannel {
+interface FieldFormatChannel : SettingsPanelProvider {
 
     /** Unique identifier for this channel (e.g. "json", "json5", "yaml"). */
     val id: String

@@ -1,0 +1,63 @@
+# Custom Framework — Spring MVC Reference Ruleset
+#
+# This file reimplements Spring MVC recognition/extraction using ONLY
+# `custom.*` rules (plus the shared `method.default.http.method` and
+# `param.http.type` keys that the Custom exporter reads via
+# DocMetadataResolver). It is both:
+#   1. A learning aid — copy any rule block into your own .yapi.config
+#      and adapt it to your custom convention.
+#   2. The completeness proof that the Custom framework can express
+#      arbitrary annotation conventions.
+#
+# Migration target for issue #1423 (v2.x `mdoc.class.filter` /
+# `mdoc.method.filter` keys dropped in the v3.0 rewrite):
+#   mdoc.class.filter=groovy:it.hasAnn("xxx")
+#     -> custom.class.is.api=groovy:it.hasAnn("xxx")
+#   mdoc.method.filter=groovy:it.hasAnn("yyy")
+#     -> custom.method.is.api=groovy:it.hasAnn("yyy")
+#
+# To use: enable Settings -> Framework Support -> "custom", then drop
+# this file (or its contents) into your .yapi.config / rules file.
+
+# ── Class recognition ──────────────────────────────────────────
+# A class is a Spring MVC controller iff it carries @Controller or
+# @RestController (directly or as a meta-annotation).
+custom.class.is.api=groovy:it.hasAnn("org.springframework.stereotype.Controller") || it.hasAnn("org.springframework.web.bind.annotation.RestController")
+
+# ── Method recognition ────────────────────────────────────────
+# A method is an endpoint iff it carries a Spring mapping annotation
+# (@RequestMapping or any composed @*Mapping).
+custom.method.is.api=groovy:it.hasAnn("org.springframework.web.bind.annotation.RequestMapping") || it.hasAnn("org.springframework.web.bind.annotation.GetMapping") || it.hasAnn("org.springframework.web.bind.annotation.PostMapping") || it.hasAnn("org.springframework.web.bind.annotation.PutMapping") || it.hasAnn("org.springframework.web.bind.annotation.DeleteMapping") || it.hasAnn("org.springframework.web.bind.annotation.PatchMapping")
+
+# ── HTTP method ────────────────────────────────────────────────
+# Composed mappings carry the verb directly; @RequestMapping with no
+# method attribute falls back to method.default.http.method (GET here,
+# matching Spring's convention). The Custom framework defaults to POST
+# when neither custom.http.method nor method.default.http.method
+# resolves — see docs/developer/custom-framework.md.
+method.default.http.method=GET
+custom.http.method=groovy:it.hasAnn("org.springframework.web.bind.annotation.GetMapping") ? "GET" : it.hasAnn("org.springframework.web.bind.annotation.PostMapping") ? "POST" : it.hasAnn("org.springframework.web.bind.annotation.PutMapping") ? "PUT" : it.hasAnn("org.springframework.web.bind.annotation.DeleteMapping") ? "DELETE" : it.hasAnn("org.springframework.web.bind.annotation.PatchMapping") ? "PATCH" : it.hasAnn("org.springframework.web.bind.annotation.RequestMapping") ? (it.ann("org.springframework.web.bind.annotation.RequestMapping", "method") ?: "") : ""
+
+# ── Path ────────────────────────────────────────────────────────
+# custom.path is context-sensitive: it.contextType() returns "class"
+# or "method", so a single rule body can branch. Reads @RequestMapping's
+# "value"/"path" attribute (Spring treats these as aliases). For
+# methods, checks each composed @*Mapping in turn.
+custom.path=groovy:it.contextType() == "class" ? (it.ann("org.springframework.web.bind.annotation.RequestMapping", "value") ?: it.ann("org.springframework.web.bind.annotation.RequestMapping", "path") ?: "") : it.contextType() == "method" ? (it.ann("org.springframework.web.bind.annotation.GetMapping", "value") ?: it.ann("org.springframework.web.bind.annotation.GetMapping", "path") ?: it.ann("org.springframework.web.bind.annotation.PostMapping", "value") ?: it.ann("org.springframework.web.bind.annotation.PostMapping", "path") ?: it.ann("org.springframework.web.bind.annotation.PutMapping", "value") ?: it.ann("org.springframework.web.bind.annotation.PutMapping", "path") ?: it.ann("org.springframework.web.bind.annotation.DeleteMapping", "value") ?: it.ann("org.springframework.web.bind.annotation.DeleteMapping", "path") ?: it.ann("org.springframework.web.bind.annotation.PatchMapping", "value") ?: it.ann("org.springframework.web.bind.annotation.PatchMapping", "path") ?: it.ann("org.springframework.web.bind.annotation.RequestMapping", "value") ?: it.ann("org.springframework.web.bind.annotation.RequestMapping", "path") ?: "") : ""
+
+# ── Parameter binding ──────────────────────────────────────────
+custom.param.as.json.body=groovy:it.hasAnn("org.springframework.web.bind.annotation.RequestBody")
+custom.param.as.form.body=groovy:it.hasAnn("org.springframework.web.bind.annotation.ModelAttribute") || it.hasAnn("org.springframework.web.bind.annotation.RequestPart")
+custom.param.as.path.var=groovy:it.hasAnn("org.springframework.web.bind.annotation.PathVariable")
+custom.param.as.cookie=groovy:it.hasAnn("org.springframework.web.bind.annotation.CookieValue")
+
+# Header binding is detected by @RequestHeader via param.http.type as
+# the coarser classifier; @RequestParam maps to query.
+param.http.type=groovy:it.hasAnn("org.springframework.web.bind.annotation.RequestHeader") ? "header" : it.hasAnn("org.springframework.web.bind.annotation.RequestParam") ? "query" : ""
+
+# ── Parameter name overrides ───────────────────────────────────
+custom.param.path.var=groovy:it.ann("org.springframework.web.bind.annotation.PathVariable", "value") ?: it.ann("org.springframework.web.bind.annotation.PathVariable", "name") ?: ""
+custom.param.header=groovy:it.ann("org.springframework.web.bind.annotation.RequestHeader", "value") ?: it.ann("org.springframework.web.bind.annotation.RequestHeader", "name") ?: ""
+custom.param.cookie=groovy:it.ann("org.springframework.web.bind.annotation.CookieValue", "value") ?: it.ann("org.springframework.web.bind.annotation.CookieValue", "name") ?: ""
+custom.param.cookie.value=groovy:it.ann("org.springframework.web.bind.annotation.CookieValue", "defaultValue") ?: ""
+custom.param.name=groovy:it.ann("org.springframework.web.bind.annotation.RequestParam", "value") ?: it.ann("org.springframework.web.bind.annotation.RequestParam", "name") ?: ""
