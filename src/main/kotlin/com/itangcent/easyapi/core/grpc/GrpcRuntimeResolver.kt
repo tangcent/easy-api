@@ -6,7 +6,7 @@ import com.intellij.openapi.project.Project
 import com.itangcent.easyapi.core.logging.IdeaLog
 import com.itangcent.easyapi.core.repository.RepositoryService
 import com.itangcent.easyapi.core.repository.RepositoryType
-import com.itangcent.easyapi.core.settings.module.GrpcSettings
+import com.itangcent.easyapi.framework.grpc.GrpcSettings
 import com.itangcent.easyapi.core.settings.settings
 import java.nio.file.Files
 import java.nio.file.Path

@@ -51,7 +51,7 @@ import com.itangcent.easyapi.core.settings.Settings
 import com.itangcent.easyapi.core.settings.module.AiSettings
 import com.itangcent.easyapi.core.settings.module.EnvironmentSettings
 import com.itangcent.easyapi.core.settings.module.GeneralSettings
-import com.itangcent.easyapi.core.settings.module.GrpcSettings
+import com.itangcent.easyapi.framework.grpc.GrpcSettings
 import com.itangcent.easyapi.core.settings.module.HttpSettings
 import com.itangcent.easyapi.core.settings.module.ParsingOutputSettings
 import com.itangcent.easyapi.core.settings.module.RuleFileSettings

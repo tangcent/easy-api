@@ -3,7 +3,7 @@ package com.itangcent.easyapi.core.repository
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.itangcent.easyapi.core.settings.module.GrpcSettings
+import com.itangcent.easyapi.framework.grpc.GrpcSettings
 import com.itangcent.easyapi.core.settings.settings
 
 @Service(Service.Level.PROJECT)
