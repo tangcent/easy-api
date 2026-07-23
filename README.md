@@ -73,6 +73,7 @@ Convert class fields to various formats:
 | **Languages** | Java, Kotlin, Scala (optional), Groovy (optional) |
 | **Web Frameworks** | Spring MVC, Spring Cloud OpenFeign, JAX-RS (Quarkus / Jersey) |
 | **RPC** | gRPC |
+| **Custom** | Rules-driven framework for any annotation convention (opt-in) |
 | **Validation** | javax.validation / Jakarta Validation |
 | **Serialization** | Jackson, Gson |
 | **API Docs** | Swagger / OpenAPI annotations |
@@ -114,6 +115,19 @@ Support for gRPC service implementations:
 - Request/response protobuf message type resolution
 - Server reflection support
 - Stub class resolution
+
+### Custom
+
+A rules-driven framework for any annotation convention not covered by the
+built-ins (proprietary RPC-over-HTTP frameworks, non-standard annotation
+sets, etc.). Every extraction decision — which classes are APIs, which
+methods are endpoints, HTTP method, path, parameter binding — is delegated
+to a unified `custom.*` rule surface. Disabled by default; enable it in
+Settings → Framework Support and supply extraction rules in your
+`.yapi.config` / rules file. This is the v3.0 replacement for the v2.x
+`mdoc.class.filter` / `mdoc.method.filter` "generic export" keys (issue
+#1423). See the [Custom Framework guide](docs/developer/custom-framework.md)
+for the full rule surface and a Spring-equivalent reference ruleset.
 
 ## How to Use
 
@@ -233,7 +247,7 @@ graph TB
 ```
 
 - **ExportOrchestrator** — Coordinates the full export pipeline: scans endpoints via `ApiScanner`, then hands them to the selected `Channel` for output
-- **ClassExporter** *(extension point)* — Extracts `ApiEndpoint` models from PSI classes; built-in implementations: Spring MVC, Spring Cloud OpenFeign, JAX-RS, Spring Actuator, gRPC
+- **ClassExporter** *(extension point)* — Extracts `ApiEndpoint` models from PSI classes; built-in implementations: Spring MVC, Spring Cloud OpenFeign, JAX-RS, Spring Actuator, gRPC, Custom (rules-driven)
 - **Channel** *(extension point)* — Converts `ApiEndpoint` models to an output format and handles file write / remote upload; built-in channels: Markdown, Postman, cURL, HTTP Client, Hoppscotch *(Beta)*, OpenAPI *(Beta)*. Adding a new output target only requires implementing `Channel` — no core edits
 - **ApiIndex** — Caches discovered endpoints for fast search and dashboard access
 - **RuleEngine** — Evaluates rule expressions (Groovy, regex, annotation, tag) to customize parsing behavior
@@ -261,11 +275,12 @@ com.itangcent.easyapi/
 │   ├── yaml/
 │   └── properties/
 │
-├── framework/    # INPUT — source framework exporters (Spring MVC, JAX-RS, Feign, gRPC)
+├── framework/    # INPUT — source framework exporters (Spring MVC, JAX-RS, Feign, gRPC, Custom)
 │   ├── springmvc/   # Spring MVC + Actuator
 │   ├── jaxrs/
 │   ├── feign/
-│   └── grpc/        # class exporter only — runtime plumbing is core/grpc
+│   ├── grpc/        # class exporter only — runtime plumbing is core/grpc
+│   └── custom/      # rules-driven framework (custom.* rule surface)
 │
 └── core/         # SHARED INFRASTRUCTURE (the umbrella)
     ├── internal/    # relocated narrow core/ (EasyApiApplicationService, EasyApiProjectService, event/, threading/)

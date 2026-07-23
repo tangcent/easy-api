@@ -4,11 +4,12 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.itangcent.easyapi.channel.spi.ChannelRegistry
+import com.itangcent.easyapi.core.export.recognizer.CompositeApiClassRecognizer
 
 /**
  * Project-level registry of every rule key known to the plugin.
  *
- * Single source of truth that combines three sources:
+ * Single source of truth that combines four sources:
  *
  * 1. **General/shared keys** — declared in [RuleKeys], reflected via [RuleKey.collectFrom].
  * 2. **Channel-specific keys** — contributed by each registered
@@ -16,7 +17,11 @@ import com.itangcent.easyapi.channel.spi.ChannelRegistry
  *    [com.itangcent.easyapi.channel.spi.Channel.ruleKeys]. The channel
  *    mix differs per repo (easy-api registers hoppscotch; easy-yapi registers
  *    yapi), so the registry's output reflects whichever channels are loaded.
- * 3. **Implicit keys** — read by name via `configReader.getFirst("…")`
+ * 3. **Framework-specific keys** — contributed by each registered
+ *    [com.itangcent.easyapi.core.export.recognizer.ApiClassRecognizer] via
+ *    [com.itangcent.easyapi.core.export.recognizer.ApiClassRecognizer.ruleKeys]
+ *    (e.g. the Custom framework's `custom.*` keys). Mirrors the channel source.
+ * 4. **Implicit keys** — read by name via `configReader.getFirst("…")`
  *    somewhere in the codebase but not declared as a [RuleKey] constant.
  *    Enumerated in [IMPLICIT_KEY_NAMES] so [RuleProposalValidator] and
  *    [com.itangcent.easyapi.core.ai.tools.ListRuleKeysTool] surface them too.
@@ -24,6 +29,7 @@ import com.itangcent.easyapi.channel.spi.ChannelRegistry
  * ## Sources consumed
  * - [RuleKeys] (general)
  * - [ChannelRegistry.allChannels] → [com.itangcent.easyapi.channel.spi.Channel.ruleKeys]
+ * - [CompositeApiClassRecognizer.allRecognizers] → [com.itangcent.easyapi.core.export.recognizer.ApiClassRecognizer.ruleKeys]
  * - [IMPLICIT_KEY_NAMES] (static)
  *
  * ## Consumers
@@ -47,7 +53,8 @@ class RuleKeyRegistry(private val project: Project) {
      *
      * @param key the underlying [RuleKey]
      * @param source `"general"` for [RuleKeys]; the channel id (e.g.
-     *     `"hoppscotch"`, `"yapi"`) for channel-specific keys; `"implicit"`
+     *     `"hoppscotch"`, `"yapi"`) for channel-specific keys; the framework
+     *     name (e.g. `"custom"`) for framework-specific keys; `"implicit"`
      *     for keys read by name only.
      */
     data class RuleKeyInfo(
@@ -56,14 +63,19 @@ class RuleKeyRegistry(private val project: Project) {
     )
 
     /**
-     * All known rule keys (general + channel + implicit), de-duplicated by
-     * primary name. General keys take precedence over channel/implicit keys
-     * with the same name (a channel should not re-declare a general key, but
-     * the guard prevents confusing duplicates if one slips in).
+     * All known rule keys (general + channel + framework + implicit),
+     * de-duplicated by primary name. General keys take precedence over
+     * channel/framework/implicit keys with the same name (a channel or
+     * framework should not re-declare a general key, but the guard prevents
+     * confusing duplicates if one slips in).
      */
-    fun allKeys(): List<RuleKeyInfo> = assembleKeys(
-        ChannelRegistry.getInstance(project).allChannels().map { it.id to it.ruleKeys() }
-    )
+    fun allKeys(): List<RuleKeyInfo> {
+        val channelKeys = ChannelRegistry.getInstance(project)
+            .allChannels().map { it.id to it.ruleKeys() }
+        val frameworkKeys = CompositeApiClassRecognizer.getInstance(project)
+            .allRecognizers().map { it.frameworkName to it.ruleKeys() }
+        return assembleKeys(channelKeys, frameworkKeys)
+    }
 
     /**
      * The set of every known rule key name (primary + aliases), for O(1)
@@ -103,16 +115,21 @@ class RuleKeyRegistry(private val project: Project) {
         )
 
         /**
-         * Pure assembly of the rule-key catalog from three sources:
+         * Pure assembly of the rule-key catalog from four sources:
          * 1. [RuleKeys] (reflected via [RuleKey.collectFrom])
          * 2. [channelKeys] — pairs of `(channelId, keys)` from each registered channel
-         * 3. [IMPLICIT_KEYS]
+         * 3. [frameworkKeys] — pairs of `(frameworkName, keys)` from each registered framework
+         * 4. [IMPLICIT_KEYS]
          *
          * Extracted from [allKeys] so it can be unit-tested without a real
-         * IntelliJ [Project] (the only project dependency is
-         * [ChannelRegistry], which the caller supplies via [channelKeys]).
+         * IntelliJ [Project] (the only project dependencies are
+         * [ChannelRegistry] and [CompositeApiClassRecognizer], which the
+         * caller supplies via [channelKeys] / [frameworkKeys]).
          */
-        internal fun assembleKeys(channelKeys: List<Pair<String, List<RuleKey<*>>>>): List<RuleKeyInfo> {
+        internal fun assembleKeys(
+            channelKeys: List<Pair<String, List<RuleKey<*>>>>,
+            frameworkKeys: List<Pair<String, List<RuleKey<*>>>> = emptyList()
+        ): List<RuleKeyInfo> {
             val seen = HashSet<String>()
             val result = mutableListOf<RuleKeyInfo>()
 
@@ -120,6 +137,11 @@ class RuleKeyRegistry(private val project: Project) {
                 if (seen.add(key.name)) result.add(RuleKeyInfo(key, SOURCE_GENERAL))
             }
             channelKeys.forEach { (source, keys) ->
+                keys.forEach { key ->
+                    if (seen.add(key.name)) result.add(RuleKeyInfo(key, source))
+                }
+            }
+            frameworkKeys.forEach { (source, keys) ->
                 keys.forEach { key ->
                     if (seen.add(key.name)) result.add(RuleKeyInfo(key, source))
                 }

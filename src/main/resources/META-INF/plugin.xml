@@ -37,6 +37,7 @@
         <classExporter implementation="com.itangcent.easyapi.framework.jaxrs.JaxRsClassExporter"/>
         <classExporter implementation="com.itangcent.easyapi.framework.springmvc.ActuatorEndpointExporter"/>
         <classExporter implementation="com.itangcent.easyapi.framework.grpc.GrpcClassExporter"/>
+        <classExporter implementation="com.itangcent.easyapi.framework.custom.CustomClassExporter"/>
         <!-- register framework recognizers via EP.
              CompositeApiClassRecognizer discovers these via ExtensionPointName
              and filters by isEnabled(project) (settings-driven). -->
@@ -45,6 +46,7 @@
         <apiClassRecognizer implementation="com.itangcent.easyapi.framework.feign.FeignClientRecognizer"/>
         <apiClassRecognizer implementation="com.itangcent.easyapi.framework.springmvc.ActuatorEndpointRecognizer"/>
         <apiClassRecognizer implementation="com.itangcent.easyapi.framework.grpc.GrpcServiceRecognizer"/>
+        <apiClassRecognizer implementation="com.itangcent.easyapi.framework.custom.CustomApiRecognizer"/>
         <channel implementation="com.itangcent.easyapi.channel.markdown.MarkdownChannel"/>
         <channel implementation="com.itangcent.easyapi.channel.postman.PostmanChannel"/>
         <channel implementation="com.itangcent.easyapi.channel.curl.CurlChannel"/>

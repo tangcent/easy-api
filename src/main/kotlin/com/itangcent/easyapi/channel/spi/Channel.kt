@@ -9,6 +9,7 @@ import com.itangcent.easyapi.core.export.isHttp
 import com.itangcent.easyapi.core.rule.RuleKey
 import com.itangcent.easyapi.core.settings.Settings
 import com.itangcent.easyapi.core.settings.ui.SettingsPanel
+import com.itangcent.easyapi.core.settings.ui.SettingsPanelProvider
 import kotlin.reflect.KClass
 
 /**
@@ -41,7 +42,7 @@ import kotlin.reflect.KClass
  * @see ChannelRegistry for the registry that discovers and filters channels
  * @see ChannelConfig for channel-specific configuration
  */
-interface Channel {
+interface Channel : SettingsPanelProvider {
 
     /** Unique identifier for this channel (e.g. "markdown", "postman", "curl"). */
     val id: String
@@ -128,7 +129,7 @@ interface Channel {
      * via [com.itangcent.easyapi.core.settings.SettingBinder] internally, so the
      * return type uses star projection ([SettingsPanel<*>?]).
      */
-    fun createSettingsPanel(project: Project): SettingsPanel<*>? = null
+    override fun createSettingsPanel(project: Project): SettingsPanel<*>? = null
 
     /**
      * Config-file names this channel contributes to the extension-config

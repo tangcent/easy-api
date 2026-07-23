@@ -2,6 +2,8 @@ package com.itangcent.easyapi.core.export.recognizer
 
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
+import com.itangcent.easyapi.core.rule.RuleKey
+import com.itangcent.easyapi.core.settings.ui.SettingsPanelProvider
 
 /**
  * Recognizes whether a [PsiClass] is an API class for a specific framework.
@@ -15,8 +17,15 @@ import com.intellij.psi.PsiClass
  * extension point (declared in `plugin.xml`). The [CompositeApiClassRecognizer] iterates
  * EP-discovered instances and filters by [isEnabled] — so framework recognizers
  * no longer need to be hard-imported by `core.*` (DAG rule CO3).
+ *
+ * ## Settings panel
+ *
+ * Implements [SettingsPanelProvider] so frameworks can optionally contribute a
+ * dedicated tab to the EasyApi settings dialog (e.g. the Custom framework's
+ * `enableLineMarker` toggle). The default implementation returns `null` (no
+ * panel) — most frameworks don't need a settings tab of their own.
  */
-interface ApiClassRecognizer {
+interface ApiClassRecognizer : SettingsPanelProvider {
 
     /**
      * The framework name this recognizer covers (for logging/debugging).
@@ -66,6 +75,22 @@ interface ApiClassRecognizer {
      * In-tree recognizers that are default-off (Feign, Actuator) override to `false`.
      */
     val enabledByDefault: Boolean get() = true
+
+    /**
+     * Framework-specific [RuleKey]s contributed by this recognizer (e.g.
+     * the Custom framework's `custom.*` keys).
+     *
+     * Keys already declared in [com.itangcent.easyapi.core.rule.RuleKeys] (the
+     * shared general set) must NOT be repeated here — return only the keys
+     * that live in this framework's own package. Returns an empty list by
+     * default for frameworks with no additional rule keys.
+     *
+     * Mirrors [com.itangcent.easyapi.channel.spi.Channel.ruleKeys]. Consumed by
+     * [com.itangcent.easyapi.core.rule.RuleKeyRegistry] so the AI tooling
+     * (`list_rule_keys`) and `RuleProposalValidator` see a complete picture
+     * across the general set, channels, and frameworks.
+     */
+    fun ruleKeys(): List<RuleKey<*>> = emptyList()
 
     /**
      * Returns true if [psiClass] is recognized as a framework class *without*

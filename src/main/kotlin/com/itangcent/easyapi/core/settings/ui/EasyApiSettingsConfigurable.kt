@@ -42,6 +42,18 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
     // as self-contained (their applyTo/resetFrom are no-ops).
     private val channelPanels = mutableListOf<ChannelPanelEntry>()
 
+    // Framework panels are dynamically contributed via the apiClassRecognizer EP
+    // (each [ApiClassRecognizer] that returns a non-null [SettingsPanelProvider.createSettingsPanel]
+    // gets a tab). Framework panels are self-contained — they read/write their
+    // own modules via [SettingBinder] internally (mirroring the Hoppscotch panel
+    // pattern), so the [Channel.settingsType] hint is not needed here.
+    private val frameworkPanels = mutableListOf<SettingsPanel<Settings>>()
+
+    // Field-format panels are dynamically contributed via the fieldFormatChannel EP
+    // (each [FieldFormatChannel] that returns a non-null [SettingsPanelProvider.createSettingsPanel]
+    // gets a tab). Same self-contained pattern as framework panels.
+    private val formatPanels = mutableListOf<SettingsPanel<Settings>>()
+
     /** No-op module for self-contained panels whose applyTo is a no-op. */
     private val noopModule = object : Settings {}
 
@@ -82,6 +94,8 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         if (panel == null) {
             panel = JPanel(BorderLayout())
             channelPanels.clear()
+            frameworkPanels.clear()
+            formatPanels.clear()
             tabs = JTabbedPane().also { t ->
                 t.addTab(TAB_GENERAL, wrapNorth(generalPanel.component))
                 t.addTab(TAB_FEATURES, wrapNorth(featuresPanel.component))
@@ -102,6 +116,29 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
                         channelPanels.add(
                             ChannelPanelEntry(pnl as SettingsPanel<Settings>, channel.settingsType)
                         )
+                    }
+                }
+
+                // Dynamically add a tab for each framework recognizer that
+                // contributes a settings panel (e.g. the Custom framework's
+                // `enableLineMarker` toggle). Framework panels are self-contained.
+                CompositeApiClassRecognizer.getInstance(project).allRecognizers().forEach { recognizer ->
+                    recognizer.createSettingsPanel(project)?.let { pnl ->
+                        val name = recognizer.frameworkName.replaceFirstChar { it.uppercase() }
+                        t.addTab(name, wrapNorth(pnl.component))
+                        @Suppress("UNCHECKED_CAST")
+                        frameworkPanels.add(pnl as SettingsPanel<Settings>)
+                    }
+                }
+
+                // Dynamically add a tab for each field-format channel that
+                // contributes a settings panel. Same self-contained pattern.
+                FieldFormatChannelRegistry.getInstance(project).allChannels().forEach { format ->
+                    format.createSettingsPanel(project)?.let { pnl ->
+                        val name = format.id.replaceFirstChar { it.uppercase() }
+                        t.addTab(name, wrapNorth(pnl.component))
+                        @Suppress("UNCHECKED_CAST")
+                        formatPanels.add(pnl as SettingsPanel<Settings>)
                     }
                 }
             }
@@ -166,7 +203,9 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
             aiPanel.isModified(binder.read(AiSettings::class)) ||
             grpcPanel.isModified(grpc) ||
             environmentPanel.isModified(environment) ||
-            channelPanels.any { entry -> isChannelModified(binder, entry) }
+            channelPanels.any { entry -> isChannelModified(binder, entry) } ||
+            frameworkPanels.any { it.isModified(null) } ||
+            formatPanels.any { it.isModified(null) }
     }
 
     /**
@@ -207,6 +246,11 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
 
         // Channel panels: read their own typed module, apply, then persist.
         channelPanels.forEach { entry -> applyChannel(binder, entry) }
+
+        // Framework and format panels: self-contained — they read/write their
+        // own modules via SettingBinder internally (applyTo is the trigger).
+        frameworkPanels.forEach { it.applyTo(noopModule) }
+        formatPanels.forEach { it.applyTo(noopModule) }
 
         // persist all modules
         binder.save(general)
@@ -291,6 +335,10 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
                 entry.panel.resetFrom(binder.read(type as KClass<Settings>))
             }
         }
+        // Framework and format panels: self-contained — they read their own
+        // state via SettingBinder internally (resetFrom(null) is the trigger).
+        frameworkPanels.forEach { it.resetFrom(null) }
+        formatPanels.forEach { it.resetFrom(null) }
     }
 
     override fun disposeUIResources() {
