@@ -1,11 +1,14 @@
 package com.itangcent.easyapi.framework.grpc
 
+import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 import com.itangcent.easyapi.core.internal.threading.readSync
 import com.itangcent.easyapi.core.export.recognizer.ApiClassRecognizer
 import com.itangcent.easyapi.core.export.recognizer.MetaAnnotationResolver
 import com.itangcent.easyapi.core.rule.RuleKeys
 import com.itangcent.easyapi.core.rule.engine.RuleEngine
+import com.itangcent.easyapi.core.settings.ui.SettingsPanel
+import com.itangcent.easyapi.framework.spi.FrameworkRegistry
 
 /**
  * Recognizes gRPC service implementation classes.
@@ -15,6 +18,13 @@ import com.itangcent.easyapi.core.rule.engine.RuleEngine
  * - Is annotated with @GrpcService (from grpc-spring-boot-starter) or a meta-annotation thereof
  *
  * Supports meta-annotation resolution (e.g., a custom annotation annotated with @GrpcService).
+ *
+ * ## Settings panel
+ *
+ * [createSettingsPanel] contributes the gRPC framework's settings tab (runtime
+ * packages, additional JARs, call-enabled toggle, repositories). It returns
+ * `null` when the framework is disabled in [FrameworkRegistry], so the user is
+ * never shown settings for a disabled feature.
  */
 class GrpcServiceRecognizer(
     private val ruleEngine: RuleEngine? = null
@@ -25,6 +35,15 @@ class GrpcServiceRecognizer(
     override val targetAnnotations: Set<String> = GRPC_SERVICE_ANNOTATIONS
 
     override val enabledByDefault: Boolean = true
+
+    /**
+     * Contributes the gRPC framework's settings tab. Returns `null` when the
+     * framework is disabled so no panel is rendered for a disabled feature.
+     */
+    override fun createSettingsPanel(project: Project): SettingsPanel<*>? {
+        if (!FrameworkRegistry.getInstance(project).isEnabled(frameworkName)) return null
+        return GrpcSettingsPanel(project)
+    }
 
     override suspend fun isApiClass(psiClass: PsiClass): Boolean {
         // Step 1: Check rule engine override

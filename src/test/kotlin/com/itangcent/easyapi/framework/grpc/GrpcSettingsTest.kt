@@ -1,4 +1,4 @@
-package com.itangcent.easyapi.core.settings.module
+package com.itangcent.easyapi.framework.grpc
 
 import org.junit.Assert.*
 import org.junit.Test
