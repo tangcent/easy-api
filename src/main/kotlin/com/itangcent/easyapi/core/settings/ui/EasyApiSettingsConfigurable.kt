@@ -12,8 +12,8 @@ import com.itangcent.easyapi.core.settings.Settings
 import com.itangcent.easyapi.core.settings.module.AiSettings
 import com.itangcent.easyapi.core.settings.module.EnvironmentSettings
 import com.itangcent.easyapi.core.settings.module.GeneralSettings
-import com.itangcent.easyapi.core.settings.module.GrpcSettings
 import com.itangcent.easyapi.core.settings.module.HttpSettings
+import com.itangcent.easyapi.framework.grpc.GrpcSettings
 import com.itangcent.easyapi.core.settings.module.ParsingOutputSettings
 import com.itangcent.easyapi.core.settings.module.RuleFileSettings
 import java.awt.BorderLayout
@@ -32,7 +32,6 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
     private val parsingOutputPanel = ParsingOutputSettingsPanel()
     private val extensionPanel = ExtensionConfigPanel()
     private val aiPanel = AiSettingsPanel()
-    private val grpcPanel = GrpcSettingsPanel(project)
     private val environmentPanel = EnvironmentSettingsPanel(project)
 
     // Channel panels (including Postman) are dynamically contributed via the
@@ -78,7 +77,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         const val TAB_EXTENSIONS = "Extensions"
         const val TAB_RULES = "Rules"
         const val TAB_AI = "AI"
-        const val TAB_GRPC = "gRPC"
+        const val TAB_GRPC = "GRPC"
         const val TAB_ENVIRONMENT = "Environments"
     }
 
@@ -103,7 +102,6 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
                 t.addTab(TAB_PARSING_OUTPUT, wrapNorth(parsingOutputPanel.component))
                 t.addTab(TAB_EXTENSIONS, extensionPanel.component)
                 t.addTab(TAB_AI, wrapNorth(aiPanel.component))
-                t.addTab(TAB_GRPC, wrapNorth(grpcPanel.component))
                 t.addTab(TAB_ENVIRONMENT, environmentPanel.component)
 
                 // Dynamically add a tab for each registered channel (sorted by settingsTabOrder).
@@ -201,7 +199,6 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
             parsingOutputPanel.isModified(parsingOutput) ||
             extensionPanel.isModified(binder.read(RuleFileSettings::class)) ||
             aiPanel.isModified(binder.read(AiSettings::class)) ||
-            grpcPanel.isModified(grpc) ||
             environmentPanel.isModified(environment) ||
             channelPanels.any { entry -> isChannelModified(binder, entry) } ||
             frameworkPanels.any { it.isModified(null) } ||
@@ -227,7 +224,6 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
 
         val grpc = binder.read(GrpcSettings::class)
         generalPanel.applyRepositoriesTo(grpc)
-        grpcPanel.applyTo(grpc)
 
         val parsingOutput = binder.read(ParsingOutputSettings::class)
         parsingOutputPanel.applyTo(parsingOutput)
@@ -324,7 +320,6 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         httpPanel.resetFrom(binder.read(HttpSettings::class))
         extensionPanel.resetFrom(binder.read(RuleFileSettings::class))
         aiPanel.resetFrom(binder.read(AiSettings::class))
-        grpcPanel.resetFrom(binder.read(GrpcSettings::class))
 
         @Suppress("UNCHECKED_CAST")
         channelPanels.forEach { entry ->

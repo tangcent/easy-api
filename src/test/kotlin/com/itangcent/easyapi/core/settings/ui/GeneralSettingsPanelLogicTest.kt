@@ -1,7 +1,7 @@
 package com.itangcent.easyapi.core.settings.ui
 
 import com.itangcent.easyapi.core.settings.module.GeneralSettings
-import com.itangcent.easyapi.core.settings.module.GrpcSettings
+import com.itangcent.easyapi.framework.grpc.GrpcSettings
 import org.junit.Assert.*
 import org.junit.Test
 

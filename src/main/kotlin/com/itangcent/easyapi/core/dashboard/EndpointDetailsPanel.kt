@@ -17,7 +17,7 @@ import com.itangcent.easyapi.core.script.ScriptCache
 import com.itangcent.easyapi.core.script.ScriptCacheService
 import com.itangcent.easyapi.core.script.ScriptScope
 import com.itangcent.easyapi.core.script.env.EnvironmentService
-import com.itangcent.easyapi.core.settings.module.GrpcSettings
+import com.itangcent.easyapi.framework.grpc.GrpcSettings
 import com.itangcent.easyapi.core.settings.settings
 import com.itangcent.easyapi.core.script.pm.*
 import com.itangcent.easyapi.core.export.ApiEndpoint

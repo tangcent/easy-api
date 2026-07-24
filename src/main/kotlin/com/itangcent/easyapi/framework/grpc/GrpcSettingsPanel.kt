@@ -1,8 +1,9 @@
-package com.itangcent.easyapi.core.settings.ui
+package com.itangcent.easyapi.framework.grpc
 
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.table.TableView
@@ -10,14 +11,32 @@ import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.ListTableModel
 import com.itangcent.easyapi.core.grpc.*
-import com.itangcent.easyapi.core.settings.module.GrpcSettings
+import com.itangcent.easyapi.core.settings.SettingBinder
+import com.itangcent.easyapi.core.settings.Settings
 import com.itangcent.easyapi.core.settings.settings
+import com.itangcent.easyapi.core.settings.ui.SettingsPanel
+import com.itangcent.easyapi.core.settings.ui.SettingsUiKit
+import com.itangcent.easyapi.core.settings.update
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.GridLayout
 import javax.swing.*
 
-class GrpcSettingsPanel(private val project: com.intellij.openapi.project.Project) : SettingsPanel<GrpcSettings> {
+/**
+ * Settings panel for the gRPC framework.
+ *
+ * Self-contained: reads/writes the [GrpcSettings] module via
+ * [SettingBinder] internally (mirroring the
+ * [com.itangcent.easyapi.channel.hoppscotch.HoppscotchSettingsPanel] /
+ * [com.itangcent.easyapi.framework.custom.CustomSettingsPanel] pattern),
+ * so the [Settings] arg passed to [resetFrom] / [applyTo] / [isModified] is
+ * ignored — the panel's own [Project] reference is used.
+ *
+ * Contributed to the EasyApi settings dialog via
+ * [GrpcServiceRecognizer.createSettingsPanel] (the framework's
+ * [com.itangcent.easyapi.core.settings.ui.SettingsPanelProvider] hook).
+ */
+class GrpcSettingsPanel(private val project: Project) : SettingsPanel<Settings> {
 
     private val grpcCallEnabledCheckbox = JCheckBox("Enable gRPC call", false).apply {
         toolTipText = "Enable the ability to make actual gRPC calls from the plugin (requires runtime dependencies)"
@@ -318,12 +337,14 @@ class GrpcSettingsPanel(private val project: com.intellij.openapi.project.Projec
         }
     }
 
-    override fun resetFrom(settings: GrpcSettings?) {
+    override fun resetFrom(settings: Settings?) {
+        // Settings arg ignored — read from SettingBinder directly (self-contained pattern).
+        val grpc = project.settings<GrpcSettings>()
         isLoadingSettings = true
         try {
-            grpcCallEnabledCheckbox.isSelected = settings?.grpcCallEnabled ?: false
+            grpcCallEnabledCheckbox.isSelected = grpc.grpcCallEnabled
 
-            val userConfigs = settings?.grpcArtifactConfigs?.mapNotNull { GrpcArtifactConfig.parse(it) }
+            val userConfigs = grpc.grpcArtifactConfigs.mapNotNull { GrpcArtifactConfig.parse(it) }
             if (!userConfigs.isNullOrEmpty()) {
                 artifactTableModel.items = GrpcRequiredArtifacts.mergeWithDefaults(userConfigs).toMutableList()
             } else {
@@ -331,7 +352,7 @@ class GrpcSettingsPanel(private val project: com.intellij.openapi.project.Projec
             }
 
             additionalJarsModel.clear()
-            settings?.grpcAdditionalJars?.forEach { additionalJarsModel.addElement(it) }
+            grpc.grpcAdditionalJars.forEach { additionalJarsModel.addElement(it) }
 
             updateRuntimePackagesVisibility()
 
@@ -359,26 +380,30 @@ class GrpcSettingsPanel(private val project: com.intellij.openapi.project.Projec
         })
     }
 
-    override fun applyTo(settings: GrpcSettings) {
-        settings.grpcCallEnabled = grpcCallEnabledCheckbox.isSelected
+    override fun applyTo(settings: Settings) {
+        // Settings arg ignored — write to SettingBinder directly (self-contained pattern).
+        SettingBinder.getInstance(project).update(GrpcSettings::class) {
+            grpcCallEnabled = grpcCallEnabledCheckbox.isSelected
 
-        val configs = artifactTableModel.items.map { config ->
-            when (config.versionMode) {
-                ArtifactVersionMode.LATEST -> "${config.artifact.coordinate}:latest:${config.enabled}"
-                ArtifactVersionMode.FIXED -> "${config.artifact.coordinate}:${config.fixedVersion ?: "latest"}:${config.enabled}"
+            val configs = artifactTableModel.items.map { config ->
+                when (config.versionMode) {
+                    ArtifactVersionMode.LATEST -> "${config.artifact.coordinate}:latest:${config.enabled}"
+                    ArtifactVersionMode.FIXED -> "${config.artifact.coordinate}:${config.fixedVersion ?: "latest"}:${config.enabled}"
+                }
             }
-        }
-        settings.grpcArtifactConfigs = configs.toTypedArray()
+            grpcArtifactConfigs = configs.toTypedArray()
 
-        val jars = mutableListOf<String>()
-        for (i in 0 until additionalJarsModel.size()) {
-            jars.add(additionalJarsModel.getElementAt(i))
+            val jars = mutableListOf<String>()
+            for (i in 0 until additionalJarsModel.size()) {
+                jars.add(additionalJarsModel.getElementAt(i))
+            }
+            grpcAdditionalJars = jars.toTypedArray()
         }
-        settings.grpcAdditionalJars = jars.toTypedArray()
     }
 
-    override fun isModified(settings: GrpcSettings?): Boolean {
-        val s = settings ?: return false
+    override fun isModified(settings: Settings?): Boolean {
+        // Settings arg ignored — read from SettingBinder directly (self-contained pattern).
+        val s = project.settings<GrpcSettings>()
         if (grpcCallEnabledCheckbox.isSelected != s.grpcCallEnabled) return true
 
         val currentConfigs = artifactTableModel.items.map { config ->
@@ -399,7 +424,7 @@ class GrpcSettingsPanel(private val project: com.intellij.openapi.project.Projec
     }
 
     companion object {
-        fun selectUnavailableArtifact(project: com.intellij.openapi.project.Project, artifact: Artifact) {
+        fun selectUnavailableArtifact(project: Project, artifact: Artifact) {
             val settings = project.settings<GrpcSettings>()
             val configs = settings.grpcArtifactConfigs.mapNotNull { GrpcArtifactConfig.parse(it) }
             val index = configs.indexOfFirst { it.artifact == artifact }

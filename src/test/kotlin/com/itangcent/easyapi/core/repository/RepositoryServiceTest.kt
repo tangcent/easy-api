@@ -1,6 +1,6 @@
 package com.itangcent.easyapi.core.repository
 
-import com.itangcent.easyapi.core.settings.module.GrpcSettings
+import com.itangcent.easyapi.framework.grpc.GrpcSettings
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
 
 class RepositoryServiceTest : EasyApiLightCodeInsightFixtureTestCase() {

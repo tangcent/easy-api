@@ -72,7 +72,7 @@ class EasyApiSettingsConfigurableTest : EasyApiLightCodeInsightFixtureTestCase()
         assertEquals("TAB_EXTENSIONS should be 'Extensions'", "Extensions", EasyApiSettingsConfigurable.TAB_EXTENSIONS)
         assertEquals("TAB_RULES should be 'Rules'", "Rules", EasyApiSettingsConfigurable.TAB_RULES)
         assertEquals("TAB_AI should be 'AI'", "AI", EasyApiSettingsConfigurable.TAB_AI)
-        assertEquals("TAB_GRPC should be 'gRPC'", "gRPC", EasyApiSettingsConfigurable.TAB_GRPC)
+        assertEquals("TAB_GRPC should be 'GRPC'", "GRPC", EasyApiSettingsConfigurable.TAB_GRPC)
     }
 
     /**

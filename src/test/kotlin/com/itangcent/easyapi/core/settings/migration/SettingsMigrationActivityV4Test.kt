@@ -106,7 +106,7 @@ class SettingsMigrationActivityV4Test : EasyApiLightCodeInsightFixtureTestCase()
             "Migration should have completed (migrated=true)",
             migrationFlag.state.migrated
         )
-        assertEquals(4, migrationFlag.state.version)
+        assertEquals(5, migrationFlag.state.version)
     }
 
     // --- (a) feignEnable == true → enabledFrameworks += "Feign" ---

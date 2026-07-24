@@ -6,6 +6,7 @@ import com.intellij.openapi.startup.StartupActivity
 import com.itangcent.easyapi.core.logging.console
 import com.itangcent.easyapi.core.settings.SettingsChangeListener
 import com.itangcent.easyapi.core.settings.module.*
+import com.itangcent.easyapi.framework.grpc.GrpcSettings
 import com.itangcent.easyapi.core.settings.state.ApplicationSettingsState
 import com.itangcent.easyapi.core.settings.state.ProjectSettingsState
 import com.itangcent.easyapi.core.settings.state.UnifiedAppSettingsState
@@ -30,6 +31,10 @@ import com.itangcent.easyapi.core.util.json.GsonUtils
  *   arrays in `GeneralSettings`; the legacy booleans are no longer written to per-module
  *   state (the fields were removed from `GeneralSettings`/`GrpcSettings`). Framework
  *   enablement is now resolved by `FrameworkRegistry` from the new arrays.
+ * - v5: `GrpcSettings` moved from `core.settings.module` to `framework.grpc`, changing
+ *   its storage key (qualified name). Copies any data persisted under the old key to
+ *   the new key, then removes the stale old-key entry. Idempotent and safe for fresh
+ *   installs (old key absent → no-op).
  *
  * Special handling:
  * - `postmanToken` duplication: prefer the non-empty value between APP/PROJ copies; write to APP only.
@@ -39,7 +44,7 @@ import com.itangcent.easyapi.core.util.json.GsonUtils
 class SettingsMigrationActivity : StartupActivity {
 
     companion object {
-        private const val MIGRATION_VERSION = 4
+        private const val MIGRATION_VERSION = 5
     }
 
     override fun runActivity(project: Project) {
@@ -53,6 +58,7 @@ class SettingsMigrationActivity : StartupActivity {
             val projState = UnifiedProjectSettingsState.getInstance(project)
 
             migrateApplicationSettings(project, appState)
+            migrateGrpcSettingsKey(appState)
             migrateProjectSettings(project, projState, appState)
 
             flag.state.migrated = true
@@ -179,6 +185,37 @@ class SettingsMigrationActivity : StartupActivity {
 
         appState.setValue(generalKey, "enabledFrameworks", GsonUtils.toJson(enabledFrameworks.toTypedArray()))
         appState.setValue(generalKey, "disabledFrameworks", GsonUtils.toJson(disabledFrameworks.toTypedArray()))
+    }
+
+    /**
+     * v5: Copies `GrpcSettings` data persisted under the old storage key
+     * (`com.itangcent.easyapi.core.settings.module.GrpcSettings`) to the new key
+     * (`com.itangcent.easyapi.framework.grpc.GrpcSettings`), then removes the
+     * stale old-key entry.
+     *
+     * `DefaultSettingBinder` uses `KClass.qualifiedName` as the module storage
+     * key, so moving `GrpcSettings` to a new package changed the key. Without
+     * this migration, existing users' gRPC settings (artifact configs, additional
+     * JARs, call-enabled flag, repositories) would be silently reset to defaults.
+     *
+     * Idempotent: if the old key is absent (fresh install or already migrated),
+     * this is a no-op. If the new key already has data (e.g., v4 re-ran from
+     * legacy state and wrote to the new key), the old key's data is NOT copied
+     * over it — only the stale old-key entry is removed.
+     */
+    private fun migrateGrpcSettingsKey(appState: UnifiedAppSettingsState) {
+        val oldGrpcKey = "com.itangcent.easyapi.core.settings.module.GrpcSettings"
+        val newGrpcKey = GrpcSettings::class.qualifiedName!!
+
+        val modules = appState.getState().modules
+        val oldModule = modules[oldGrpcKey] ?: return
+        if (oldModule.isEmpty()) return
+
+        val newModule = modules[newGrpcKey]
+        if (newModule.isNullOrEmpty()) {
+            modules[newGrpcKey] = oldModule.toMutableMap()
+        }
+        modules.remove(oldGrpcKey)
     }
 
     /**
