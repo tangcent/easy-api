@@ -1,9 +1,11 @@
 package com.itangcent.easyapi.core.ai.agent
 
+import com.itangcent.easyapi.channel.spi.ChannelRegistry
 import com.itangcent.easyapi.core.config.source.RuleFileResolver
 import com.itangcent.easyapi.core.internal.threading.readSync
 import com.itangcent.easyapi.core.export.recognizer.CompositeApiClassRecognizer
 import com.itangcent.easyapi.core.logging.IdeaLog
+import com.itangcent.easyapi.format.spi.FieldFormatChannelRegistry
 import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
@@ -54,13 +56,31 @@ object AmbientPerception : IdeaLog {
         val perception = runCatching { captureApiPerception(project) }
             .onFailure { LOG.warn("Ambient perception capture failed", it) }
             .getOrDefault(ApiPerception(emptyList(), emptyList()))
+        // Cheap settings reads — no PSI. Resolved here (not in
+        // captureApiPerception) so a PSI-scan failure can't mask them.
+        // Used by SystemPromptBuilder.indexMessage to filter the catalog
+        // to only entries whose channel/format scope matches an enabled
+        // feature (AC-S7). Best-effort: a registry failure yields an empty
+        // list, never an exception.
+        val enabledChannels = runCatching {
+            val registry = ChannelRegistry.getInstance(project)
+            registry.allChannels().filter { registry.isEnabled(it) }.map { it.id }
+        }.onFailure { LOG.warn("Ambient capture: failed to resolve enabled channels", it) }
+            .getOrDefault(emptyList())
+        val enabledFormats = runCatching {
+            val registry = FieldFormatChannelRegistry.getInstance(project)
+            registry.allChannels().filter { registry.isEnabled(it) }.map { it.id }
+        }.onFailure { LOG.warn("Ambient capture: failed to resolve enabled formats", it) }
+            .getOrDefault(emptyList())
         // Trace what the agent "saw" at turn start.
         LOG.info("ambient capture: project=$projectName " +
             "editingRuleFile=${editingRuleFile ?: "<none>"} " +
             "existingRuleFiles=${existingRuleFiles.size} " +
             "userLanguage=${userLanguage ?: "<none>"} " +
             "moduleNames=${perception.moduleNames.size} " +
-            "frameworkHints=${perception.frameworkHints.size}")
+            "frameworkHints=${perception.frameworkHints.size} " +
+            "enabledChannels=${enabledChannels.size} " +
+            "enabledFormats=${enabledFormats.size}")
         LOG.info("Ambient captured ${perception.moduleNames.size} API-bearing module(s), " +
             "${perception.frameworkHints.size} framework(s)")
         return Ambient(
@@ -69,7 +89,9 @@ object AmbientPerception : IdeaLog {
             existingRuleFiles,
             userLanguage,
             perception.moduleNames,
-            perception.frameworkHints
+            perception.frameworkHints,
+            enabledChannels,
+            enabledFormats
         )
     }
 

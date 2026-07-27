@@ -65,6 +65,34 @@ sealed class AgentEvent {
      */
     data class Retrying(val attempt: Int, val maxRetries: Int) : AgentEvent()
 
+    /**
+     * The agent committed to a [taskList] for this turn (Magic path).
+     *
+     * Emitted by `create_task_list` once the task list is staged in working
+     * memory, and also by `runTaskList` for programmatic entry. The UI
+     * renders a live checklist card from [taskList] and updates each row on
+     * subsequent [TaskStarted] / [TaskCompleted] / [TaskFailed] /
+     * [TaskSkipped] events.
+     */
+    data class TaskListCreated(val taskList: TaskList) : AgentEvent()
+
+    /** The agent started working task [taskId] of the active task list. */
+    data class TaskStarted(val taskId: String) : AgentEvent()
+
+    /** The agent completed task [taskId] of the active task list. */
+    data class TaskCompleted(val taskId: String) : AgentEvent()
+
+    /**
+     * The agent failed task [taskId] of the active task list.
+     *
+     * Non-terminal — a failed task does not abort the task list; the agent
+     * decides whether to retry, continue, or end.
+     */
+    data class TaskFailed(val taskId: String, val reason: String) : AgentEvent()
+
+    /** The agent skipped task [taskId] of the active task list. */
+    data class TaskSkipped(val taskId: String) : AgentEvent()
+
     /** The current turn completed normally. */
     object TurnComplete : AgentEvent()
 }

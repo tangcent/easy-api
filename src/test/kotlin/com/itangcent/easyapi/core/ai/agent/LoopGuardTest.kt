@@ -283,24 +283,52 @@ class LoopGuardTest {
     // ==================================================================
     // Output stagnation detection
     // ==================================================================
+    // Output stagnation only fires ACROSS batch boundaries (the first call
+    // of a new batch compared against the last result of the previous batch).
+    // Within a single batch (one assistant message with multiple tool calls),
+    // identical results are legitimate parallel probes — e.g. probing
+    // different supertypes that all return `[]`. Tests below call
+    // guard.beginBatch() between calls to simulate across-batch stagnation.
 
     @Test
-    fun testOutputStagnationIdenticalResultsTerminate() {
+    fun testOutputStagnationIdenticalResultsAcrossBatchesTerminate() {
         val guard = LoopGuard(LoopSafetyConfig())
-        // Different tools, same result content → stagnation
+        // Different tools, same result content, across batches → stagnation
         val tc1 = AiToolCall("c1", "list_rule_keys", "{}")
         val tc2 = AiToolCall("c2", "read_rule_file", """{"key":"a"}""")
         val tc3 = AiToolCall("c3", "get_psi_class_info", """{"cls":"X"}""")
         val result = ToolResult.Text("""{"data":"same"}""")
 
         assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc1, result))
+        guard.beginBatch()
         assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc2, result))
+        guard.beginBatch()
         val verdict = guard.observeResult(tc3, result)
-        assertTrue("3 identical results must terminate as stagnation", verdict is LoopGuard.Verdict.Terminate)
+        assertTrue("3 identical results across batches must terminate as stagnation", verdict is LoopGuard.Verdict.Terminate)
         val reason = (verdict as LoopGuard.Verdict.Terminate).reason
         assertTrue("reason must be OutputStagnation", reason is LoopGuard.LoopReason.OutputStagnation)
         val os = reason as LoopGuard.LoopReason.OutputStagnation
         assertEquals(3, os.count)
+    }
+
+    @Test
+    fun testOutputStagnationWithinBatchDoesNotFire() {
+        // Within a single batch (parallel probes), identical results are
+        // legitimate — e.g. probing different supertypes that all return [].
+        // Stagnation must NOT fire.
+        val guard = LoopGuard(LoopSafetyConfig())
+        val tc1 = AiToolCall("c1", "find_classes_by_supertype", """{"supertypeFqn":"a.Foo"}""")
+        val tc2 = AiToolCall("c2", "find_classes_by_supertype", """{"supertypeFqn":"b.Bar"}""")
+        val tc3 = AiToolCall("c3", "find_classes_by_supertype", """{"supertypeFqn":"c.Baz"}""")
+        val tc4 = AiToolCall("c4", "find_classes_by_supertype", """{"supertypeFqn":"d.Qux"}""")
+        val emptyResult = ToolResult.Text("[]")
+
+        // All 4 calls in ONE batch (no beginBatch() between them)
+        assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc1, emptyResult))
+        assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc2, emptyResult))
+        assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc3, emptyResult))
+        assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc4, emptyResult))
+        // No termination — within-batch parallel probes are not stagnation
     }
 
     @Test
@@ -315,9 +343,12 @@ class LoopGuardTest {
         val r2 = ToolResult.Text("""{"data":"second"}""")
 
         assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc1, r1)) // stag=1
+        guard.beginBatch()
         assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc2, r1)) // stag=2
+        guard.beginBatch()
         // Different result resets
         assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc3, r2)) // stag=1
+        guard.beginBatch()
         assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc4, r2)) // stag=2
     }
 
@@ -333,7 +364,9 @@ class LoopGuardTest {
         val errorResult = ToolResult.Error("disk full")
 
         assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc1, textResult))  // stag=1 (text)
+        guard.beginBatch()
         assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc2, errorResult)) // stag=1 (error ≠ text, reset)
+        guard.beginBatch()
         // text again — error ≠ text so this is also a reset, no stagnation
         assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc3, textResult))  // stag=1 (text ≠ error, reset)
     }
@@ -347,9 +380,11 @@ class LoopGuardTest {
         val error = ToolResult.Error("permission denied")
 
         assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc1, error))
+        guard.beginBatch()
         assertEquals(LoopGuard.Verdict.Proceed, guard.observeResult(tc2, error))
+        guard.beginBatch()
         val verdict = guard.observeResult(tc3, error)
-        assertTrue("3 identical errors must terminate as stagnation", verdict is LoopGuard.Verdict.Terminate)
+        assertTrue("3 identical errors across batches must terminate as stagnation", verdict is LoopGuard.Verdict.Terminate)
         val reason = (verdict as LoopGuard.Verdict.Terminate).reason
         assertTrue("reason must be OutputStagnation", reason is LoopGuard.LoopReason.OutputStagnation)
     }

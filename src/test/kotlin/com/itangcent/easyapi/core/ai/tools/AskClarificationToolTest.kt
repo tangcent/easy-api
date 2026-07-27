@@ -2,6 +2,7 @@ package com.itangcent.easyapi.core.ai.tools
 
 import com.itangcent.easyapi.core.ai.AiProvider
 import com.itangcent.easyapi.core.ai.AiRuntimeConfig
+import com.itangcent.easyapi.core.ai.agent.AgentEvent
 import com.itangcent.easyapi.core.ai.agent.AgentMemory
 import com.itangcent.easyapi.core.ai.agent.ClarificationAnswers
 import com.itangcent.easyapi.core.ai.agent.ClarificationGate
@@ -11,6 +12,7 @@ import com.itangcent.easyapi.core.ai.agent.QuestionKind
 import com.itangcent.easyapi.core.config.ConfigReader
 import com.itangcent.easyapi.core.config.source.RuleFileResolver
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -31,7 +33,8 @@ class AskClarificationToolTest : EasyApiLightCodeInsightFixtureTestCase() {
         ruleFileResolver = RuleFileResolver(project),
         workingMemory = AgentMemory(),
         approvals = FakeApprovalGate(),
-        clarifications = gate
+        clarifications = gate,
+        events = MutableSharedFlow(extraBufferCapacity = 64)
     )
 
     fun testFormatsAnswersAndParsesKinds() = runBlocking {

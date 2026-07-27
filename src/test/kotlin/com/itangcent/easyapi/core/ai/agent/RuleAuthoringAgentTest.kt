@@ -53,7 +53,8 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
             ),
             ruleFileResolver = RuleFileResolver(project),
             workingMemory = memory,
-            approvals = approvalGate
+            approvals = approvalGate,
+            events = MutableSharedFlow(extraBufferCapacity = 64)
         )
     }
 
@@ -329,6 +330,59 @@ class RuleAuthoringAgentTest : EasyApiLightCodeInsightFixtureTestCase() {
         assertTrue(
             "the clarification answers must be fed back to the model",
             req2.messages.any { it is AiMessage.ToolResult && it.content.contains("controllers") }
+        )
+    }
+
+    // --- Entry-path prompt assembly (design C9 / task B6) ---
+
+    /**
+     * The [EntryPath] parameter controls which system messages seed an empty
+     * transcript (design C9). The agent loop is shared; only the seed-prompt
+     * shape differs.
+     *
+     * - [EntryPath.REACTIVE] → 3 seed System messages (base + detection
+     *   index + rule index) — the agent has a menu to browse.
+     * - [EntryPath.TASK_LIST_MAGIC] → 1 seed System message (base only)
+     *   — detection/rule detail is pulled inside tasks as needed.
+     *
+     * Both paths additionally append exactly one ambient System message
+     * (starts with `"Context: project"`), which is filtered out of the seed
+     * count. Verified by inspecting the messages of the first LLM request
+     * for each path on a fresh [AgentMemory].
+     */
+    fun testEntryPathControlsPromptAssembly() = runBlocking {
+        val tools = ToolRegistry(listOf(ListRuleKeysFakeTool()))
+
+        // --- REACTIVE path: 3 seed messages ---
+        val reactiveMemory = AgentMemory()
+        aiService.enqueueText("reactive answer")
+        val reactiveEvents = captureEvents()
+        val reactiveAgent = RuleAuthoringAgent(aiService, tools, ctx, reactiveEvents.flow)
+        reactiveAgent.runTurn("hello", reactiveMemory, entryPath = EntryPath.REACTIVE)
+        reactiveEvents.cancelAndCollect()
+
+        val reactiveSeeds = aiService.requests().last().messages
+            .filterIsInstance<AiMessage.System>()
+            .filter { !it.content.startsWith("Context: project") }
+        assertEquals(
+            "REACTIVE path should seed 3 system messages (base + detection + rules): ${reactiveSeeds.size}",
+            3, reactiveSeeds.size
+        )
+
+        // --- TASK_LIST_MAGIC path: 1 seed message ---
+        val deliberativeMemory = AgentMemory()
+        aiService.enqueueText("deliberative answer")
+        val deliberativeEvents = captureEvents()
+        val deliberativeAgent = RuleAuthoringAgent(aiService, tools, ctx, deliberativeEvents.flow)
+        deliberativeAgent.runTurn("hello", deliberativeMemory, entryPath = EntryPath.TASK_LIST_MAGIC)
+        deliberativeEvents.cancelAndCollect()
+
+        val deliberativeSeeds = aiService.requests().last().messages
+            .filterIsInstance<AiMessage.System>()
+            .filter { !it.content.startsWith("Context: project") }
+        assertEquals(
+            "TASK_LIST_MAGIC path should seed 1 system message (base only): ${deliberativeSeeds.size}",
+            1, deliberativeSeeds.size
         )
     }
 

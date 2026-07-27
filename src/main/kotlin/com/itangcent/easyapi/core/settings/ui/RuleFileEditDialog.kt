@@ -84,6 +84,12 @@ class RuleFileEditDialog(
     private val aiChatPanel = AiChatPanel(project, editingFilePath = filePath).apply {
         onApplyProposal = { proposed -> contentArea.text = proposed }
         onConfigureAi = { openAiSettings() }
+        // Route B Stage-2 entry: when
+        // the user clicks Yes at the ReviewGate, read the file content **at
+        // this time** (reflecting any Stage-1 proposal applied in between),
+        // build the detection task list, and re-enter the detection-pass
+        // contract via runTaskList with the empty-file detection instruction.
+        onReviewGateYes = { onReviewGateYes() }
     }
     private val aiPanelHolder = JPanel(BorderLayout()).apply {
         add(aiChatPanel.component, BorderLayout.CENTER)
@@ -120,16 +126,89 @@ class RuleFileEditDialog(
         aiChatPanel.refreshConfiguredState()
         revalidateDialog()
         val name = nameField.text.trim().ifBlank { Paths.get(filePath).fileName.toString() }
-        val empty = contentArea.text.isBlank()
-        // Short, constant display message; the rich instruction (file + project
-        // context) is carried implicitly to the agent (issue 3). When the file
-        // is empty, skip "review/improve" and focus purely on detection.
-        val displayText = if (empty) {
-            "✨ Detect missing custom-pattern rules and draft initial content for \"$name\"."
+        val content = contentArea.text
+        val empty = content.isBlank()
+        // Route split: empty file → straight to detections
+        // (Route A); non-empty file → review → gate → optional detections
+        // (Route B). The two routes use distinct instruction bodies built by
+        // MagicInstructionBuilder so each is independently testable.
+        if (empty) {
+            // Route A — straight to detections (today's flow).
+            val displayText = "✨ Detect missing custom-pattern rules and draft initial content for \"$name\"."
+            runDetectionPass(displayText, name)
         } else {
-            "✨ Review and improve \"$name\" and detect any missing custom-pattern rules."
+            // Route B Stage 1 — review only; the gate decides Stage 2.
+            // No ambient capture, no plan build here — Stage 2 builds the plan
+            // lazily on gate Yes.
+            val displayText = "✨ Review and improve \"$name\"."
+            val instruction = com.itangcent.easyapi.core.ai.agent.MagicInstructionBuilder
+                .reviewInstruction(name, content)
+            aiChatPanel.runReviewTurn(displayText, instruction)
         }
-        aiChatPanel.runMagic(displayText = displayText, instruction = buildMagicInstruction())
+    }
+
+    /**
+     * Route B Stage-2 entry — invoked by [AiChatPanel]'s `onReviewGateYes`
+     * hook when the user clicks **Yes** at the ReviewGate.
+     *
+     * Reads the file content **at Yes time** (from [contentArea.text],
+     * reflecting any Stage-1 proposal the user applied in between),
+     * builds the detection task list with the now-enabled features, and
+     * re-enters the detection-pass contract via [AiChatPanel.runTaskList]
+     * with the **empty-file** detection instruction body (no "review"
+     * directive).
+     */
+    private fun onReviewGateYes() {
+        val name = nameField.text.trim().ifBlank { Paths.get(filePath).fileName.toString() }
+        // Read at Yes time — the user may have applied a Stage-1 proposal.
+        // (The content itself is NOT embedded in the Stage-2 instruction body;
+        // detectionInstruction(name, taskList) carries no content. The read is
+        // done here so Stage 2 always sees the latest state, and so a future
+        // revision can pass it to the task-list builder if needed.)
+        @Suppress("UNUSED_VARIABLE")
+        val contentAtYes = contentArea.text
+        val displayText = "✨ Detect missing custom-pattern rules and draft initial content for \"$name\"."
+        runDetectionPass(displayText, name)
+    }
+
+    /**
+     * Shared detection-pass entry (Route A and Route B Stage 2).
+     *
+     * Ambient capture does PSI work (framework detection), so it runs
+     * off-EDT; the task list is then built and the orchestrator instruction
+     * composed from it, then both are seeded back on the EDT (`runTaskList`
+     * touches the session + UI and must run on the dispatch thread). The
+     * agent executes the seeded task list directly — it does NOT call
+     * `create_task_list`.
+     *
+     * The instruction is built **after** the task list so it can render the
+     * seeded task ids into the orchestrator's user message (the only channel
+     * by which the LLM learns the exact ids to pass to `run_sub_agent` /
+     * `update_task`). Building it earlier — before the task list exists —
+     * was the root cause of the "unknown task id" loop.
+     */
+    private fun runDetectionPass(displayText: String, name: String) {
+        scope.launch {
+            val amb = com.itangcent.easyapi.core.ai.agent.AmbientPerception.capture(
+                project, editingFilePath = filePath
+            )
+            val taskList = com.itangcent.easyapi.core.ai.agent.MagicTaskListBuilder.buildDetectionPlan(
+                activeChannels = amb.enabledChannels.toSet(),
+                activeFormats = amb.enabledFormats.toSet(),
+                activeFrameworks = amb.frameworkHints.toSet()
+            )
+            // Compose the instruction from the freshly-built task list so the
+            // orchestrator LLM sees the exact ids it must use.
+            val instruction = com.itangcent.easyapi.core.ai.agent.MagicInstructionBuilder
+                .detectionInstruction(name, taskList)
+            withContext(Dispatchers.Main) {
+                aiChatPanel.runTaskList(
+                    taskList = taskList,
+                    displayText = displayText,
+                    instruction = instruction
+                )
+            }
+        }
     }
 
     /** Opens Settings → EasyApi → AI so the user can configure a provider. */
@@ -143,39 +222,6 @@ class RuleFileEditDialog(
     private fun revalidateDialog() {
         rootPane?.revalidate()
         rootPane?.repaint()
-    }
-
-    /**
-     * Builds the Magic instruction scoped to the file being edited.
-     *
-     * - When the file already has content: review/improve it AND detect any
-     * custom framework patterns that lack a rule, then propose the full
-     * updated file content.
-     * - When the file is empty: skip the review step and focus purely on
-     * detecting custom patterns and drafting initial rule content for them.
-     */
-    private fun buildMagicInstruction(): String {
-        val name = nameField.text.trim().ifBlank { Paths.get(filePath).fileName.toString() }
-        val content = contentArea.text
-        return buildString {
-            appendLine(
-                if (content.isBlank()) {
-                    "I'm starting a new rule file '$name' (currently empty). Detect any custom framework patterns in this project that lack a rule, then propose initial rule content for them."
-                } else {
-                    "Review and improve the rule file '$name' that I'm editing. Fix anything broken or incomplete, detect any custom framework patterns that lack a rule, then propose the full updated file content."
-                }
-            )
-            appendLine()
-            appendLine("Standard HTTP frameworks (Spring MVC, WebFlux, JAX-RS, Feign) need no rules. Scan for Custom-Pattern Catalog signals: Filter/HandlerInterceptor/WebFilter requiring a header, ResponseBodyAdvice wrapping responses, HandlerMethodArgumentResolver injecting hidden params, custom meta-/security annotations. Use find_classes_by_annotation + get_psi_class_info to confirm a hit, then apply the catalog recipe from the rule guide. Also scan for Workflow-Pattern Catalog signals: secured endpoints paired with a login/token endpoint (auth token chaining), static API-key/Basic auth, correlation/idempotency header requirements, and HMAC request signing — apply the catalog recipe from the rule guide when found.")
-            if (content.isNotBlank()) {
-                appendLine()
-                appendLine("Current content of '$name':")
-                appendLine("```")
-                append(content)
-                appendLine()
-                appendLine("```")
-            }
-        }
     }
 
     private fun loadContentAsync() {

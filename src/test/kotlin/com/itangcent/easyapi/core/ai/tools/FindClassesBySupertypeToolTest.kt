@@ -3,12 +3,14 @@ package com.itangcent.easyapi.core.ai.tools
 import com.intellij.openapi.application.ApplicationManager
 import com.itangcent.easyapi.core.ai.AiRuntimeConfig
 import com.itangcent.easyapi.core.ai.AiProvider
+import com.itangcent.easyapi.core.ai.agent.AgentEvent
 import com.itangcent.easyapi.core.ai.agent.AgentMemory
 import com.itangcent.easyapi.core.ai.agent.ApprovalGate
 import com.itangcent.easyapi.core.config.ConfigReader
 import com.itangcent.easyapi.core.config.source.RuleFileResolver
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
 import com.itangcent.easyapi.core.util.json.GsonUtils
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert
 
@@ -33,7 +35,8 @@ class FindClassesBySupertypeToolTest : EasyApiLightCodeInsightFixtureTestCase() 
         ),
         ruleFileResolver = RuleFileResolver(project),
         workingMemory = AgentMemory(),
-        approvals = NoOpApprovalGate()
+        approvals = NoOpApprovalGate(),
+        events = MutableSharedFlow(extraBufferCapacity = 64)
     )
 
     private fun addClasses() {

@@ -23,6 +23,11 @@ class EasyApiAssistantSkillTest : EasyApiLightCodeInsightFixtureTestCase() {
     /** Bundled knowledge-base docs live under `docs/` next to SKILL.md. */
     private val skillDocsDir: File by lazy { skillDir.resolve("docs") }
 
+    /** Bundled per-recipe catalog mirror (R3-C3). */
+    private val skillAiDir: File by lazy { skillDir.resolve("ai") }
+
+    private val skillScriptsDir: File by lazy { skillDir.resolve("scripts") }
+
     private val skillFile: File by lazy { skillDir.resolve("SKILL.md") }
 
     fun testSkillFileExists() {
@@ -106,6 +111,107 @@ class EasyApiAssistantSkillTest : EasyApiLightCodeInsightFixtureTestCase() {
                     res.readText()
                 )
             }
+    }
+
+    // -------------------------------------------------------------------------
+    // R3-C3 — per-recipe catalog mirror (ai/detection/ + ai/rules/)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Every `src/main/resources/ai/detection/` markdown file must be bundled
+     * verbatim under `skills/easy-api-assistant/ai/detection/` so the external
+     * skill mirrors the in-plugin agent's `get_detection_prompt` surface.
+     */
+    fun testSkillBundlesDetectionCatalog() {
+        val canonicalDir = repoRoot.resolve("src/main/resources/ai/detection")
+        assertTrue("canonical ai/detection/ must exist: $canonicalDir", canonicalDir.isDirectory)
+        val expected = canonicalDir.listFiles { f -> f.isFile && f.name.endsWith(".md") }
+            ?.map { it.name } ?: emptyList()
+        assertTrue("ai/detection/ must contain at least one .md file", expected.isNotEmpty())
+        val skillDetectionDir = skillAiDir.resolve("detection")
+        assertTrue("skill ai/detection/ subfolder must exist: $skillDetectionDir", skillDetectionDir.isDirectory)
+        expected.forEach { name ->
+            val bundled = skillDetectionDir.resolve(name)
+            assertTrue("skill must bundle detection catalog file: ai/detection/$name", bundled.isFile)
+            assertEquals(
+                "skill's ai/detection/$name must match the canonical copy verbatim (run ./gradlew syncAgentCatalog)",
+                canonicalDir.resolve(name).readText(),
+                bundled.readText()
+            )
+        }
+    }
+
+    /**
+     * Every `src/main/resources/ai/rules/` markdown file must be bundled
+     * verbatim under `skills/easy-api-assistant/ai/rules/` so the external
+     * skill mirrors the in-plugin agent's `get_rule_detail` surface.
+     */
+    fun testSkillBundlesRuleCatalog() {
+        val canonicalDir = repoRoot.resolve("src/main/resources/ai/rules")
+        assertTrue("canonical ai/rules/ must exist: $canonicalDir", canonicalDir.isDirectory)
+        val expected = canonicalDir.listFiles { f -> f.isFile && f.name.endsWith(".md") }
+            ?.map { it.name } ?: emptyList()
+        assertTrue("ai/rules/ must contain at least one .md file", expected.isNotEmpty())
+        val skillRulesDir = skillAiDir.resolve("rules")
+        assertTrue("skill ai/rules/ subfolder must exist: $skillRulesDir", skillRulesDir.isDirectory)
+        expected.forEach { name ->
+            val bundled = skillRulesDir.resolve(name)
+            assertTrue("skill must bundle rule catalog file: ai/rules/$name", bundled.isFile)
+            assertEquals(
+                "skill's ai/rules/$name must match the canonical copy verbatim (run ./gradlew syncAgentCatalog)",
+                canonicalDir.resolve(name).readText(),
+                bundled.readText()
+            )
+        }
+    }
+
+    /**
+     * The four R3-C3 catalog CLI scripts must ship and be executable.
+     */
+    fun testSkillBundlesCatalogCliScripts() {
+        val expected = listOf(
+            "get_detection_prompt.sh",
+            "get_rule_detail.sh",
+            "list_detections.sh",
+            "list_rule_details.sh"
+        )
+        assertTrue("skill scripts/ folder must exist: $skillScriptsDir", skillScriptsDir.isDirectory)
+        expected.forEach { name ->
+            val script = skillScriptsDir.resolve(name)
+            assertTrue("skill must bundle catalog script: scripts/$name", script.isFile)
+            assertTrue(
+                "scripts/$name must be executable (chmod +x) — run: chmod +x skills/easy-api-assistant/scripts/$name",
+                script.canExecute()
+            )
+        }
+    }
+
+    /**
+     * SKILL.md must document the new catalog scripts and the syncAgentCatalog
+     * Gradle task that keeps the mirror in sync.
+     */
+    fun testSkillBodyDocumentsCatalogScriptsAndSyncTask() {
+        val body = skillBody()
+        assertTrue(
+            "skill must document get_detection_prompt.sh",
+            body.contains("get_detection_prompt.sh")
+        )
+        assertTrue(
+            "skill must document get_rule_detail.sh",
+            body.contains("get_rule_detail.sh")
+        )
+        assertTrue(
+            "skill must document list_detections.sh",
+            body.contains("list_detections.sh")
+        )
+        assertTrue(
+            "skill must document list_rule_details.sh",
+            body.contains("list_rule_details.sh")
+        )
+        assertTrue(
+            "skill must document the syncAgentCatalog Gradle task that keeps the bundled catalog in sync",
+            body.contains("syncAgentCatalog")
+        )
     }
 
     // -------------------------------------------------------------------------

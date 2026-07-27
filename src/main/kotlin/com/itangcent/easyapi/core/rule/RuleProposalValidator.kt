@@ -1,8 +1,13 @@
 package com.itangcent.easyapi.core.rule
 
 import com.intellij.openapi.project.Project
+import com.itangcent.easyapi.channel.spi.Channel
+import com.itangcent.easyapi.channel.spi.ChannelRegistry
+import com.itangcent.easyapi.core.export.recognizer.ApiClassRecognizer
+import com.itangcent.easyapi.core.export.recognizer.CompositeApiClassRecognizer
 import com.itangcent.easyapi.core.util.json.GsonUtils
 import com.itangcent.easyapi.core.util.text.KeyValueLineParser
+import com.itangcent.easyapi.framework.spi.FrameworkRegistry
 
 /**
  * Deterministic, PSI-free reviewer for AI-authored rule proposals (the
@@ -18,8 +23,10 @@ import com.itangcent.easyapi.core.util.text.KeyValueLineParser
  * - **Hard errors** (block the proposal): unknown key, invalid filter prefix,
  *   malformed JSON value for the header/param keys.
  * - **Soft warnings** (never block): deprecated-but-valid filter forms such
- *   as the bare `class:` prefix. Reported back to the drafter / surfaced on
- *   the proposal card, but the proposal still proceeds.
+ *   as the bare `class:` prefix; keys whose owning channel/framework is
+ *   currently disabled in Settings (design C4a / task A5c). Reported back to
+ *   the drafter / surfaced on the proposal card, but the proposal still
+ *   proceeds.
  *
  * ## Key catalog
  *
@@ -55,6 +62,11 @@ object RuleProposalValidator {
         "\$class:", "@", "#regex:", "#", "!", "groovy:"
     )
 
+    /** Source kind for keys declared in [RuleKeys] (mirrors [RuleKeyRegistry]). */
+    private const val SOURCE_GENERAL = "general"
+    /** Source kind for keys read by name only (mirrors [RuleKeyRegistry]). */
+    private const val SOURCE_IMPLICIT = "implicit"
+
     /** Fallback known-key set used when no [Project] is supplied. */
     private val generalKeyNames: Set<String> by lazy { collectGeneralKeyNames() }
 
@@ -75,6 +87,10 @@ object RuleProposalValidator {
         val knownKeyNames = project
             ?.let { RuleKeyRegistry.getInstance(it).allKeyNames() }
             ?: generalKeyNames
+        // A5c: precompute key-name → disabled-source-id lookup (unfiltered
+        // allKeys() view, mirroring findKey) so per-line warnings are O(1).
+        val disabledSourceByName: Map<String, String> =
+            project?.let { buildDisabledSourceMap(it) } ?: emptyMap()
         val errors = mutableListOf<String>()
         val warnings = mutableListOf<String>()
         var inBlock = false
@@ -102,6 +118,12 @@ object RuleProposalValidator {
             if (key !in knownKeyNames) {
                 errors += "line $lineNo: unknown rule key '$key' (not in list_rule_keys)."
                 return@forEachIndexed
+            }
+            // A5c: soft warning when the key's owning channel/framework is
+            // disabled in Settings (never blocks the proposal).
+            disabledSourceByName[key]?.let { src ->
+                warnings += "line $lineNo: key '$key' belongs to '$src', " +
+                    "which is currently disabled in Settings."
             }
             if (filter != null) {
                 val prefixIssue = checkFilterPrefix(filter)
@@ -144,6 +166,88 @@ object RuleProposalValidator {
 
     private fun collectGeneralKeyNames(): Set<String> =
         RuleKey.collectFrom(RuleKeys).flatMap { it.allNames }.toSet()
+
+    /**
+     * Builds a lookup from every known rule-key name (primary + aliases) to
+     * the id of the disabled channel/framework that owns it (task A5c).
+     * Returns an empty map when no owner is disabled.
+     *
+     * Mirrors the prefix-based ownership check in
+     * [RuleKeyRegistry.isEnabledSource] so that a key hidden from
+     * [RuleKeyRegistry.enabledKeys] (e.g. `postman.test` with Postman
+     * disabled) is also surfaced as a soft warning here.
+     */
+    private fun buildDisabledSourceMap(project: Project): Map<String, String> {
+        val registry = RuleKeyRegistry.getInstance(project)
+        val channelRegistry = ChannelRegistry.getInstance(project)
+        val allChannels = channelRegistry.allChannels()
+        val frameworkRegistry = FrameworkRegistry.getInstance(project)
+        val allRecognizers = CompositeApiClassRecognizer.getInstance(project).allRecognizers()
+
+        val result = mutableMapOf<String, String>()
+        for (info in registry.allKeys()) {
+            val disabledSource = checkDisabledSource(
+                info, allChannels, channelRegistry, allRecognizers, frameworkRegistry
+            )
+            if (disabledSource != null) {
+                for (name in info.key.allNames) {
+                    result[name] = disabledSource
+                }
+            }
+        }
+        return result
+    }
+
+    /**
+     * Resolves the disabled owner (channel/framework id) for [info], or
+     * `null` when the owner is enabled or the source kind is unknown.
+     *
+     * Resolution order (design C4a + AC-S4 prefix check):
+     * 1. **Channel-sourced key** (`info.source` is a registered channel id):
+     *    disabled iff that channel is disabled.
+     * 2. **Framework-sourced key** (`info.source` is a registered framework
+     *    name): disabled iff that framework is disabled.
+     * 3. **General/implicit key**: disabled iff the key name prefix-matches a
+     *    disabled channel (e.g. `postman.test` → `postman`). The `postman.*`
+     *    keys are declared in [RuleKeys] (general source) but semantically
+     *    owned by their channel — the prefix check mirrors
+     *    [RuleKeyRegistry.isEnabledSource] so a key filtered out of
+     *    `enabledKeys()` also warns here.
+     * 4. **Unknown source kind**: never warn.
+     */
+    private fun checkDisabledSource(
+        info: RuleKeyRegistry.RuleKeyInfo,
+        allChannels: List<Channel>,
+        channelRegistry: ChannelRegistry,
+        allRecognizers: List<ApiClassRecognizer>,
+        frameworkRegistry: FrameworkRegistry
+    ): String? {
+        val keyName = info.key.name
+        val source = info.source
+
+        // 1. Channel-sourced key.
+        val sourceChannel = allChannels.firstOrNull { it.id == source }
+        if (sourceChannel != null && !channelRegistry.isEnabled(sourceChannel)) {
+            return source
+        }
+
+        // 2. Framework-sourced key.
+        val sourceFramework = allRecognizers.firstOrNull { it.frameworkName == source }
+        if (sourceFramework != null && !frameworkRegistry.isEnabled(sourceFramework)) {
+            return source
+        }
+
+        // 3. General/implicit key: channel-prefix ownership (AC-S4).
+        if (source == SOURCE_GENERAL || source == SOURCE_IMPLICIT) {
+            for (channel in allChannels) {
+                if (keyName.startsWith("${channel.id}.") && !channelRegistry.isEnabled(channel)) {
+                    return channel.id
+                }
+            }
+        }
+
+        return null
+    }
 
     private sealed class FilterIssue {
         object Invalid : FilterIssue()
