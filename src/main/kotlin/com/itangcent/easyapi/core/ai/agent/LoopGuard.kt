@@ -30,6 +30,30 @@ class LoopGuard(private val cfg: LoopSafetyConfig) {
     private val reasoningHashes = ArrayList<Int>()
 
     /**
+     * `true` at turn start and after each [beginBatch] call, until the first
+     * [observeResult] of the new batch clears it. Used by the output-stagnation
+     * detector to distinguish **across-batch** repetition (a real loop — the
+     * model got the same result last batch and is repeating itself) from
+     * **within-batch** repetition (parallel probes that legitimately return
+     * the same result, e.g. probing 4 different supertypes that all return `[]`).
+     */
+    private var newBatchStarted: Boolean = true
+
+    /**
+     * Mark the start of a new tool-call batch (one LLM assistant message may
+     * carry multiple tool calls — a "batch"). Called by the agent loop at the
+     * top of each step, before processing the assistant's tool calls.
+     *
+     * This resets the within-batch stagnation guard so that parallel probes
+     * in a single batch do NOT accumulate stagnation. Stagnation is only
+     * detected **across** batch boundaries: the first call of a new batch
+     * is compared against the last result of the previous batch.
+     */
+    fun beginBatch() {
+        newBatchStarted = true
+    }
+
+    /**
      * Pre-dispatch verdict: debounce an identical-to-last call.
      *
      * If debounce is enabled and the fingerprint of [tc] matches the last
@@ -88,11 +112,27 @@ class LoopGuard(private val cfg: LoopSafetyConfig) {
         // longer repeating sequences.
         detectCycle()?.let { return Verdict.Terminate(it) }
 
-        // --- C. Output stagnation (identical results) ---
+        // --- C. Output stagnation (identical results across batches) ---
+        // Within a single batch (one assistant message with multiple tool
+        // calls), the model is making parallel probes — identical results
+        // are legitimate (e.g. probing different supertypes that all return
+        // `[]`). Only count stagnation across batch boundaries: the first
+        // call of a new batch is compared against the last result of the
+        // previous batch; subsequent calls within the same batch reset the
+        // counter to 1.
         val h = resultFingerprint(result)
-        if (h == lastResultHash) {
-            stagnationCount++
+        if (newBatchStarted) {
+            // First call in a new batch — compare with the last result of
+            // the previous batch (across-batch stagnation check).
+            if (h == lastResultHash) {
+                stagnationCount++
+            } else {
+                stagnationCount = 1
+            }
+            newBatchStarted = false
         } else {
+            // Subsequent call within the same batch — parallel probe,
+            // never accumulate stagnation.
             stagnationCount = 1
         }
         lastResultHash = h

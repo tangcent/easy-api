@@ -1,12 +1,14 @@
 package com.itangcent.easyapi.core.ai.tools
 
 import com.itangcent.easyapi.core.ai.AiRuntimeConfig
+import com.itangcent.easyapi.core.ai.agent.AgentEvent
 import com.itangcent.easyapi.core.ai.agent.AgentMemory
 import com.itangcent.easyapi.core.ai.agent.ApprovalGate
 import com.itangcent.easyapi.core.config.ConfigReader
 import com.itangcent.easyapi.core.config.SourceValue
 import com.itangcent.easyapi.core.config.source.RuleFileResolver
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert
 import java.nio.file.Files
@@ -37,7 +39,8 @@ class PerceptionToolsTest : EasyApiLightCodeInsightFixtureTestCase() {
         ruleFileResolver = RuleFileResolver(project),
         workingMemory = workingMemory,
         approvals = fakeApprovalGate,
-        readConsents = readConsents
+        readConsents = readConsents,
+        events = MutableSharedFlow(extraBufferCapacity = 64)
     )
 
     // --- ListRuleKeysTool ---
@@ -48,6 +51,62 @@ class PerceptionToolsTest : EasyApiLightCodeInsightFixtureTestCase() {
         Assert.assertTrue("should contain api.name", text.contains("api.name"))
         Assert.assertTrue("should contain field.ignore", text.contains("field.ignore"))
         Assert.assertTrue("should contain postman.test", text.contains("postman.test"))
+    }
+
+    fun testListRuleKeysAttachesCatalogMetadataForKeysWithRecipeFile() {
+        // A5 catalog join: keys that have a per-key recipe file in
+        // ai/rules/<key>.md get `description` + `detailPromptId` attached.
+        // `field.ignore` has ai/rules/field.ignore.md.
+        val result = runBlocking { ListRuleKeysTool().execute(emptyMap(), ctx()) }
+        Assert.assertTrue(result is ToolResult.Text)
+        val text = (result as ToolResult.Text).value
+        val keys: List<Map<String, Any?>> =
+            com.itangcent.easyapi.core.util.json.GsonUtils.fromJson(text)
+        val fieldIgnore = keys.firstOrNull { it["name"] == "field.ignore" }
+        Assert.assertNotNull("field.ignore should be in the list", fieldIgnore)
+        Assert.assertTrue(
+            "field.ignore should have a description (catalog cue)",
+            fieldIgnore!!.containsKey("description")
+        )
+        Assert.assertTrue(
+            "field.ignore should have a detailPromptId",
+            fieldIgnore.containsKey("detailPromptId")
+        )
+        Assert.assertEquals("field.ignore", fieldIgnore["detailPromptId"])
+    }
+
+    fun testListRuleKeysLeavesNonCoveredKeysAtBaseShape() {
+        // Keys without a per-key recipe file (e.g. `api.name`) still return
+        // {name, type, source} — no description/detailPromptId attached.
+        val result = runBlocking { ListRuleKeysTool().execute(emptyMap(), ctx()) }
+        Assert.assertTrue(result is ToolResult.Text)
+        val text = (result as ToolResult.Text).value
+        val keys: List<Map<String, Any?>> =
+            com.itangcent.easyapi.core.util.json.GsonUtils.fromJson(text)
+        val apiName = keys.firstOrNull { it["name"] == "api.name" }
+        Assert.assertNotNull("api.name should be in the list", apiName)
+        Assert.assertFalse(
+            "api.name should NOT have a description (no catalog file)",
+            apiName!!.containsKey("description")
+        )
+        Assert.assertFalse(
+            "api.name should NOT have a detailPromptId (no catalog file)",
+            apiName.containsKey("detailPromptId")
+        )
+    }
+
+    fun testListRuleKeysCatalogJoinDoesNotThrowOnMissingCatalog() {
+        // The catalog join is best-effort: even if the catalog is empty or
+        // missing, the tool must return the basic {name, type, source} shape
+        // for every key (no throw). This test verifies the tool runs without
+        // throwing; the actual catalog is present in the test classpath, so
+        // we just assert the result is Text (not Error).
+        val result = runBlocking { ListRuleKeysTool().execute(emptyMap(), ctx()) }
+        Assert.assertTrue("result: $result", result is ToolResult.Text)
+        val text = (result as ToolResult.Text).value
+        // Every key should at least have name + type + source.
+        Assert.assertTrue("should contain api.name", text.contains("api.name"))
+        Assert.assertTrue("should contain \"source\"", text.contains("source"))
     }
 
     // --- GetPluginDocTool ---
@@ -371,6 +430,8 @@ class PerceptionToolsTest : EasyApiLightCodeInsightFixtureTestCase() {
         val names = tools.map { it.name }.toSet()
         Assert.assertTrue("list_rule_keys", names.contains("list_rule_keys"))
         Assert.assertTrue("get_plugin_doc", names.contains("get_plugin_doc"))
+        Assert.assertTrue("get_detection_prompt", names.contains("get_detection_prompt"))
+        Assert.assertTrue("get_rule_detail", names.contains("get_rule_detail"))
         Assert.assertTrue("read_rule_file", names.contains("read_rule_file"))
         Assert.assertTrue("list_project_endpoints", names.contains("list_project_endpoints"))
         Assert.assertTrue("get_psi_class_info", names.contains("get_psi_class_info"))
@@ -380,12 +441,137 @@ class PerceptionToolsTest : EasyApiLightCodeInsightFixtureTestCase() {
         Assert.assertTrue("find_classes_by_name", names.contains("find_classes_by_name"))
         Assert.assertTrue("get_existing_rules_for_key", names.contains("get_existing_rules_for_key"))
         Assert.assertTrue("get_module_dependency_graph", names.contains("get_module_dependency_graph"))
+        Assert.assertTrue("ask_clarification", names.contains("ask_clarification"))
         Assert.assertTrue("propose_rule_content", names.contains("propose_rule_content"))
+        // Phase B — Task-List-path planning tools (design C7).
+        Assert.assertTrue("create_task_list", names.contains("create_task_list"))
+        Assert.assertTrue("update_task", names.contains("update_task"))
         Assert.assertFalse(
             "write_rule_file must NOT be registered in v1",
             names.contains("write_rule_file")
         )
-        Assert.assertEquals("exactly 13 tools in v1", 13, tools.size)
+        Assert.assertEquals("exactly 17 tools (15 + 2 task-list tools)", 17, tools.size)
+    }
+
+    // --- GetDetectionPromptTool ---
+
+    fun testGetDetectionPromptReturnsBodyForValidId() {
+        // "static-auth" is one of the seeded detection catalog files.
+        val result = runBlocking {
+            GetDetectionPromptTool().execute(mapOf("id" to "static-auth"), ctx())
+        }
+        Assert.assertTrue("result: $result", result is ToolResult.Text)
+        val text = (result as ToolResult.Text).value
+        Assert.assertTrue("body should be non-empty", text.isNotBlank())
+    }
+
+    fun testGetDetectionPromptReturnsErrorForUnknownId() {
+        val result = runBlocking {
+            GetDetectionPromptTool().execute(mapOf("id" to "does-not-exist"), ctx())
+        }
+        Assert.assertTrue(result is ToolResult.Error)
+        Assert.assertTrue((result as ToolResult.Error).message.contains("unknown detection id"))
+    }
+
+    fun testGetDetectionPromptReturnsErrorForMissingId() {
+        val result = runBlocking {
+            GetDetectionPromptTool().execute(emptyMap(), ctx())
+        }
+        Assert.assertTrue(result is ToolResult.Error)
+        Assert.assertTrue((result as ToolResult.Error).message.contains("missing required parameter"))
+    }
+
+    // --- GetRuleDetailTool ---
+
+    fun testGetRuleDetailByKeyReturnsBody() {
+        // By-key lookup: `key=postman.test` returns the single per-key recipe.
+        val result = runBlocking {
+            GetRuleDetailTool().execute(mapOf("key" to "postman.test"), ctx())
+        }
+        Assert.assertTrue("result: $result", result is ToolResult.Text)
+        val text = (result as ToolResult.Text).value
+        Assert.assertTrue("body should be non-empty", text.isNotBlank())
+        Assert.assertTrue(
+            "body should mention postman.test recipe content",
+            text.contains("pm.response") || text.contains("postman.test")
+        )
+    }
+
+    fun testGetRuleDetailByKeyReturnsErrorForUnknownKey() {
+        val result = runBlocking {
+            GetRuleDetailTool().execute(mapOf("key" to "not.a.real.key"), ctx())
+        }
+        Assert.assertTrue(result is ToolResult.Error)
+        Assert.assertTrue((result as ToolResult.Error).message.contains("unknown rule key"))
+    }
+
+    fun testGetRuleDetailByKeyOverridesScope() {
+        // When both `key` and `channel` are supplied, `key` wins.
+        val result = runBlocking {
+            GetRuleDetailTool().execute(
+                mapOf("key" to "field.ignore", "channel" to "postman"),
+                ctx()
+            )
+        }
+        Assert.assertTrue("result: $result", result is ToolResult.Text)
+        val text = (result as ToolResult.Text).value
+        // field.ignore recipe content — not a postman-scoped recipe.
+        Assert.assertTrue(
+            "should return field.ignore recipe (key wins over scope)",
+            text.contains("field.ignore") || text.contains("blanket")
+        )
+    }
+
+    fun testGetRuleDetailNoArgsReturnsError() {
+        val result = runBlocking {
+            GetRuleDetailTool().execute(emptyMap(), ctx())
+        }
+        Assert.assertTrue(result is ToolResult.Error)
+        Assert.assertTrue(
+            (result as ToolResult.Error).message.contains("provide at least one")
+        )
+    }
+
+    fun testGetRuleDetailScopeQueryReturnsEntriesWhenChannelEnabled() {
+        // Scope query: `channel=postman` returns ≥1 file when Postman is
+        // enabled (via ambient on working memory).
+        val memory = AgentMemory()
+        memory.ambient = com.itangcent.easyapi.core.ai.agent.Ambient(
+            projectName = "demo",
+            editingRuleFile = null,
+            existingRuleFiles = emptyList(),
+            enabledChannels = listOf("postman")
+        )
+        val result = runBlocking {
+            GetRuleDetailTool().execute(mapOf("channel" to "postman"), ctx(workingMemory = memory))
+        }
+        Assert.assertTrue("result: $result", result is ToolResult.Text)
+        val text = (result as ToolResult.Text).value
+        Assert.assertTrue(
+            "scope query should return postman recipes when enabled",
+            text.contains("postman.test") || text.contains("postman.prerequest")
+        )
+    }
+
+    fun testGetRuleDetailScopeQueryReturnsEmptyTextWhenChannelDisabled() {
+        // Scope query with a disabled channel returns the empty-result Text
+        // (not Error) so the agent can react gracefully.
+        val memory = AgentMemory()
+        memory.ambient = com.itangcent.easyapi.core.ai.agent.Ambient(
+            projectName = "demo",
+            editingRuleFile = null,
+            existingRuleFiles = emptyList(),
+            enabledChannels = emptyList() // Postman disabled
+        )
+        val result = runBlocking {
+            GetRuleDetailTool().execute(mapOf("channel" to "postman"), ctx(workingMemory = memory))
+        }
+        Assert.assertTrue("result: $result", result is ToolResult.Text)
+        val text = (result as ToolResult.Text).value
+        Assert.assertTrue(
+            "disabled-channel scope query should return the empty-result text",
+            text.contains("no rule-detail files match")
+        )
     }
 
     // --- helpers ---

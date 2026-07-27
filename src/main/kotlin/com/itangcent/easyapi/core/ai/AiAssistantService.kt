@@ -10,7 +10,9 @@ import com.itangcent.easyapi.core.ai.agent.ClarificationGate
 import com.itangcent.easyapi.core.ai.agent.RuleAuthoringAgent
 import com.itangcent.easyapi.core.ai.tools.ToolContext
 import com.itangcent.easyapi.core.ai.tools.ToolRegistry
+import com.itangcent.easyapi.core.ai.tools.orchestratorToolRegistry
 import com.itangcent.easyapi.core.ai.tools.standardRuleTools
+import com.itangcent.easyapi.core.ai.tools.subAgentToolRegistry
 import com.itangcent.easyapi.core.config.ConfigReader
 import com.itangcent.easyapi.core.config.source.RuleFileResolver
 import com.itangcent.easyapi.core.logging.IdeaLog
@@ -109,11 +111,25 @@ class AiAssistantService(private val project: Project) : Disposable, IdeaLog {
             workingMemory = memory,
             approvals = approvals,
             clarifications = clarifications,
-            readConsents = readConsents
+            readConsents = readConsents,
+            events = events
         )
+        // Reactive-path agent: full tool set (perception + staging + task-list).
         val tools = ToolRegistry(standardRuleTools())
         val agent = RuleAuthoringAgent(aiService, tools, ctx, events)
-        return ConversationSession(agent, memory, events, approvals, clarifications, readConsents)
+        // Magic-path agent (Phase 3 — design §3.5): orchestrator tool set
+        // only (update_task + run_sub_agent + propose_rule_content). The
+        // orchestrator never perceives PSI directly — sub-agents do. The
+        // sub-agent tool registry is built once per session and reused for
+        // every sub-agent spawn in that session.
+        val subAgentTools = ToolRegistry(subAgentToolRegistry())
+        val orchestratorTools = ToolRegistry(
+            orchestratorToolRegistry(aiService, subAgentTools)
+        )
+        val magicAgent = RuleAuthoringAgent(aiService, orchestratorTools, ctx, events)
+        return ConversationSession(
+            agent, memory, events, approvals, clarifications, readConsents, magicAgent
+        )
     }
 
     /** Whether AI is configured and ready (i.e., [session] would return non-null). */
@@ -146,6 +162,14 @@ class AiAssistantService(private val project: Project) : Disposable, IdeaLog {
  * The per-conversation aggregate — agent + memory + events + gates.
  *
  * Held by [AiAssistantService]; the panel reads [events] and drives [agent].
+ *
+ * [magicAgent] is the Phase-3 orchestrator agent — a separate
+ * [RuleAuthoringAgent] instance with the orchestrator tool set
+ * (update_task + run_sub_agent + propose_rule_content, design §3.5). It
+ * shares the same [memory] / [events] / ctx as [agent]; the panel picks
+ * the right one based on [com.itangcent.easyapi.core.ai.agent.EntryPath].
+ * `null` in tests that don't exercise the Magic path — the panel falls
+ * back to [agent] so Phase-1/2 behaviour is preserved.
  */
 data class ConversationSession(
     val agent: RuleAuthoringAgent,
@@ -153,7 +177,8 @@ data class ConversationSession(
     val events: MutableSharedFlow<com.itangcent.easyapi.core.ai.agent.AgentEvent>,
     val approvals: UiApprovalGate,
     val clarifications: UiClarificationGate = UiClarificationGate(events),
-    val readConsents: UiFileReadConsentGate = UiFileReadConsentGate(events)
+    val readConsents: UiFileReadConsentGate = UiFileReadConsentGate(events),
+    val magicAgent: RuleAuthoringAgent? = null
 )
 
 /**

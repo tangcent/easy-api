@@ -1,0 +1,17 @@
+ai/detection/custom-framework.md
+ai/detection/spring-filters-interceptors.md
+ai/detection/spring-argument-resolvers.md
+ai/detection/spring-response-body-advice.md
+ai/detection/spring-controller-advice.md
+ai/detection/jaxrs-filters.md
+ai/detection/auth-token-chaining.md
+ai/detection/static-auth.md
+ai/detection/correlation-idempotency.md
+ai/detection/hmac-signing.md
+ai/rules/postman.test.md
+ai/rules/postman.prerequest.md
+ai/rules/method.additional.header.md
+ai/rules/method.additional.response.header.md
+ai/rules/json.additional.field.md
+ai/rules/markdown.template.md
+ai/rules/field.ignore.md

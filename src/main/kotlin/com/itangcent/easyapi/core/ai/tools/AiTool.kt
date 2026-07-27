@@ -2,11 +2,15 @@ package com.itangcent.easyapi.core.ai.tools
 
 import com.intellij.openapi.project.Project
 import com.itangcent.easyapi.core.ai.AiRuntimeConfig
+import com.itangcent.easyapi.core.ai.agent.AgentEvent
 import com.itangcent.easyapi.core.ai.agent.AgentMemory
 import com.itangcent.easyapi.core.ai.agent.ApprovalGate
 import com.itangcent.easyapi.core.ai.agent.ClarificationGate
+import com.itangcent.easyapi.core.ai.agent.TaskResult
 import com.itangcent.easyapi.core.config.ConfigReader
 import com.itangcent.easyapi.core.config.source.RuleFileResolver
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableSharedFlow
 
 /**
  * Classifies a tool as a sense (read-only) or a hand (state-changing).
@@ -76,7 +80,32 @@ data class ToolContext(
      * wire a gate preserve the original refuse-outside-allow-list behavior.
      */
     val readConsents: com.itangcent.easyapi.core.ai.agent.FileReadConsentGate =
-        com.itangcent.easyapi.core.ai.agent.FileReadConsentGate.NOOP
+        com.itangcent.easyapi.core.ai.agent.FileReadConsentGate.NOOP,
+    /**
+     * Sink for [AgentEvent]s emitted directly from tool bodies — currently
+     * used only by the Task-List-path tools (`create_task_list`,
+     * `update_task`) so they can signal `TaskListCreated` / `Task*`
+     * lifecycle events to the UI without going through the agent loop's
+     * per-call `Acting`/`Observed` cards.
+     *
+     * No default — every context MUST wire this to the same
+     * `MutableSharedFlow` the owning [com.itangcent.easyapi.core.ai.ConversationSession]
+     * uses so tool-emitted events reach the chat panel. Tests that don't
+     * care about events pass a no-op `MutableSharedFlow(extraBufferCapacity = 64)`.
+     */
+    val events: MutableSharedFlow<AgentEvent>,
+    /**
+     * Sub-agent result slot — `null` for orchestrator / Reactive contexts;
+     * non-`null` for sub-agent contexts created by `RunSubAgentTool`.
+     *
+     * `ReportFindingsTool` completes this deferred with the sub-agent's
+     * [TaskResult] when the sub-agent calls `report_findings`; the
+     * orchestrator's `RunSubAgentTool` awaits it. Defaults to `null` so
+     * non-sub-agent contexts (orchestrator, Reactive, tests that don't
+     * exercise sub-agents) are unaffected. Completing a `null` slot is a
+     * no-op — `ReportFindingsTool` returns an Error in that case.
+     */
+    val subAgentResult: CompletableDeferred<TaskResult>? = null
 )
 
 /**

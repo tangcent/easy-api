@@ -254,7 +254,50 @@ fun copyFileIfDifferent(source: File, target: File) {
     source.copyTo(target, overwrite = true)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Agent catalog sync (R3-C3)
+//
+// `src/main/resources/ai/{detection,rules}/*.md` are the canonical prompt
+// catalog the in-plugin agent loads at runtime via `PromptCatalog`. The
+// external `easy-api-assistant` skill ships a verbatim copy under
+// `skills/easy-api-assistant/ai/` so the external assistant has the same
+// per-detection / per-key recipe surface (mirrored by the
+// `get_detection_prompt.sh` / `get_rule_detail.sh` CLI scripts).
+//
+// This task is the catalog counterpart of `syncKnowledgeBase` — same
+// content-equality-checked / idempotent contract. It does NOT sync
+// `agent-base.md` or `catalog-manifest.txt`: those are in-plugin prompt
+// infrastructure, not part of the external skill's surface (the external
+// assistant reads the catalog via scripts, not via `agent-base.md`).
+// ─────────────────────────────────────────────────────────────────────────────
+val agentCatalogSourceDir = file("src/main/resources/ai")
+val agentCatalogSkillDir = file("skills/easy-api-assistant/ai")
+
+val syncAgentCatalog by tasks.registering {
+    group = "documentation"
+    description = "Sync src/main/resources/ai/{detection,rules}/*.md into the easy-api-assistant skill folder."
+
+    val sourceFiles = fileTree(agentCatalogSourceDir) {
+        include("detection/*.md")
+        include("rules/*.md")
+    }
+    inputs.files(sourceFiles)
+    outputs.files(fileTree(agentCatalogSkillDir) { include("**/*.md") })
+    outputs.upToDateWhen { true }
+
+    doLast {
+        val sources = sourceFiles.files.sortedBy { it.path }
+        logger.lifecycle("Syncing ${sources.size} agent-catalog file(s) into the easy-api-assistant skill folder:")
+        sources.forEach { source ->
+            val rel = source.relativeTo(agentCatalogSourceDir).path   // detection/<id>.md / rules/<key>.md
+            copyFileIfDifferent(source, File(agentCatalogSkillDir, rel))
+            logger.lifecycle("  - $rel")
+        }
+    }
+}
+
 // Ensure the JAR always ships docs synced from the canonical source.
 tasks.named("processResources") {
     dependsOn("syncKnowledgeBase")
+    dependsOn("syncAgentCatalog")
 }

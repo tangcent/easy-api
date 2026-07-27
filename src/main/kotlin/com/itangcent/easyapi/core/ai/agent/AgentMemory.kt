@@ -20,11 +20,35 @@ class AgentMemory {
     @Volatile
     var ambient: Ambient? = null
 
+    /**
+     * Ephemeral task list for the Magic path. `null` in Reactive turns —
+     * the agent never calls `create_task_list` and the field stays untouched.
+     * Cleared by [reset] so a new conversation starts with no task list.
+     */
+    @Volatile
+    var taskList: TaskList? = null
+
+    /**
+     * Sub-agent results collected by `RunSubAgentTool` during one Magic
+     * detection turn (Phase 3 — design §3.9 / D3). Each entry pairs the
+     * [Task] with the [TaskResult] its sub-agent reported via
+     * `report_findings`. The orchestrator's `propose_rule_content` tool
+     * reads this list and merges it via [mergeTaskResults] (concatenate-
+     * with-tags) so the LLM does not have to compose the merged content
+     * itself — the merge is deterministic, "no LLM round-trip" (D3).
+     *
+     * Empty in Reactive turns and in sub-agent contexts (sub-agents don't
+     * spawn sub-agents). Cleared by [reset].
+     */
+    val collectedSubAgentResults: MutableList<Pair<Task, TaskResult>> = mutableListOf()
+
     /** Clear all state — invoked on "New Conversation". */
     fun reset() {
         messages.clear()
         proposal = null
         ambient = null
+        taskList = null
+        collectedSubAgentResults.clear()
     }
 }
 
@@ -72,5 +96,29 @@ data class Ambient(
      * Privacy: carries only short framework labels — never env-var keys or
      * values from the Environments panel.
      */
-    val frameworkHints: List<String> = emptyList()
+    val frameworkHints: List<String> = emptyList(),
+    /**
+     * Ids of the currently-enabled [com.itangcent.easyapi.channel.spi.Channel]s
+     * (e.g. `"postman"`, `"markdown"`), resolved from
+     * [com.itangcent.easyapi.channel.spi.ChannelRegistry] in
+     * [AmbientPerception.capture]. Cheap settings read — no PSI. Used by
+     * [SystemPromptBuilder.indexMessage] to filter the detection/rule catalog
+     * to only entries whose `channel:` scope matches an enabled channel (AC-S7).
+     *
+     * Privacy: carries only short channel ids — never env-var keys or values
+     * from the Environments panel.
+     */
+    val enabledChannels: List<String> = emptyList(),
+    /**
+     * Ids of the currently-enabled
+     * [com.itangcent.easyapi.format.spi.FieldFormatChannel]s (e.g. `"json"`,
+     * `"yaml"`), resolved from [com.itangcent.easyapi.format.spi.FieldFormatChannelRegistry]
+     * in [AmbientPerception.capture]. Cheap settings read — no PSI. Used by
+     * [SystemPromptBuilder.indexMessage] to filter the rule catalog to only
+     * entries whose `format:` scope matches an enabled format.
+     *
+     * Privacy: carries only short format ids — never env-var keys or values
+     * from the Environments panel.
+     */
+    val enabledFormats: List<String> = emptyList()
 )

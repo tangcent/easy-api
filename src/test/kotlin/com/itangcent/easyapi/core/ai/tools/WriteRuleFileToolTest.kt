@@ -8,6 +8,7 @@ import com.itangcent.easyapi.core.ai.agent.Proposal
 import com.itangcent.easyapi.core.config.ConfigReader
 import com.itangcent.easyapi.core.config.source.RuleFileResolver
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert
 import java.nio.file.Files
@@ -35,7 +36,8 @@ class WriteRuleFileToolTest : EasyApiLightCodeInsightFixtureTestCase() {
         ),
         ruleFileResolver = RuleFileResolver(project),
         workingMemory = workingMemory,
-        approvals = NoOpApprovalGate()
+        approvals = NoOpApprovalGate(),
+        events = MutableSharedFlow(extraBufferCapacity = 64)
     )
 
     // ------------------------------------------------------------------

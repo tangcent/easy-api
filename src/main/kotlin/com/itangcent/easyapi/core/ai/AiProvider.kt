@@ -44,7 +44,7 @@ enum class AiProvider(
     AZURE_AI("Azure AI Foundry", "https://models.inference.ai.azure.com", "gpt-5.4-mini", true, openAiCompatible = true, contextWindow = 128_000),
     GITHUB_MODELS("GitHub Models", "https://models.github.ai/inference", "gpt-5.4-mini", true, openAiCompatible = true, contextWindow = 128_000),
     OPENROUTER("OpenRouter", "https://openrouter.ai/api/v1", "openai/gpt-5.4-mini", true, openAiCompatible = true, contextWindow = 128_000),
-    DEEPSEEK("DeepSeek", "https://api.deepseek.com/v1", "deepseek-chat", true, openAiCompatible = true, contextWindow = 128_000),
+    DEEPSEEK("DeepSeek", "https://api.deepseek.com/v1", "deepseek-v4-flash", true, openAiCompatible = true, contextWindow = 128_000),
     GROQ("Groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", true, openAiCompatible = true, contextWindow = 128_000),
     MISTRAL("Mistral AI", "https://api.mistral.ai/v1", "mistral-small-latest", true, openAiCompatible = true, contextWindow = 32_000),
     XAI("xAI (Grok)", "https://api.x.ai/v1", "grok-4.3", true, openAiCompatible = true, contextWindow = 128_000),

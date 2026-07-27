@@ -15,6 +15,7 @@ import com.itangcent.easyapi.core.export.HttpMethod
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
 import com.itangcent.easyapi.core.util.json.GsonUtils
 import com.intellij.testFramework.registerServiceInstance
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert
 
@@ -42,7 +43,8 @@ class ListProjectEndpointsToolTest : EasyApiLightCodeInsightFixtureTestCase() {
         ),
         ruleFileResolver = RuleFileResolver(project),
         workingMemory = AgentMemory(),
-        approvals = NoOpApprovalGate()
+        approvals = NoOpApprovalGate(),
+        events = MutableSharedFlow(extraBufferCapacity = 64)
     )
 
     override fun setUp() {

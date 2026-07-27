@@ -54,22 +54,33 @@ class RuleAuthoringAgent(
      * which rule file is being edited (the rule-file edit dialog) should
      * pass an [Ambient] captured with that file path; `null` (the default)
      * captures an editing-file-less ambient for [ctx.project].
+     * @param entryPath The entry path selecting the seed-prompt shape (design
+     * C9). Defaults to [EntryPath.REACTIVE] so existing callers (plain chat)
+     * are unchanged; `runTaskList` passes
+     * [EntryPath.TASK_LIST_PROGRAMMATIC]. The path only affects which system
+     * messages seed an empty transcript — the loop body is shared.
      */
     suspend fun runTurn(
         userMessage: String,
         memory: AgentMemory,
-        ambient: Ambient? = null
+        ambient: Ambient? = null,
+        entryPath: EntryPath = EntryPath.REACTIVE
     ): TurnOutcome {
-        // First-turn setup: the role/policy preamble is added once at the
-        // start of a conversation (and re-asserted after a reset()).
-        if (memory.messages.isEmpty()) {
-            memory.messages.add(SystemPromptBuilder.build())
-        }
-
-        // PERCEPTION (ambient) — use the caller-supplied perception, or
-        // capture an editing-file-less one for this project.
+        // PERCEPTION (ambient) — captured BEFORE the preamble block because
+        // SystemPromptBuilder.build(entryPath, amb) needs the enabled-feature
+        // sets to filter the derived indexes (design C9 reorder). Use the
+        // caller-supplied perception, or capture an editing-file-less one
+        // for this project.
         val amb = ambient ?: AmbientPerception.capture(ctx.project)
         memory.ambient = amb
+
+        // First-turn setup: the role/policy preamble (and entry-path-specific
+        // indexes for the Reactive path) is added once at the start of a
+        // conversation (and re-asserted after a reset()).
+        if (memory.messages.isEmpty()) {
+            SystemPromptBuilder.build(entryPath, amb).forEach { memory.messages.add(it) }
+        }
+
         memory.messages.add(SystemPromptBuilder.ambient(amb))
         memory.messages.add(AiMessage.User(userMessage))
 
@@ -139,7 +150,15 @@ class RuleAuthoringAgent(
             // Reasoning repetition — check before tool-call dispatch so a
             // looping assistant message is caught even if it carries tool calls.
             when (val v = guard.observeReasoning(assistant)) {
-                is LoopGuard.Verdict.Terminate -> return endLoopDetected(guard, v.reason, memory)
+                is LoopGuard.Verdict.Terminate -> {
+                    // The assistant message may carry tool_calls that now have
+                    // no corresponding tool result messages. Fill in synthetic
+                    // results for ALL of them so the conversation history stays
+                    // valid for the next chat request (the API requires every
+                    // tool_call_id to have a matching tool result message).
+                    assistant.toolCalls?.let { fillSkippedToolResults(it, 0, memory) }
+                    return endLoopDetected(guard, v.reason, memory)
+                }
                 else -> { }
             }
 
@@ -156,7 +175,13 @@ class RuleAuthoringAgent(
             LOG.info("agent step ${step + 1}: model requested ${calls.size} tool call(s): " +
                 calls.joinToString(",") { it.name })
 
-            for (tc in calls!!) {
+            // Mark the start of a new tool-call batch so the LoopGuard's
+            // output-stagnation detector only fires across batch boundaries
+            // (not within a batch of parallel probes).
+            guard.beginBatch()
+
+            for (i in calls.indices) {
+                val tc = calls[i]
                 // Debounce: skip dispatch for provably-identical repeats and
                 // feed an instructive error back to the model instead. The
                 // streak counter still advances via observeResult below.
@@ -166,8 +191,10 @@ class RuleAuthoringAgent(
                         events.emit(AgentEvent.Observed(tc.name, pre.result.summary()))
                         LOG.info("agent tool debounced: ${tc.name}")
                         when (val post = guard.observeResult(tc, pre.result)) {
-                            is LoopGuard.Verdict.Terminate ->
+                            is LoopGuard.Verdict.Terminate -> {
+                                fillSkippedToolResults(calls, i + 1, memory)
                                 return endLoopDetected(guard, post.reason, memory)
+                            }
                             else -> { }
                         }
                         continue
@@ -205,13 +232,20 @@ class RuleAuthoringAgent(
 
                 // Loop detection: consecutive duplicate / call cycle / output stagnation.
                 when (val post = guard.observeResult(tc, result)) {
-                    is LoopGuard.Verdict.Terminate ->
+                    is LoopGuard.Verdict.Terminate -> {
+                        fillSkippedToolResults(calls, i + 1, memory)
                         return endLoopDetected(guard, post.reason, memory)
+                    }
                     else -> { }
                 }
 
-                if (tc.name == PROPOSE_RULE_CONTENT) {
-                    // Terminal action — proposal is staged in working memory.
+                if (tc.name == PROPOSE_RULE_CONTENT || tc.name == REPORT_FINDINGS) {
+                    // Terminal action — proposal is staged in working memory
+                    // (orchestrator via propose_rule_content), or findings are
+                    // staged in the sub-agent result slot (sub-agent via
+                    // report_findings). Each role's tool registry includes
+                    // only its own terminal action, so this check is harmless
+                    // for the other role.
                     return finish(memory)
                 }
             }
@@ -284,9 +318,49 @@ class RuleAuthoringAgent(
         }.getOrDefault(emptyMap())
     }
 
+    /**
+     * Fill in synthetic tool-result messages for tool calls in [calls] that
+     * were not dispatched (indices [startIndex] onward), because the
+     * [LoopGuard] terminated the turn mid-batch.
+     *
+     * The OpenAI API requires every `tool_call_id` in an assistant message to
+     * have a corresponding tool-result message immediately following. When the
+     * guard terminates mid-batch, the remaining tool calls in the batch have
+     * no results — without this fill-in, the next `aiService.chat()` call
+     * fails with "insufficient tool messages following tool_calls message".
+     *
+     * Each skipped call gets a synthetic [ToolResult.Error] explaining that the
+     * turn was terminated; the model sees the error and can adjust on retry.
+     */
+    private fun fillSkippedToolResults(
+        calls: List<com.itangcent.easyapi.core.ai.AiToolCall>,
+        startIndex: Int,
+        memory: AgentMemory
+    ) {
+        if (startIndex >= calls.size) return
+        for (i in startIndex until calls.size) {
+            val tc = calls[i]
+            val skipped = ToolResult.Error(
+                "Tool call skipped: the agent turn was terminated (loop detected) " +
+                    "before this call was dispatched."
+            )
+            memory.messages.add(AiMessage.ToolResult(tc.id, tc.name, skipped.toJson()))
+            LOG.info("agent tool skipped (loop termination): ${tc.name}")
+        }
+    }
+
     companion object {
         /** The terminal staging action's tool name. */
         const val PROPOSE_RULE_CONTENT = "propose_rule_content"
+
+        /**
+         * The sub-agent's terminal action's tool name. Sub-agents stage their
+         * [TaskResult] via `report_findings` (see
+         * [com.itangcent.easyapi.core.ai.tools.ReportFindingsTool]); the
+         * orchestrator's `run_sub_agent` tool awaits it. Terminal for
+         * sub-agents only — never registered in the orchestrator's tool set.
+         */
+        const val REPORT_FINDINGS = "report_findings"
     }
 }
 

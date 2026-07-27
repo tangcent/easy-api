@@ -15,7 +15,11 @@ import com.itangcent.easyapi.core.ai.agent.AgentEvent
 import com.itangcent.easyapi.core.ai.agent.AmbientPerception
 import com.itangcent.easyapi.core.ai.agent.Clarification
 import com.itangcent.easyapi.core.ai.agent.ClarificationAnswers
+import com.itangcent.easyapi.core.ai.agent.EntryPath
 import com.itangcent.easyapi.core.ai.agent.QuestionKind
+import com.itangcent.easyapi.core.ai.agent.Task
+import com.itangcent.easyapi.core.ai.agent.TaskList
+import com.itangcent.easyapi.core.ai.agent.TaskStatus
 import com.itangcent.easyapi.core.ai.agent.TurnOutcome
 import com.itangcent.easyapi.core.config.ConfigReader
 import com.itangcent.easyapi.core.ide.support.NotificationUtils
@@ -37,6 +41,7 @@ import java.awt.Font
 import java.awt.HeadlessException
 import java.awt.Rectangle
 import java.awt.Toolkit
+import java.awt.Window
 import java.awt.event.ActionEvent
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
@@ -49,6 +54,7 @@ import javax.swing.JButton
 import javax.swing.ButtonGroup
 import javax.swing.JCheckBox
 import javax.swing.JComponent
+import javax.swing.JDialog
 import javax.swing.JLabel
 import javax.swing.JOptionPane
 import javax.swing.JPanel
@@ -113,6 +119,26 @@ class AiChatPanel(
     private var turnJob: Job? = null
     private var eventCollectorJob: Job? = null
 
+    /**
+     * Set to `true` by [dispose]. Checked by [offerContinueOrCancel] /
+     * [offerLoopRecovery] before showing a modal dialog, so a panel that is
+     * disposed while a `StepLimitHit` / `LoopDetected` outcome is still
+     * pending on the EDT does not pop a dangling dialog after teardown.
+     */
+    @Volatile
+    private var disposed: Boolean = false
+
+    /**
+     * Test seam: when non-null, [offerContinueOrCancel] delegates to this
+     * instead of showing a modal `JOptionPane`. Lets tests verify the
+     * `StepLimitHit` outcome path without popping a blocking dialog that
+     * would hang the EDT for the rest of the suite. `null` in production.
+     */
+    internal var offerContinueOrCancelHandler: ((ConversationSession) -> Unit)? = null
+
+    /** Test seam for [offerLoopRecovery] — see [offerContinueOrCancelHandler]. */
+    internal var offerLoopRecoveryHandler: ((ConversationSession) -> Unit)? = null
+
     /** The session this panel is bound to (re-resolved on each send). */
     private var session: ConversationSession? = null
 
@@ -141,6 +167,36 @@ class AiChatPanel(
     private var lastLoopTool: String? = null
 
     /**
+     * Tracks the tool name of the most recent [AgentEvent.Perceiving] or
+     * [AgentEvent.Acting] when that tool is `create_task_list` or `update_task`.
+     *
+     * Per design C11's double-emission handling: these two task-list tools emit
+     * both the standard `Perceiving`/`Acting` + `Observed` cards (from the
+     * agent loop) AND a `TaskListCreated`/`Task*` card (from the tool itself via
+     * `ctx.events`). To avoid a noisy double-card transcript, the matching
+     * [AgentEvent.Observed] for these two tools is suppressed — the
+     * `TaskListCreated`/`Task*` event already drives the UI. The field is cleared
+     * on the next non-task-list `Perceiving`/`Acting` and on [AgentEvent.TurnComplete].
+     */
+    private var pendingTaskListToolCallName: String? = null
+
+    /**
+     * Route B ReviewGate arm flag.
+     *
+     * Set by [runReviewTurn] when Magic is invoked on a **non-empty** rule
+     * file. While armed, the next normal [AgentEvent.TurnComplete] renders the
+     * *"Review complete. Continue to detection pass?"* Yes/No card and clears
+     * the flag (so the gate fires at most once per run).
+     *
+     * Cleared without firing on abnormal end ([AgentEvent.Failed],
+     * [AgentEvent.LoopDetected], `TurnOutcome.StepLimitHit`, cancellation, or
+     * thrown turn).
+     *
+     * Not set on empty-file Magic, Chat, or turn-2+ custom messages.
+     */
+    private var reviewGatePending: Boolean = false
+
+    /**
      * Optional hook. When set, a staged proposal
      * card shows an **"Apply to editor"** button that calls this with the
      * proposal content — used by [com.itangcent.easyapi.core.settings.ui.RuleFileEditDialog]
@@ -154,6 +210,23 @@ class AiChatPanel(
      * this — wired by the host to open Settings → EasyApi → AI.
      */
     var onConfigureAi: (() -> Unit)? = null
+
+    /**
+     * Optional hook invoked when the user clicks **Yes** at the ReviewGate
+     * (Route B Stage-2 entry).
+     *
+     * The host reads the file content **at this time** (reflecting any Stage-1
+     * proposal applied in between), builds the detection task list
+     * via `MagicTaskListBuilder.buildDetectionPlan`, and calls back into
+     * [runTaskList] with the **empty-file** detection instruction body
+     * (`MagicInstructionBuilder.detectionInstruction(name, taskList)`). Stage 2 then
+     * runs the same detection-pass contract as Route A.
+     *
+     * When `null`, the gate's Yes button is a no-op (the card still renders
+     * so the user sees the question; only the action is suppressed). Wired
+     * by [com.itangcent.easyapi.core.settings.ui.RuleFileEditDialog].
+     */
+    var onReviewGateYes: (() -> Unit)? = null
 
     // --- UI components ---
 
@@ -251,7 +324,13 @@ class AiChatPanel(
         isVisible = false
     }
 
-    val component: JPanel = JPanel(BorderLayout()).apply {
+    /**
+     * The conversation side of the split: transcript + status + input.
+     * Behaviour is unchanged from v1 — this is the same `JPanel(BorderLayout())`
+     * that used to be the whole `component`, now wrapped as the left pane of
+     * [splitPane] (design R2-C3).
+     */
+    private val conversationPanel: JPanel = JPanel(BorderLayout()).apply {
         add(transcriptScroll, BorderLayout.CENTER)
         val north = JPanel(BorderLayout()).apply {
             add(notConfiguredBanner, BorderLayout.NORTH)
@@ -260,6 +339,96 @@ class AiChatPanel(
         add(north, BorderLayout.NORTH)
         add(inputRow(), BorderLayout.SOUTH)
     }
+
+    /**
+     * The right-side Todo List panel (design R2-C3). Invisible until a task
+     * list arrives via [AgentEvent.TaskListCreated]; populated by
+     * [TodoListPanel.setTaskList] and updated row-by-row on `Task*` events.
+     * Cleared on `resetConversation`.
+     */
+    private val todoListPanel: TodoListPanel = TodoListPanel()
+
+    /**
+     * Horizontal split: conversation (left, 5) + Todo List (right, 3).
+     *
+     * `resizeWeight = 0.625` keeps the 5:3 ratio on window resize. The right
+     * pane is hidden (via [TodoListPanel] visibility) until a task list
+     * arrives, so the layout is visually indistinguishable from v1 for plain
+     * chat.
+     *
+     * **Initial divider location (R3-C1):** `resizeWeight` alone is not
+     * enough on first paint — `JSplitPane` computes the initial divider
+     * position from the children's preferred sizes when the divider location
+     * is unset, which collapses the Todo List to its minimum width until the
+     * first window resize. `addNotify()` sets the divider to `0.625` once,
+     * after the host has sized the pane, so the 5:3 ratio holds from the
+     * first paint. Subsequent resizes are handled by `resizeWeight`.
+     *
+     * **Child-visibility relayout:** `JSplitPane` does NOT recompute its
+     * divider when a child's visibility is toggled from inside the child's
+     * own `revalidate()` — a known Swing pitfall. The pane is initially
+     * laid out with the Todo List hidden, so the divider sits where that
+     * layout left it; flipping the Todo List to visible without telling the
+     * split pane leaves it at zero width (effectively unrendered).
+     * [relayoutForTodoList] is therefore called from
+     * [TodoListPanel.setTaskList] / [clear] whenever visibility changes — it
+     * re-applies the proportional divider and forces the split pane itself
+     * to lay out.
+     */
+    private inner class ChatSplitPane : javax.swing.JSplitPane(
+        javax.swing.JSplitPane.HORIZONTAL_SPLIT,
+        conversationPanel,
+        todoListPanel
+    ) {
+        /** Guards against re-stomping a divider the user has dragged. */
+        private var initialDividerSet = false
+
+        init {
+            dividerSize = 6
+            resizeWeight = 0.625 // 5 / (5 + 3)
+            isOneTouchExpandable = false
+            // The right pane starts hidden; TodoListPanel.setTaskList makes it visible.
+            todoListPanel.isVisible = false
+        }
+
+        override fun addNotify() {
+            super.addNotify()
+            if (!initialDividerSet) {
+                // setDividerLocation(proportional) is only meaningful once the
+                // peer has sized the pane. addNotify fires after the host has
+                // laid the pane out, so the call lands on a real width.
+                setDividerLocation(0.625)
+                initialDividerSet = true
+            }
+        }
+
+        /**
+         * Re-apply the 5:3 divider and force this split pane to lay out, so the
+         * Todo List actually receives width when [TodoListPanel] becomes visible
+         * (and the conversation pane reclaims it when the Todo List is hidden).
+         *
+         * Called whenever the Todo List's visibility changes. `revalidate()` on
+         * the child alone does not move the divider — `JSplitPane`'s layout
+         * manager must run on the pane itself.
+         */
+        fun relayoutForTodoList() {
+            if (todoListPanel.isVisible) {
+                // Re-assert the proportional divider so the now-visible right
+                // pane gets its 3/8 share. Only meaningful once the pane has a
+                // real width; otherwise addNotify's initial set still applies.
+                if (width > 0) {
+                    setDividerLocation(0.625)
+                }
+            }
+            revalidate()
+            repaint()
+        }
+    }
+
+    private val splitPane: ChatSplitPane = ChatSplitPane()
+
+    /** The tool-window host component (the split pane, or just conversation when no plan). */
+    val component: JComponent = splitPane
 
     init {
         refreshConfiguredState()
@@ -331,12 +500,82 @@ class AiChatPanel(
     }
 
     /**
-     * Magic run (issue 3): show a short, constant [displayText] in the
-     * transcript while sending the richer [instruction] (file + project
-     * context) to the agent implicitly.
+     * Programmatic task-list-entry seam (design C10 / task B7, R2-C2).
+     *
+     * Seeds [taskList] into the session's working memory and emits
+     * [AgentEvent.TaskListCreated] *before* the turn starts, so the Todo List
+     * renders in the right-side panel before the first LLM round-trip. Then
+     * drives the turn with [EntryPath.TASK_LIST_PROGRAMMATIC].
+     *
+     * Wired to the Magic button in `RuleFileEditDialog.onMagic` (design
+     * R2-C2): Magic builds a task list with one task per detection pattern via
+     * `MagicTaskListBuilder.buildDetectionPlan()` and passes it here. The agent
+     * executes the seeded task list directly — it is instructed not to call
+     * `create_task_list` itself.
+     *
+     * @param taskList The task list to seed into working memory. Task statuses
+     *   are ignored — the Todo List renders from the task list as-is, then
+     *   `Task*` events update rows as the agent works.
+     * @param displayText What the user sees in the transcript.
+     * @param instruction The rich instruction sent to the agent (file +
+     *   project context).
      */
-    fun runMagic(displayText: String, instruction: String) {
-        startTurn(displayText = displayText, agentMessage = instruction)
+    fun runTaskList(taskList: TaskList, displayText: String, instruction: String) {
+        if (turnJob?.isActive == true) return
+        // Use the already-bound session if available (e.g. bound by a prior
+        // bindSession call or bindSessionForTest in tests); otherwise bind now.
+        val sess = session ?: bindSession() ?: run {
+            // AI not configured — show the banner instead of emitting into a void.
+            refreshConfiguredState()
+            return
+        }
+        sess.memory.taskList = taskList
+        // tryEmit: non-suspending; the session's SharedFlow has a 64-slot
+        // buffer so this never drops. Emitting before startTurn guarantees the
+        // TaskListCreated card renders before the first LLM round-trip.
+        sess.events.tryEmit(AgentEvent.TaskListCreated(taskList))
+        startTurn(
+            displayText = displayText,
+            agentMessage = instruction,
+            entryPath = EntryPath.TASK_LIST_PROGRAMMATIC
+        )
+    }
+
+    /**
+     * Route B Stage-1 entry.
+     *
+     * Starts a single Reactive review turn for a **non-empty** rule file.
+     * Does NOT seed a task list, does NOT emit [AgentEvent.TaskListCreated],
+     * and does NOT use the `TASK_LIST_PROGRAMMATIC` entry path. Arms the
+     * [ReviewGate][reviewGatePending] so the gate fires on the next normal
+     * [AgentEvent.TurnComplete].
+     *
+     * The host ([com.itangcent.easyapi.core.settings.ui.RuleFileEditDialog])
+     * builds [instruction] via
+     * `MagicInstructionBuilder.reviewInstruction(name, content)` — a body that
+     * contains no task-list directive, no `update_task`, and no detection
+     * language. Stage 2 (detection pass) is decided by the gate.
+     *
+     * @param displayText What the user sees in the transcript.
+     * @param instruction The review instruction body (Route B Stage-1 body
+     *   from [com.itangcent.easyapi.core.ai.agent.MagicInstructionBuilder.reviewInstruction]).
+     */
+    fun runReviewTurn(displayText: String, instruction: String) {
+        if (turnJob?.isActive == true) return
+        val sess = session ?: bindSession() ?: run {
+            // AI not configured — show the banner instead of emitting into a void.
+            refreshConfiguredState()
+            return
+        }
+        // Arm the gate — the next normal TurnComplete renders the Yes/No card.
+        // Abnormal end (Failed/LoopDetected/StepLimitHit/cancel) clears it
+        // without firing.
+        reviewGatePending = true
+        startTurn(
+            displayText = displayText,
+            agentMessage = instruction,
+            entryPath = EntryPath.REACTIVE
+        )
     }
 
     private fun sendCurrentInput() {
@@ -364,13 +603,25 @@ class AiChatPanel(
      *
      * The turn runs on [workScope] (background) so it never blocks the EDT or
      * stalls inside a modal dialog; UI updates marshal back via [uiScope].
+     *
+     * @param entryPath The entry path selecting the seed-prompt shape (design
+     * C9). Defaults to [EntryPath.REACTIVE] for plain chat; `runTaskList`
+     * passes [EntryPath.TASK_LIST_PROGRAMMATIC].
      */
-    private fun startTurn(displayText: String, agentMessage: String) {
+    private fun startTurn(
+        displayText: String,
+        agentMessage: String,
+        entryPath: EntryPath = EntryPath.REACTIVE
+    ) {
         if (turnJob?.isActive == true) return
         // Committing to a new turn supersedes any pending proposal — freeze its
         // actions before doing anything else, so a stale card can't be acted on.
         freezeLiveProposalButtons(outdated = true)
-        val sess = bindSession() ?: run {
+        // Use the already-bound session if one is set (runTaskList/runReviewTurn
+        // bind it before calling startTurn; tests bind via bindSessionForTest).
+        // Only fall back to bindSession() — which resolves via AiAssistantService
+        // — when no session is bound yet (plain chat via sendCurrentInput).
+        val sess = session ?: bindSession() ?: run {
             // AI not configured — show the banner instead of a (suppressed) balloon.
             refreshConfiguredState()
             return
@@ -382,30 +633,59 @@ class AiChatPanel(
 
         turnJob = workScope.launch {
             try {
-                val outcome = sess.agent.runTurn(
+                // Phase 3 — pick the orchestrator agent for Magic detection
+                // turns (TASK_LIST_PROGRAMMATIC). The orchestrator has the
+                // split tool set (update_task + run_sub_agent +
+                // propose_rule_content); the Reactive agent has the full set.
+                // Falls back to sess.agent when magicAgent is null (tests
+                // that don't exercise the Magic path).
+                val agent = if (entryPath == EntryPath.TASK_LIST_PROGRAMMATIC) {
+                    sess.magicAgent ?: sess.agent
+                } else {
+                    sess.agent
+                }
+                val outcome = agent.runTurn(
                     agentMessage, sess.memory,
-                    AmbientPerception.capture(project, editingFilePath)
+                    AmbientPerception.capture(project, editingFilePath),
+                    entryPath
                 )
                 ui {
                     when (outcome) {
                         TurnOutcome.Proposed -> statusLabel.text = "Proposal ready — review below."
                         TurnOutcome.Answered -> statusLabel.text = "Ready."
                         TurnOutcome.StepLimitHit -> {
+                            // Abnormal end — clear the ReviewGate arm without
+                            // firing. StepLimitHit does not emit
+                            // TurnComplete, so the gate's TurnComplete handler
+                            // never runs.
+                            reviewGatePending = false
                             statusLabel.text = "Request limit reached."
                             offerContinueOrCancel(sess)
                         }
                         TurnOutcome.LoopDetected -> {
+                            // Defensive: renderEvent(LoopDetected) already
+                            // cleared the arm, but clear again in case the
+                            // event collector hasn't drained yet.
+                            reviewGatePending = false
                             statusLabel.text = "Agent appears stuck."
                             offerLoopRecovery(sess)
                         }
                     }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
-                ui { statusLabel.text = "Cancelled." }
+                ui {
+                    statusLabel.text = "Cancelled."
+                    // Cancellation is an abnormal end — clear the arm without firing.
+                    reviewGatePending = false
+                }
                 throw e
             } catch (e: Throwable) {
                 LOG.warn("AI agent turn failed", e)
-                ui { statusLabel.text = "Failed: ${e.message}" }
+                ui {
+                    statusLabel.text = "Failed: ${e.message}"
+                    // Thrown turn is an abnormal end — clear the arm without firing.
+                    reviewGatePending = false
+                }
             } finally {
                 ui { setRunning(false) }
             }
@@ -440,14 +720,28 @@ class AiChatPanel(
             }
             is AgentEvent.Perceiving -> {
                 statusLabel.text = "Perceiving ${ev.tool}…"
+                // Track task-list-tool calls so the matching Observed can be
+                // suppressed (design C11 double-emission handling). The
+                // Perceiving card itself is still rendered — only the
+                // redundant Observed line is dropped.
+                pendingTaskListToolCallName = if (ev.tool == CREATE_TASK_LIST || ev.tool == UPDATE_TASK) ev.tool else null
                 appendToolActivityCard("🔍", ev.tool, ev.args, null)
             }
             is AgentEvent.Acting -> {
                 statusLabel.text = "Acting ${ev.tool}…"
+                pendingTaskListToolCallName = if (ev.tool == CREATE_TASK_LIST || ev.tool == UPDATE_TASK) ev.tool else null
                 appendToolActivityCard("⚙", ev.tool, ev.args, null)
             }
             is AgentEvent.Observed -> {
-                appendToolObservation(ev.tool, ev.resultSummary)
+                // Suppress the redundant Observed line for create_task_list /
+                // update_task — the TaskListCreated / Task* event already drives
+                // the UI (design C11). Clear the tracker either way.
+                val suppress = pendingTaskListToolCallName == ev.tool &&
+                    (ev.tool == CREATE_TASK_LIST || ev.tool == UPDATE_TASK)
+                pendingTaskListToolCallName = null
+                if (!suppress) {
+                    appendToolObservation(ev.tool, ev.resultSummary)
+                }
                 statusLabel.text = "Ready."
             }
             is AgentEvent.ApprovalRequested -> {
@@ -467,6 +761,8 @@ class AiChatPanel(
             }
             is AgentEvent.Failed -> {
                 statusLabel.text = "Failed: ${ev.reason}"
+                // Abnormal end — clear the ReviewGate arm without firing.
+                reviewGatePending = false
                 NotificationUtils.notifyError(
                     project,
                     "EasyApi AI Assistant",
@@ -479,12 +775,48 @@ class AiChatPanel(
                 // TurnOutcome.LoopDetected branch after the turn ends.
                 lastLoopReason = ev.reason
                 lastLoopTool = ev.tool
+                // Abnormal end — clear the ReviewGate arm without firing.
+                reviewGatePending = false
             }
             is AgentEvent.Retrying -> {
                 statusLabel.text = "Retrying chat (attempt ${ev.attempt}/${ev.maxRetries})…"
             }
+            // Phase B task-list lifecycle (design C11, R2-C3) — Todo List panel.
+            is AgentEvent.TaskListCreated -> {
+                statusLabel.text = "Task list committed (${ev.taskList.tasks.size} tasks)."
+                todoListPanel.setTaskList(ev.taskList)
+            }
+            is AgentEvent.TaskStarted -> {
+                statusLabel.text = "Working task ${ev.taskId}…"
+                todoListPanel.updateTask(ev.taskId, TaskStatus.IN_PROGRESS)
+            }
+            is AgentEvent.TaskCompleted -> {
+                statusLabel.text = "Task ${ev.taskId} completed."
+                todoListPanel.updateTask(ev.taskId, TaskStatus.COMPLETED)
+            }
+            is AgentEvent.TaskFailed -> {
+                statusLabel.text = "Task ${ev.taskId} failed: ${ev.reason}"
+                todoListPanel.updateTask(ev.taskId, TaskStatus.FAILED)
+            }
+            is AgentEvent.TaskSkipped -> {
+                statusLabel.text = "Task ${ev.taskId} skipped."
+                todoListPanel.updateTask(ev.taskId, TaskStatus.SKIPPED)
+            }
             AgentEvent.TurnComplete -> {
                 // Turn finished — status already updated in sendCurrentInput.
+                // The Todo List stays visible so the user can review what was
+                // done; it is cleared on `resetConversation`. Clear the
+                // redundant-tool-card suppression tracker.
+                pendingTaskListToolCallName = null
+                // Route B ReviewGate: on normal
+                // TurnComplete while armed, render the Yes/No card exactly
+                // once and clear the arm. Abnormal ends (Failed/LoopDetected/
+                // StepLimitHit) clear the arm without firing (handled above
+                // and in startTurn's outcome branch).
+                if (reviewGatePending) {
+                    reviewGatePending = false
+                    appendReviewGateCard()
+                }
             }
         }
         scrollToBottom()
@@ -566,6 +898,159 @@ class AiChatPanel(
         transcriptBox.add(obs)
     }
 
+    /**
+     * The right-side Todo List panel (design R2-C3). Replaces the v1
+     * in-transcript `PlanCard`: the task list lives in a persistent side panel
+     * so it stops pushing conversation off-screen.
+     *
+     * One row per [Task], **real [JCheckBox]** + title, updating live as
+     * `Task*` events arrive. The checkbox reflects COMPLETED (selected) vs
+     * all other states (not selected); the title's foreground colour carries
+     * the finer status:
+     *
+     * - PENDING — checkbox off, normal text
+     * - IN_PROGRESS — checkbox off, blue text
+     * - COMPLETED — checkbox on, normal text
+     * - FAILED — checkbox off, red text
+     * - SKIPPED — checkbox off, gray text
+     *
+     * The checkboxes are display-only (the agent drives status updates); user
+     * clicks are absorbed so the check state always matches the agent's
+     * [TaskStatus].
+     *
+     * The panel is invisible until [setTaskList] is called (i.e. a task list
+     * is committed via [AgentEvent.TaskListCreated]). [clear] hides it again —
+     * used by `resetConversation` (New Conversation button).
+     */
+    private inner class TodoListPanel : JPanel(BorderLayout()) {
+        private val rowsBox: JPanel = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+        }
+        private val checkboxes: MutableMap<String, JCheckBox> = mutableMapOf()
+        private val titles: MutableMap<String, JLabel> = mutableMapOf()
+        // Status per task — kept in sync with the checkbox + title colour so
+        // test helpers can resolve a glyph even though the UI now uses real
+        // JCheckBoxes (which only expose a binary selected state).
+        private val statuses: MutableMap<String, TaskStatus> = mutableMapOf()
+
+        init {
+            border = EmptyBorder(6, 8, 6, 8)
+            add(JLabel("Todo List").apply {
+                font = font.deriveFont(Font.BOLD)
+                border = EmptyBorder(0, 0, 4, 0)
+            }, BorderLayout.NORTH)
+            add(JBScrollPane(
+                rowsBox,
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+            ), BorderLayout.CENTER)
+            isVisible = false
+        }
+
+        /** Rebuild the row list from [taskList] and make the panel visible. */
+        fun setTaskList(taskList: TaskList) {
+            rowsBox.removeAll()
+            checkboxes.clear()
+            titles.clear()
+            statuses.clear()
+            if (taskList.tasks.isEmpty()) {
+                rowsBox.add(JLabel("No detection tasks").apply {
+                    foreground = Color.GRAY
+                    border = EmptyBorder(2, 2, 2, 2)
+                })
+            } else {
+                for (task in taskList.tasks) {
+                    statuses[task.id] = task.status
+                    val cb = JCheckBox().apply {
+                        isOpaque = false
+                        isFocusPainted = false
+                        isFocusable = false
+                        isBorderPainted = false
+                        isContentAreaFilled = false
+                        // Display-only: absorb clicks so the check state always
+                        // matches the agent's TaskStatus (issue: user clicks
+                        // must not toggle the visual state).
+                        isEnabled = false
+                        isSelected = task.status == TaskStatus.COMPLETED
+                    }
+                    val title = JLabel(task.title).apply {
+                        foreground = statusForeground(task.status)
+                        if (task.detail != null) toolTipText = task.detail
+                    }
+                    val taskRow = JPanel(BorderLayout(4, 0)).apply {
+                        isOpaque = false
+                        border = EmptyBorder(1, 0, 1, 0)
+                        add(cb, BorderLayout.WEST)
+                        add(title, BorderLayout.CENTER)
+                    }
+                    rowsBox.add(taskRow)
+                    checkboxes[task.id] = cb
+                    titles[task.id] = title
+                }
+            }
+            isVisible = true
+            // JSplitPane does not move its divider when a child flips visible
+            // inside its own revalidate(); tell the split pane to re-layout so
+            // the Todo List actually receives width.
+            splitPane.relayoutForTodoList()
+        }
+
+        /** Update the checkbox + title colour for [taskId]. */
+        fun updateTask(taskId: String, status: TaskStatus) {
+            val cb = checkboxes[taskId] ?: return
+            val title = titles[taskId] ?: return
+            statuses[taskId] = status
+            cb.isSelected = status == TaskStatus.COMPLETED
+            title.foreground = statusForeground(status)
+            cb.repaint()
+            title.repaint()
+        }
+
+        /** Empty the row list and hide the panel. */
+        fun clear() {
+            rowsBox.removeAll()
+            checkboxes.clear()
+            titles.clear()
+            statuses.clear()
+            isVisible = false
+            // Symmetric to setTaskList: let the split pane reclaim the right
+            // pane's width for the conversation side.
+            splitPane.relayoutForTodoList()
+        }
+
+        /** Whether the checkbox for [taskId] is selected (test-only). */
+        internal fun checkBoxSelectedForTest(taskId: String): Boolean? =
+            checkboxes[taskId]?.isSelected
+
+        /**
+         * Status glyph for [taskId] (test-only). Mirrors the pre-checkbox
+         * glyphs so existing tests keep working after the real-JCheckBox
+         * refactor: `[ ]` PENDING, `[~]` IN_PROGRESS, `[X]` COMPLETED,
+         * `[!]` FAILED, `[-]` SKIPPED. Returns `null` when the task id is
+         * unknown or no task list is active.
+         */
+        internal fun glyphForTest(taskId: String): String? {
+            val status = statuses[taskId] ?: return null
+            return when (status) {
+                TaskStatus.PENDING -> "[ ]"
+                TaskStatus.IN_PROGRESS -> "[~]"
+                TaskStatus.COMPLETED -> "[X]"
+                TaskStatus.FAILED -> "[!]"
+                TaskStatus.SKIPPED -> "[-]"
+            }
+        }
+
+        /** Foreground colour for a [TaskStatus]. */
+        private fun statusForeground(status: TaskStatus): Color = when (status) {
+            TaskStatus.PENDING -> JBColor.foreground()
+            TaskStatus.IN_PROGRESS -> JBColor(Color(0, 0, 180), Color(120, 160, 255))
+            TaskStatus.COMPLETED -> JBColor.foreground()
+            TaskStatus.FAILED -> JBColor(Color(180, 0, 0), Color(255, 120, 120))
+            TaskStatus.SKIPPED -> Color.GRAY
+        }
+    }
+
     private fun appendApprovalCard(tool: String, args: String) {
         val sess = session ?: return
         val row = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2)).apply {
@@ -618,6 +1103,49 @@ class AiChatPanel(
         }
         row.add(approveBtn)
         row.add(rejectBtn)
+        transcriptBox.add(row)
+        transcriptBox.add(Box.createVerticalStrut(2))
+    }
+
+    /**
+     * Render the Route B ReviewGate card.
+     *
+     * Fired exactly once by the [AgentEvent.TurnComplete] handler while
+     * [reviewGatePending] is armed. Presents *"Review complete. Continue to
+     * detection pass?"* with **Yes / No** buttons:
+     *
+     * - **Yes** — invokes [onReviewGateYes], which reads the file content at
+     *   this time, builds the detection task list, and calls [runTaskList]
+     *   with the empty-file detection instruction. Stage 2
+     *   then runs the same detection-pass contract as Route A.
+     * - **No** — terminates; no Stage 2. The Stage-1 outcome
+     *   (proposal or answer) stands as-is.
+     *
+     * Either button collapses the card. The arm flag is already cleared by
+     * the caller (the TurnComplete handler), so the gate cannot re-fire.
+     */
+    private fun appendReviewGateCard() {
+        val row = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2)).apply {
+            border = EmptyBorder(6, 12, 6, 6)
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+        row.add(JLabel("✨ Review complete. Continue to detection pass?"))
+        val yesBtn = JButton("Yes").apply {
+            toolTipText = "Run the detection pass (same as Magic on an empty file)"
+            addActionListener {
+                row.isVisible = false
+                onReviewGateYes?.invoke()
+            }
+        }
+        val noBtn = JButton("No").apply {
+            toolTipText = "Keep the review outcome as-is; do not run detections"
+            addActionListener {
+                // No Stage 2 — terminate.
+                row.isVisible = false
+            }
+        }
+        row.add(yesBtn)
+        row.add(noBtn)
         transcriptBox.add(row)
         transcriptBox.add(Box.createVerticalStrut(2))
     }
@@ -905,6 +1433,9 @@ class AiChatPanel(
         AiAssistantService.getInstance(project).resetConversation()
         session = null
         liveProposalButtonPanel = null
+        todoListPanel.clear()
+        pendingTaskListToolCallName = null
+        reviewGatePending = false
         transcriptBox.removeAll()
         transcriptBox.revalidate()
         transcriptBox.repaint()
@@ -912,6 +1443,11 @@ class AiChatPanel(
     }
 
     private fun offerContinueOrCancel(sess: ConversationSession) {
+        if (disposed) return
+        // Test seam: when set, skip the modal dialog (which would block the
+        // EDT and hang subsequent tests). Used by AiChatPanelTest to verify
+        // the StepLimitHit outcome without popping a real JOptionPane.
+        offerContinueOrCancelHandler?.let { it(sess); return }
         val options = arrayOf("Continue", "Cancel")
         val choice = JOptionPane.showOptionDialog(
             null,
@@ -954,6 +1490,8 @@ class AiChatPanel(
      * Recovery is user-initiated; there is no auto-retry.
      */
     private fun offerLoopRecovery(sess: ConversationSession) {
+        if (disposed) return
+        offerLoopRecoveryHandler?.let { it(sess); return }
         val tool = lastLoopTool
         val dialogText = if (tool != null) {
             "The agent was repeating the same action ($tool). Retry with guidance, or stop?"
@@ -1002,10 +1540,21 @@ class AiChatPanel(
     }
 
     override fun dispose() {
+        disposed = true
         cancelRunningTurn()
         eventCollectorJob?.cancel()
         uiScope.cancel()
         workScope.cancel()
+        // Dismiss any modal dialog opened by offerContinueOrCancel /
+        // offerLoopRecovery (StepLimitHit / LoopDetected outcomes).
+        // JOptionPane.showOptionDialog is a blocking native call that survives
+        // coroutine-scope cancellation — without this, a disposed panel can
+        // leave a dangling modal dialog that blocks the EDT for all subsequent
+        // UI operations.
+        Window.getWindows()
+            .filterIsInstance<JDialog>()
+            .filter { it.isShowing }
+            .forEach { it.dispose() }
     }
 
     // --- Test helpers ---
@@ -1017,6 +1566,33 @@ class AiChatPanel(
 
     /** Number of components in the transcript (test-only). */
     internal fun transcriptComponentCount(): Int = transcriptBox.componentCount
+
+    /**
+     * The split pane's divider location in pixels, or `-1` when the divider
+     * has not been positioned yet (test-only — used to verify R3-C1's
+     * `addNotify` initial-divider-set).
+     */
+    internal fun splitPaneDividerLocationForTest(): Int = splitPane.dividerLocation
+
+    /** The split pane's total width (test-only). */
+    internal fun splitPaneWidthForTest(): Int = splitPane.width
+
+    /**
+     * The split pane's divider size in pixels (test-only). `setDividerLocation(double)`
+     * factors this out of the available space, so tests that assert on the resulting
+     * pixel location must use `(width - dividerSize) * proportion` as the expected value.
+     */
+    internal fun splitPaneDividerSizeForTest(): Int = splitPane.dividerSize
+
+    /**
+     * Current glyph text for [taskId] in the live [TodoListPanel], or `null`
+     * when no task list is active / the task id is unknown (test-only).
+     */
+    internal fun taskListGlyphForTest(taskId: String): String? =
+        todoListPanel.glyphForTest(taskId)
+
+    /** Whether the Todo List side panel is currently visible (test-only). */
+    internal fun isTodoListPanelVisibleForTest(): Boolean = todoListPanel.isVisible
 
     /** Bind a pre-built session without going through the service (test-only). */
     internal fun bindSessionForTest(sess: ConversationSession) {
@@ -1048,6 +1624,48 @@ class AiChatPanel(
         return true
     }
 
+    // --- Route B ReviewGate test helpers ---
+
+    /** Test-only: whether the ReviewGate arm flag is currently set. */
+    internal fun isReviewGatePendingForTest(): Boolean = reviewGatePending
+
+    /**
+     * Test-only: set the ReviewGate arm flag directly (without driving a full
+     * `runReviewTurn`). Used by gate-rendering tests that drive events via
+     * [renderEventForTest] rather than starting a real agent turn.
+     */
+    internal fun armReviewGateForTest() {
+        reviewGatePending = true
+    }
+
+    /**
+     * Test-only: click the "Yes" button on a rendered ReviewGate card.
+     * Returns false if no such button is present.
+     */
+    internal fun clickReviewGateYesForTest(): Boolean {
+        val btn = findButtonByText(component, "Yes") ?: return false
+        btn.doClick()
+        return true
+    }
+
+    /**
+     * Test-only: click the "No" button on a rendered ReviewGate card.
+     * Returns false if no such button is present.
+     */
+    internal fun clickReviewGateNoForTest(): Boolean {
+        val btn = findButtonByText(component, "No") ?: return false
+        btn.doClick()
+        return true
+    }
+
+    /**
+     * Test-only: whether a ReviewGate card (containing the "Continue to
+     * detection pass?" label) is currently rendered in the transcript.
+     */
+    internal fun isReviewGateCardRenderedForTest(): Boolean {
+        return findLabelContaining(component, "Continue to detection pass?") != null
+    }
+
     /** Test-only: set the input text then trigger a send (typed-reply path). */
     internal fun typeAndSendForTest(text: String) {
         inputArea.text = text
@@ -1064,10 +1682,25 @@ class AiChatPanel(
         return null
     }
 
+    /** Recursively find a JLabel whose text contains [substring] (test-only). */
+    private fun findLabelContaining(c: Component, substring: String): JLabel? {
+        if (c is JLabel && c.text?.contains(substring) == true) return c
+        if (c is java.awt.Container) {
+            for (child in c.components) {
+                findLabelContaining(child, substring)?.let { return it }
+            }
+        }
+        return null
+    }
+
     private companion object {
         /** Theme-aware chat bubble backgrounds (light, dark). */
         val USER_BUBBLE = JBColor(Color(0xE8, 0xF0, 0xFE), Color(0x2B, 0x3A, 0x55))
         val ASSISTANT_BUBBLE = JBColor(Color(0xF2, 0xF2, 0xF2), Color(0x3C, 0x3F, 0x41))
+
+        /** Tool names whose `Observed` card is suppressed (design C11). */
+        const val CREATE_TASK_LIST = "create_task_list"
+        const val UPDATE_TASK = "update_task"
     }
 }
 

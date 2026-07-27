@@ -29,11 +29,19 @@ Invoke this skill when:
 
 ## Bundled Knowledge Base (read these first — they ARE the built-in agent's docs)
 
-This skill ships the **same knowledge-base pages** the plugin bundles for its
-built-in agent's `get_plugin_doc` tool, copied verbatim into the bundled
-`docs/` folder next to `SKILL.md`. They are kept in sync by the
-`syncKnowledgeBase` Gradle task in the easy-api repo, so the rule content the
-built-in and external agents produce is identical. Always read the relevant
+This skill ships **two** verbatim mirrors of the in-plugin agent's
+authoritative sources, kept in sync by Gradle tasks in the easy-api repo:
+
+1. **`docs/`** — the long-form knowledge-base pages the plugin bundles for its
+   built-in agent's `get_plugin_doc` tool. Kept in sync by the
+   `syncKnowledgeBase` Gradle task.
+2. **`ai/detection/` + `ai/rules/`** — the per-detection / per-key recipe
+   catalog the in-plugin agent loads via `PromptCatalog` (the same files
+   `get_detection_prompt` and `get_rule_detail` read at runtime). Kept in sync
+   by the `syncAgentCatalog` Gradle task.
+
+Both mirrors are content-equality-checked and idempotent, so the rule content
+the built-in and external agents produce is identical. Always read the relevant
 page first — do **not** rely on memory or guess syntax.
 
 | Bundled file | Built-in `get_plugin_doc` name | What it covers |
@@ -84,6 +92,49 @@ scripts/read_rule_file.sh project:custom.rules
 scripts/get_existing_rules_for_key.sh field.name
 scripts/get_existing_rules_for_key.sh method.doc method.additional.header
 ```
+
+### Catalog recipe tools (mirrors of in-plugin `get_detection_prompt` / `get_rule_detail`)
+
+The built-in agent's decomposed prompt catalog (Phase A of the in-plugin
+agent) lives under `src/main/resources/ai/{detection,rules}/` in the easy-api
+repo. This skill ships a verbatim copy under `ai/{detection,rules}/` next to
+`SKILL.md`, kept in sync by the `syncAgentCatalog` Gradle task. Four CLI
+scripts mirror the in-plugin perception tools that read that catalog — same
+id space, same body content, same error shape — so your workflow tracks the
+in-plugin agent's exactly.
+
+| Built-in tool | Your equivalent | What it does |
+|---------------|-----------------|--------------|
+| `get_detection_prompt` | `scripts/get_detection_prompt.sh <id>` | Fetches the full detection recipe for one detection family by id (e.g. `spring-filters-interceptors`, `static-auth`). Strips the YAML front-matter; prints the markdown body. Unknown id → `error: unknown detection id: <id>` on stderr, exit 1. |
+| `get_rule_detail` (by-key path) | `scripts/get_rule_detail.sh <key>` | Fetches the full per-key rule recipe by rule key (e.g. `postman.test`, `method.additional.header`). Strips the YAML front-matter; prints the body. Unknown key → `error: unknown rule key: <key>` on stderr, exit 1. |
+| `SystemPromptBuilder.indexMessage("detection")` | `scripts/list_detections.sh` | Lists every detection family: `id — title: cue` per file (lexicographic by filename). |
+| `SystemPromptBuilder.indexMessage("rules")` | `scripts/list_rule_details.sh` | Lists every per-key rule recipe: `key — title: cue` per file. Complements (does NOT replace) `docs/rule-keys.md`, which lists every supported rule key including those without a per-key recipe file. |
+
+**Usage examples:**
+```bash
+# Discover which detection families exist before proposing rules
+scripts/list_detections.sh
+
+# Fetch the recipe for one detection family
+scripts/get_detection_prompt.sh spring-filters-interceptors
+scripts/get_detection_prompt.sh static-auth
+
+# Discover which per-key rule recipes exist
+scripts/list_rule_details.sh
+
+# Fetch the recipe for one rule key (before drafting a rule for that key)
+scripts/get_rule_detail.sh postman.test
+scripts/get_rule_detail.sh method.additional.header
+```
+
+**Catalog recipe access priority** (mirrors the in-plugin agent's
+`agent-base.md`): for a detection-family question, the **preferred first
+stop** is `scripts/get_detection_prompt.sh <id>`; for a per-key recipe
+question, the **preferred first stop** is `scripts/get_rule_detail.sh <key>`.
+The long-form `docs/rule-guide.md` stays the reference for cross-cutting
+context (Workflow Patterns, Multi-Application Namespace, the full
+filter-prefix table). Memory is **never** a substitute for the catalog —
+always read the recipe before drafting.
 
 ### General codebase-perception tools (your file/grep capabilities)
 
@@ -143,19 +194,44 @@ three keys at once. Prefer the combined form.
 
 Work in a **perceive → reason → act** loop, mirroring the built-in agent.
 
-### Step 1: Perceive — read the authoritative guide
+### Step 1: Perceive — fetch the per-recipe catalog entry, then the long-form guide
 
-Read the bundled `docs/rule-guide.md` first. It is the source of truth for
-the rule file format, the full rule-key catalog, filter syntax, expression
-prefixes, recipes, and the Custom-Pattern Catalog. If the topic is
-settings/usage/scripting rather than rules, read the corresponding bundled
-page instead.
+The in-plugin agent's decomposed prompt catalog is the **preferred first
+stop** for any detection-family or per-key recipe question. This skill
+mirrors that catalog and exposes it via CLI scripts — use them before
+opening the long-form guide.
+
+- For a **detection family** (filters, interceptors, response wrappers,
+  argument resolvers, custom frameworks, auth chaining, HMAC signing, …):
+  ```bash
+  scripts/list_detections.sh                       # discover the families
+  scripts/get_detection_prompt.sh spring-filters-interceptors   # fetch one recipe
+  ```
+- For a **per-key rule recipe** (a specific rule key like `postman.test` or
+  `method.additional.header`):
+  ```bash
+  scripts/list_rule_details.sh                     # discover the keys with recipes
+  scripts/get_rule_detail.sh postman.test          # fetch one recipe
+  ```
+
+The long-form `docs/rule-guide.md` is the **reference for cross-cutting
+context**: the full rule file format, the full rule-key catalog, the complete
+filter-prefix table, the Workflow-Pattern Catalog (cross-endpoint
+auth/signing/refresh recipes), and the Multi-Application Namespace section.
+Read it after the per-recipe entry when you need that broader context —
+not instead of it.
+
+If the topic is settings/usage/scripting rather than rules, read the
+corresponding bundled `docs/` page instead (no per-recipe catalog exists
+for those topics).
 
 ### Step 2: Perceive — find the right rule key
 
-If the rule key isn't obvious from the guide, scan the bundled `docs/rule-keys.md`
-catalog. **Never invent keys not in that catalog** — unknown keys are silently
-ignored by the plugin's config loader.
+If the rule key isn't obvious from the catalog or guide, scan the bundled
+`docs/rule-keys.md` catalog (the snapshot of `RuleKeys.kt`). Cross-check
+against `scripts/list_rule_details.sh` to see whether a per-key recipe file
+exists for it. **Never invent keys not in the `docs/rule-keys.md`
+catalog** — unknown keys are silently ignored by the plugin's config loader.
 
 ### Step 3: Perceive — inspect existing rules
 
@@ -178,15 +254,26 @@ global folder, which overrides the built-in rules.
 
 **Most projects do not need custom rules.** EasyApi understands standard HTTP
 frameworks (Spring MVC, WebFlux, JAX-RS, Feign) out of the box. Before
-proposing a rule, scan the project for the **Custom-Pattern Catalog** signals
-documented in the bundled `docs/rule-guide.md` (section "Custom-Pattern Catalog").
+proposing a rule, scan the project for the **detection catalog** signals —
+each detection family in `scripts/list_detections.sh` has a full recipe in
+`ai/detection/<id>.md` (read via `scripts/get_detection_prompt.sh <id>`)
+that lists the exact signals to look for.
+
+```bash
+# Discover every detection family the in-plugin agent knows
+scripts/list_detections.sh
+
+# Fetch the recipe for one family before scanning the codebase
+scripts/get_detection_prompt.sh spring-filters-interceptors
+scripts/get_detection_prompt.sh custom-framework
+```
 
 Use the discovery patterns under "General codebase-perception tools" above —
 `find_classes_by_supertype` (your `extends`/`implements` scan) is the most
 common blind spot, since annotation-only scans miss inheritance-declared
 components. For each candidate, ask: *does it change the request/response
-contract invisibly?* If yes, apply the catalog recipe. If no, no rule is
-needed.
+contract invisibly?* If yes, fetch the matching detection recipe and apply
+its rule(s). If no, no rule is needed.
 
 ### Step 5: Reason — is a rule actually needed?
 
@@ -385,10 +472,12 @@ AI assistant, briefly explain:
   gives the assistant the same workflow, mapping each built-in PSI tool to a
   CLI equivalent. Best for users already invested in an external AI workflow.
 
-Both approaches share the same knowledge base (the built-in agent reads it
-from the plugin JAR via `get_plugin_doc`; this skill ships a verbatim copy,
-kept in sync by the `syncKnowledgeBase` Gradle task), so the rule content
-they produce is consistent.
+Both approaches share the same knowledge base and recipe catalog: the
+built-in agent reads them from the plugin JAR (`get_plugin_doc` for the
+long-form pages, `get_detection_prompt` / `get_rule_detail` for the
+per-recipe catalog); this skill ships verbatim copies of both, kept in sync
+by the `syncKnowledgeBase` and `syncAgentCatalog` Gradle tasks. So the rule
+content they produce is consistent.
 
 ## What This Skill Does NOT Do
 
@@ -412,8 +501,14 @@ they produce is consistent.
 - `docs/rule-keys.md` — complete rule-key catalog (snapshot of `RuleKeys.kt`).
 - `docs/index.md`, `docs/README.md`, `docs/settings-guide.md`, `docs/usage-guide.md`,
   `docs/easyapi-script-reference.md` — the rest of the knowledge base.
+- `ai/detection/*.md` — per-detection-family recipe catalog (verbatim mirror of
+  the in-plugin agent's `src/main/resources/ai/detection/`). Read via
+  `scripts/get_detection_prompt.sh <id>`; listed by `scripts/list_detections.sh`.
+- `ai/rules/*.md` — per-key rule recipe catalog (verbatim mirror of the in-plugin
+  agent's `src/main/resources/ai/rules/`). Read via `scripts/get_rule_detail.sh <key>`;
+  listed by `scripts/list_rule_details.sh`.
 - `scripts/` — CLI tools mirroring the built-in AI perception tools (see
-  "EasyApi-domain tools" above).
+  "EasyApi-domain tools" and "Catalog recipe tools" above).
 
 Plugin home: https://github.com/tangcent/easy-api
 
@@ -423,19 +518,24 @@ User asks: "Add a rule that renames the `createTime` field to `created_at`
 in all exported APIs."
 
 Workflow:
-1. Read the bundled `docs/rule-guide.md` — find the field-rename section / the
+1. Check whether a per-key recipe exists for `field.name`:
+   ```bash
+   scripts/get_rule_detail.sh field.name        # → "error: unknown rule key" (no recipe file)
+   ```
+   No per-key recipe — fall back to the long-form guide.
+2. Read the bundled `docs/rule-guide.md` — find the field-rename section / the
    `field.name` key.
-2. Check the bundled `docs/rule-keys.md` — confirm the key is `field.name` (alias
+3. Check the bundled `docs/rule-keys.md` — confirm the key is `field.name` (alias
    `json.rule.field.name`), mode `replace`.
-3. **Run `scripts/get_existing_rules_for_key.sh field.name`** — confirm no
+4. **Run `scripts/get_existing_rules_for_key.sh field.name`** — confirm no
    `field.name` rule already covers this.
-4. Open (or create) `<project>/.easyapi/field.rules`.
-5. Draft (using the correct `key[filter]=value` format; a field rename map
+5. Open (or create) `<project>/.easyapi/field.rules`.
+6. Draft (using the correct `key[filter]=value` format; a field rename map
    is a JSON object value with no filter):
    ```
    field.name={"createTime":"created_at"}
    ```
-6. Show the user the diff and apply on confirmation.
+7. Show the user the diff and apply on confirmation.
 
 ## Forbidden Patterns
 

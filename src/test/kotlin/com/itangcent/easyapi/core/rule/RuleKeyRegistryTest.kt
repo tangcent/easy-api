@@ -113,7 +113,7 @@ class RuleKeyRegistryTest {
         // If an implicit key name collides with a general key name, the
         // implicit entry is dropped (general takes precedence). Verify the
         // dedup guard works for the implicit stage too by constructing a
-        // scenario with a fake general-key collision — but since
+        // scenario with a fake general-key collisions — but since
         // IMPLICIT_KEYS is fixed and doesn't collide with RuleKeys today,
         // we just assert the implicit keys are all present (no collision).
         val keys = RuleKeyRegistry.assembleKeys(emptyList())
@@ -121,6 +121,209 @@ class RuleKeyRegistryTest {
         assertEquals(
             RuleKeyRegistry.IMPLICIT_KEYS.size,
             implicitCount
+        )
+    }
+
+    // ===============================================================
+    // isEnabledSource — pure enablement resolution (design C4a + AC-S4)
+    // ===============================================================
+
+    private fun info(name: String, source: String): RuleKeyRegistry.RuleKeyInfo =
+        RuleKeyRegistry.RuleKeyInfo(RuleKey.string(name), source)
+
+    private val emptySets = emptySet<String>()
+    private val postmanEnabled = setOf("postman")
+    private val markdownEnabled = setOf("markdown")
+    private val allChannels = setOf("postman", "markdown", "curl")
+    private val allFrameworks = setOf("Custom", "SpringMVC")
+
+    // --- General keys ---
+
+    @Test
+    fun isEnabledSource_generalKeyNoChannelPrefix_alwaysEnabled() {
+        // api.name has no channel prefix → enabled regardless of channel state.
+        assertTrue(
+            RuleKeyRegistry.isEnabledSource(
+                info("api.name", "general"),
+                enabledChannelIds = emptySets,
+                allChannelIds = allChannels,
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = allFrameworks
+            )
+        )
+    }
+
+    @Test
+    fun isEnabledSource_generalKeyWithChannelPrefix_channelEnabled_returnsTrue() {
+        // postman.test starts with "postman." → owned by postman channel.
+        assertTrue(
+            RuleKeyRegistry.isEnabledSource(
+                info("postman.test", "general"),
+                enabledChannelIds = postmanEnabled,
+                allChannelIds = allChannels,
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = allFrameworks
+            )
+        )
+    }
+
+    @Test
+    fun isEnabledSource_generalKeyWithChannelPrefix_channelDisabled_returnsFalse() {
+        // AC-S4: postman.* keys are filtered when Postman is disabled.
+        assertFalse(
+            RuleKeyRegistry.isEnabledSource(
+                info("postman.test", "general"),
+                enabledChannelIds = emptySets,
+                allChannelIds = allChannels,
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = allFrameworks
+            )
+        )
+    }
+
+    @Test
+    fun isEnabledSource_generalKeyWithChannelPrefix_unknownChannel_notFiltered() {
+        // If the channel is not registered (not in allChannelIds), the
+        // prefix check does not apply — the key stays enabled.
+        assertTrue(
+            RuleKeyRegistry.isEnabledSource(
+                info("postman.test", "general"),
+                enabledChannelIds = emptySets,
+                allChannelIds = emptySets,
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = allFrameworks
+            )
+        )
+    }
+
+    // --- Implicit keys (also subject to channel prefix check) ---
+
+    @Test
+    fun isEnabledSource_implicitKeyWithChannelPrefix_channelDisabled_returnsFalse() {
+        // markdown.template.url.ttl.seconds is implicit but markdown-owned.
+        assertFalse(
+            RuleKeyRegistry.isEnabledSource(
+                info("markdown.template.url.ttl.seconds", "implicit"),
+                enabledChannelIds = emptySets,
+                allChannelIds = setOf("markdown"),
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = emptySets
+            )
+        )
+    }
+
+    @Test
+    fun isEnabledSource_implicitKeyWithChannelPrefix_channelEnabled_returnsTrue() {
+        assertTrue(
+            RuleKeyRegistry.isEnabledSource(
+                info("markdown.template.url.ttl.seconds", "implicit"),
+                enabledChannelIds = setOf("markdown"),
+                allChannelIds = setOf("markdown"),
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = emptySets
+            )
+        )
+    }
+
+    @Test
+    fun isEnabledSource_implicitKeyNoChannelPrefix_alwaysEnabled() {
+        assertTrue(
+            RuleKeyRegistry.isEnabledSource(
+                info("max.deep", "implicit"),
+                enabledChannelIds = emptySets,
+                allChannelIds = allChannels,
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = allFrameworks
+            )
+        )
+    }
+
+    // --- Channel-sourced keys ---
+
+    @Test
+    fun isEnabledSource_channelSourcedKey_channelEnabled_returnsTrue() {
+        assertTrue(
+            RuleKeyRegistry.isEnabledSource(
+                info("hoppscotch.something", "hoppscotch"),
+                enabledChannelIds = setOf("hoppscotch"),
+                allChannelIds = setOf("hoppscotch", "postman"),
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = emptySets
+            )
+        )
+    }
+
+    @Test
+    fun isEnabledSource_channelSourcedKey_channelDisabled_returnsFalse() {
+        assertFalse(
+            RuleKeyRegistry.isEnabledSource(
+                info("hoppscotch.something", "hoppscotch"),
+                enabledChannelIds = emptySets,
+                allChannelIds = setOf("hoppscotch", "postman"),
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = emptySets
+            )
+        )
+    }
+
+    // --- Framework-sourced keys ---
+
+    @Test
+    fun isEnabledSource_frameworkSourcedKey_frameworkEnabled_returnsTrue() {
+        assertTrue(
+            RuleKeyRegistry.isEnabledSource(
+                info("custom.something", "Custom"),
+                enabledChannelIds = emptySets,
+                allChannelIds = emptySets,
+                enabledFrameworkIds = setOf("Custom"),
+                allFrameworkIds = allFrameworks
+            )
+        )
+    }
+
+    @Test
+    fun isEnabledSource_frameworkSourcedKey_frameworkDisabled_returnsFalse() {
+        assertFalse(
+            RuleKeyRegistry.isEnabledSource(
+                info("custom.something", "Custom"),
+                enabledChannelIds = emptySets,
+                allChannelIds = emptySets,
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = allFrameworks
+            )
+        )
+    }
+
+    // --- Unknown source kind ---
+
+    @Test
+    fun isEnabledSource_unknownSourceKind_neverFiltered() {
+        // A source that is neither a channel id nor a framework name stays
+        // enabled — never filter unknown source kinds.
+        assertTrue(
+            RuleKeyRegistry.isEnabledSource(
+                info("mystery.key", "mysterySource"),
+                enabledChannelIds = emptySets,
+                allChannelIds = allChannels,
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = allFrameworks
+            )
+        )
+    }
+
+    @Test
+    fun isEnabledSource_generalKeyMatchesMultipleChannels_allMustBeEnabled() {
+        // If a key name could match multiple channel prefixes (unlikely but
+        // possible), all matching channels must be enabled. Construct a
+        // scenario where "postman.extra" matches "postman" (disabled) → false.
+        assertFalse(
+            RuleKeyRegistry.isEnabledSource(
+                info("postman.extra", "general"),
+                enabledChannelIds = setOf("markdown"),
+                allChannelIds = setOf("postman", "markdown"),
+                enabledFrameworkIds = emptySets,
+                allFrameworkIds = emptySets
+            )
         )
     }
 }
