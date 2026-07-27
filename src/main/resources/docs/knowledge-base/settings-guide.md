@@ -32,11 +32,12 @@ Framework recognition and output formatting.
 | Enable Feign | `false` | Recognize Spring Cloud Feign clients as API endpoints | `feignEnable` |
 | Enable JAX-RS | `true` | Recognize JAX-RS `@Path` / `@GET` / `@POST` annotations | `jaxrsEnable` |
 | Enable Actuator | `false` | Recognize Spring Boot Actuator endpoints | `actuatorEnable` |
-| Auto Scan Enabled | `true` | Automatically scan the project for API endpoints | `autoScanEnabled` |
-| Concurrent Scan | `false` | Use parallel scanning for faster discovery | `concurrentScanEnabled` |
+| Auto Scan Enabled | `true` | Automatically scan the project for API endpoints (only effective when API scanning is enabled) | `autoScanEnabled` |
+| Concurrent Scan | `false` | Use parallel scanning for faster discovery (only effective when API scanning is enabled) | `concurrentScanEnabled` |
 | Output Charset | `UTF-8` | Character encoding for exported files | `outputCharset` |
 | Log Level | `100` (SILENT) | Console verbosity. Lower = more verbose. `100`=SILENT, `40`=ERROR, `30`=WARN, `20`=INFO, `10`=DEBUG, `0`=TRACE | `logLevel` |
-| Gutter Icon | `true` | Show gutter icons for API endpoints in the editor | `gutterIconEnabled` |
+| API Scanning | `true` | Master toggle for API scanning. When `false`, auto-scan, concurrent scan, and the gutter icon (which navigates via the API index) are all forced off. | `apiScanEnabled` |
+| Gutter Icon | `true` | Show gutter icons for API endpoints in the editor (only effective when API scanning is enabled) | `gutterIconEnabled` |
 | Switch Notice | `true` | Show a notification when switching settings scope | `switchNotice` |
 
 The General tab also includes **Cache Management** (project and global cache size display with Clear buttons) and a **Repositories** editor for gRPC artifact resolution paths (Maven Local, Gradle Cache, or Custom).
