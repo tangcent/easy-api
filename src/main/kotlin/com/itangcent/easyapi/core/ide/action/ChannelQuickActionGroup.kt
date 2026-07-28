@@ -7,6 +7,7 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.Project
 import com.itangcent.easyapi.channel.spi.ChannelRegistry
+import com.itangcent.easyapi.core.internal.PluginInfo
 import com.itangcent.easyapi.core.logging.IdeaLog
 
 /**
@@ -25,8 +26,6 @@ class ChannelQuickActionGroup : DefaultActionGroup(), IdeaLog {
     companion object {
         const val ACTION_ID_PREFIX = "com.itangcent.easy_api.actions.channel."
         internal const val GROUP_ID = "com.itangcent.idea.easy_api.actions.ChannelQuickExportGroup"
-        private val PLUGIN_ID = PluginId.getId("com.itangcent.idea.plugin.easy-api")
-
         /**
          * Registers all channel actions with [ActionManager] (with plugin ID for
          * keymap categorization) and adds them as children of this group.
@@ -48,7 +47,7 @@ class ChannelQuickActionGroup : DefaultActionGroup(), IdeaLog {
                     val actionId = ACTION_ID_PREFIX + channel.id
                     if (actionManager.getAction(actionId) == null) {
                         val action = ChannelExportAction(channel.id, channel.actionText ?: channel.displayName)
-                        actionManager.registerAction(actionId, action, PLUGIN_ID)
+                        actionManager.registerAction(actionId, action, PluginId.getId(PluginInfo.PLUGIN_ID))
                         group.addAction(action)
                     }
                 }
