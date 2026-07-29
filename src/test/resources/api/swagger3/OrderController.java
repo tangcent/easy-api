@@ -35,8 +35,23 @@ public class OrderController {
     @Operation(summary = "List all orders")
     @GetMapping("/list")
     public java.util.List<OrderDTO> listOrders(
-            @Parameter(description = "page number", required = true) Integer page,
-            @Parameter(description = "page size") Integer size) {
+            @Parameter(description = "page number", required = true, example = "1") Integer page,
+            @Parameter(description = "page size", example = "10") Integer size) {
+        return java.util.Collections.emptyList();
+    }
+
+    // @Parameter placed on the METHOD (not the argument) triggers the
+    // `export.after[@io.swagger.v3.oas.annotations.Parameter]` rule, which runs
+    // the `resolve_parameter` script and adds the param via `api.setParam(...)`.
+    // This is the path the widened `setParam(..., example)` signature serves.
+    @Operation(summary = "Search orders")
+    @io.swagger.v3.oas.annotations.Parameter(
+            name = "keyword",
+            description = "search keyword",
+            required = true,
+            example = "phone")
+    @GetMapping("/search")
+    public java.util.List<OrderDTO> searchOrders() {
         return java.util.Collections.emptyList();
     }
 
