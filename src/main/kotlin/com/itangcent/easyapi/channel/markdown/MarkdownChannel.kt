@@ -1,31 +1,22 @@
 package com.itangcent.easyapi.channel.markdown
 
-import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
-import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
-import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileWrapper
-import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
 import com.itangcent.easyapi.core.config.ConfigReader
 import com.itangcent.easyapi.core.internal.threading.IdeDispatchers
 import com.itangcent.easyapi.core.internal.threading.background
-import com.itangcent.easyapi.core.internal.threading.backgroundAsync
 import com.itangcent.easyapi.core.internal.threading.swing
 import com.itangcent.easyapi.channel.spi.Channel
 import com.itangcent.easyapi.channel.spi.ChannelConfig
 import com.itangcent.easyapi.channel.spi.ChannelOptionsPanel
 import com.itangcent.easyapi.channel.markdown.MarkdownExportMetadata
 import com.itangcent.easyapi.channel.curl.CurlSettings
-import com.itangcent.easyapi.channel.markdown.template.BundledLanguageTemplates
-import com.itangcent.easyapi.channel.markdown.template.DefaultMarkdownTemplate
-import com.itangcent.easyapi.channel.markdown.template.FetchResult
 import com.itangcent.easyapi.channel.markdown.template.MarkdownTemplateRenderer
 import com.itangcent.easyapi.channel.markdown.template.MarkdownTemplateResolver
 import com.itangcent.easyapi.channel.markdown.template.RemoteTemplateFetcher
@@ -37,8 +28,11 @@ import com.itangcent.easyapi.core.export.ExportContext
 import com.itangcent.easyapi.core.export.ExportResult
 import com.itangcent.easyapi.core.ide.support.NotificationUtils
 import com.itangcent.easyapi.core.logging.IdeaLog
+import com.itangcent.easyapi.core.settings.Settings
 import com.itangcent.easyapi.core.settings.settings
+import com.itangcent.easyapi.core.settings.ui.SettingsPanel
 import kotlinx.coroutines.CancellationException
+import kotlin.reflect.KClass
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.io.File
@@ -62,22 +56,28 @@ class MarkdownChannel : Channel, IdeaLog {
     override val exposeAsAction: Boolean = true
     override val actionText: String = "Export to Markdown"
 
+    override val settingsType: KClass<out Settings> = MarkdownSettings::class
+    override val settingsTabOrder: Int = 120
+
     override fun createOptionsPanel(project: Project): ChannelOptionsPanel {
         return MarkdownOptionsPanel(project)
     }
+
+    override fun createSettingsPanel(project: Project): SettingsPanel<*>? =
+        MarkdownSettingsPanel(project)
 
     override suspend fun export(context: ExportContext): ExportResult {
         LOG.info("MarkdownChannel.export: endpoints=${context.endpointsToExport.size}")
         val project = context.project
         val markdownConfig = context.channelConfig as? MarkdownConfig
-        val templateConfig = markdownConfig?.let {
-            TemplateConfig(
-                templateInline = it.templateInline,
-                templatePath = it.templatePath,
-                templateUrl = it.templateUrl,
-                templateLanguage = it.templateLanguage,
-            )
-        }
+        val templateLanguage = markdownConfig?.templateLanguage
+            ?: project.settings<MarkdownSettings>().templateLanguage.takeIf { it != "en" }
+        val templateConfig = TemplateConfig(
+            templateInline = markdownConfig?.templateInline,
+            templatePath = markdownConfig?.templatePath,
+            templateUrl = markdownConfig?.templateUrl,
+            templateLanguage = templateLanguage,
+        )
         val configReader = ConfigReader.getInstance(project)
         val httpClient = HttpClientProvider.getInstance(project).getClient(httpTimeOut = 10)
 
@@ -236,86 +236,6 @@ private class MarkdownOptionsPanel(private val project: Project) : ChannelOption
         columns = 30
     }
 
-    private val templateFileField = TextFieldWithBrowseButton().apply {
-        addBrowseFolderListener(
-            project,
-            FileChooserDescriptor(true, false, false, false, false, false)
-                .withTitle("Select Template File")
-                .withDescription("Choose a Markdown template file (.tpl or .md.tpl)")
-        )
-    }
-
-    private val templateUrlField = JBTextField().apply {
-        columns = 40
-        toolTipText = "<html>http(s) URL to a remote Markdown template. " +
-            "Fetched over the network on each export (cached for 10 min).<br>" +
-            "Only http/https are allowed; redirects are not followed.</html>"
-    }
-
-    private val languageCombo = JComboBox(BundledLanguageTemplates.availableLocales().toTypedArray()).apply {
-        selectedItem = "en"
-        toolTipText = "Select a bundled language template (en uses the default template)"
-    }
-
-    private val inlineToggle = JToggleButton("Show inline template").apply {
-        toolTipText = "Toggle the inline template editor (overrides file template when non-blank)"
-    }
-
-    private val copyDefaultButton = JButton("Copy default template").apply {
-        toolTipText = "Save the bundled default template to a file and open it for editing"
-        addActionListener {
-            val descriptor = FileSaverDescriptor(
-                "Save Default Template",
-                "Choose where to save the bundled default Markdown template"
-            )
-            val saver = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
-            val wrapper = saver.save(null as VirtualFile?, "default.md.tpl") ?: return@addActionListener
-            val targetFile = wrapper.file
-            backgroundAsync {
-                try {
-                    targetFile.writeText(DefaultMarkdownTemplate.get())
-                    swing {
-                        val vFile = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(targetFile)
-                        if (vFile != null) {
-                            FileEditorManager.getInstance(project).openFile(vFile)
-                        }
-                        // Pre-fill the template file field so the user can iterate on it directly.
-                        templateFileField.text = targetFile.absolutePath
-                    }
-                } catch (t: Throwable) {
-                    LOG.warn("Failed to save default template to ${targetFile.absolutePath}", t)
-                    swing {
-                        com.intellij.openapi.ui.Messages.showErrorDialog(
-                            project,
-                            "Failed to save default template: ${t.message}",
-                            "Save Error"
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private val inlineArea = JBTextArea().apply {
-        rows = 12
-        columns = 60
-        lineWrap = true
-        wrapStyleWord = true
-    }
-
-    private val inlineScroll = JBScrollPane(inlineArea).apply {
-        isVisible = false
-    }
-
-    init {
-        inlineToggle.addActionListener {
-            inlineToggle.text = if (inlineToggle.isSelected) "Hide inline template" else "Show inline template"
-            inlineScroll.isVisible = inlineToggle.isSelected
-            component.revalidate()
-            component.repaint()
-        }
-    }
-
     override val component: JComponent = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         add(JPanel(BorderLayout()).apply {
@@ -327,39 +247,12 @@ private class MarkdownOptionsPanel(private val project: Project) : ChannelOption
             add(JLabel("File Name (without extension):"), BorderLayout.WEST)
             add(fileNameField, BorderLayout.CENTER)
         })
-        add(Box.createVerticalStrut(5))
-        add(JPanel(BorderLayout()).apply {
-            add(JLabel("Template File:"), BorderLayout.WEST)
-            add(templateFileField, BorderLayout.CENTER)
-        })
-        add(Box.createVerticalStrut(5))
-        add(JPanel(BorderLayout()).apply {
-            add(JLabel("Template URL:"), BorderLayout.WEST)
-            add(templateUrlField, BorderLayout.CENTER)
-        })
-        add(Box.createVerticalStrut(5))
-        add(JPanel(BorderLayout()).apply {
-            add(JLabel("Language:"), BorderLayout.WEST)
-            add(languageCombo, BorderLayout.CENTER)
-        })
-        add(Box.createVerticalStrut(5))
-        add(JPanel(BorderLayout()).apply {
-            add(inlineToggle, BorderLayout.WEST)
-            add(copyDefaultButton, BorderLayout.EAST)
-        })
-        add(inlineScroll)
     }
 
     override fun buildConfig(): MarkdownConfig {
-        val selectedLanguage = languageCombo.selectedItem as? String
         return MarkdownConfig(
             outputDir = outputDirField.text.takeIf { it.isNotBlank() },
             fileName = fileNameField.text.takeIf { it.isNotBlank() },
-            templatePath = templateFileField.text.takeIf { it.isNotBlank() },
-            templateInline = inlineArea.text.takeIf { it.isNotBlank() },
-            templateUrl = templateUrlField.text.takeIf { it.isNotBlank() },
-            // 'en' uses the default template — null means "no language override" .
-            templateLanguage = selectedLanguage?.takeIf { it != "en" },
         )
     }
 }
