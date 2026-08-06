@@ -76,7 +76,7 @@ class RuleGuideWorkflowCatalogTest {
         assertTrue(
             "auth-chaining recipe value must be a literal script (no groovy: prefix): " +
                 "postman.test[...]=def token = pm.response.json()...",
-            content.contains("postman.test[groovy: it.containingClass().name() == \"com.example.AuthController\"]=def token = pm.response.json().token")
+            content.contains("postman.test[groovy: it.containingClass()?.qualifiedName() == \"com.example.AuthController\"]=def token = pm.response.json().token")
         )
         assertFalse(
             "auth-chaining recipe value must NOT be groovy-prefixed " +
@@ -96,7 +96,7 @@ class RuleGuideWorkflowCatalogTest {
         )
         assertTrue(
             "auth-chaining recipe must use a groovy filter with containingClass()",
-            content.contains("postman.test[groovy: it.containingClass().name() == \"com.example.AuthController\"]")
+            content.contains("postman.test[groovy: it.containingClass()?.qualifiedName() == \"com.example.AuthController\"]")
         )
     }
 
@@ -128,7 +128,7 @@ class RuleGuideWorkflowCatalogTest {
         assertTrue(
             "HMAC recipe value must be a literal script (no groovy: prefix): " +
                 "postman.prerequest[...]=def mac = javax.crypto.Mac...",
-            content.contains("postman.prerequest[groovy: it.containingClass().name().startsWith(\"com.example.api.\")]=def mac = javax.crypto.Mac")
+            content.contains("postman.prerequest[groovy: it.containingClass()?.qualifiedName().startsWith(\"com.example.api.\")]=def mac = javax.crypto.Mac")
         )
         assertFalse(
             "HMAC recipe value must NOT be groovy-prefixed " +

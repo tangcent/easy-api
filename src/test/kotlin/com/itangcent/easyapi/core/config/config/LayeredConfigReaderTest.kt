@@ -59,7 +59,7 @@ class LayeredConfigReaderTest {
     @Test
     fun testConfigTextParserInlineValue() {
         val text = """
-            field.ignore=groovy:!it.containingClass().name().startsWith("java.lang")
+            field.ignore=groovy:!it.containingClass()?.qualifiedName()?.startsWith("java.lang.")
             api.name=test
         """.trimIndent()
         val entries = runBlocking { parser.parse(text, "test").toList() }

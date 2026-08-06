@@ -168,6 +168,39 @@ class RuleContext private constructor(
             return RuleContext(project, element, element, fieldContext, ss)
         }
 
+        /**
+         * Creates a context for a member as viewed from [containingClass].
+         *
+         * For inherited fields and methods, script `containingClass()` resolves
+         * to the class currently being processed while `defineClass()` resolves
+         * to the PSI member's declaring class.
+         */
+        fun fromMember(
+            project: Project,
+            element: PsiElement,
+            containingClass: com.intellij.psi.PsiClass,
+            fieldContext: String? = null
+        ): RuleContext {
+            val core = readSync {
+                when (element) {
+                    is com.intellij.psi.PsiField -> ResolvedField(
+                        name = element.name,
+                        psiField = element,
+                        annotations = element.annotations.toList(),
+                        containClass = containingClass
+                    )
+                    is com.intellij.psi.PsiMethod -> ResolvedMethod(
+                        name = element.name,
+                        psiMethod = element,
+                        containClass = containingClass
+                    )
+                    else -> element
+                }
+            }
+            val ss = SessionStorage.getInstance(project)
+            return RuleContext(project, element, core, fieldContext, ss)
+        }
+
         fun from(project: Project, method: ResolvedMethod, fieldContext: String? = null): RuleContext {
             val ss = SessionStorage.getInstance(project)
             return RuleContext(project, method.psiMethod, method, fieldContext, ss)

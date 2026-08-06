@@ -9,11 +9,12 @@ import org.junit.Test
  * Tests for [RuleProposalValidator].
  *
  * Covers the v1 review-agent policy: hard errors on unknown keys, invalid
- * filter prefixes, and malformed JSON values; soft warnings only on the
- * deprecated bare `class:` filter form.
+ * filter prefixes, and malformed JSON values; soft warnings for deprecated
+ * filters and class-context `name()` calls that may be mistaken for FQNs.
  */
 class RuleProposalValidatorTest {
 
+    @Test
     fun testCleanRulePasses() {
         val content = """
             # A clean rule file
@@ -26,6 +27,7 @@ class RuleProposalValidatorTest {
         assertTrue("unexpected warnings: ${result.warnings}", result.warnings.isEmpty())
     }
 
+    @Test
     fun testUnknownKeyIsBlocked() {
         // The preamble is explicit that `api.header` does NOT exist.
         val content = "api.header=X-Foo:bar"
@@ -34,6 +36,7 @@ class RuleProposalValidatorTest {
         assertTrue(result.errors.any { it.contains("unknown rule key") && it.contains("api.header") })
     }
 
+    @Test
     fun testBareClassFilterIsOnlyAWarning() {
         val content = "method.doc[class:com.example.web.UserController]=user"
         val result = RuleProposalValidator.validate(content)
@@ -42,6 +45,7 @@ class RuleProposalValidatorTest {
         assertTrue(result.warnings.any { it.contains("deprecated") && it.contains("class:") })
     }
 
+    @Test
     fun testInvalidFilterPrefixIsBlocked() {
         val content = "method.doc[~com.example.UserController]=user"
         val result = RuleProposalValidator.validate(content)
@@ -49,6 +53,7 @@ class RuleProposalValidatorTest {
         assertTrue(result.errors.any { it.contains("invalid filter") })
     }
 
+    @Test
     fun testMalformedJsonHeaderValueIsBlocked() {
         val content = "method.additional.header=Authorization:Bearer token"
         val result = RuleProposalValidator.validate(content)
@@ -56,15 +61,17 @@ class RuleProposalValidatorTest {
         assertTrue(result.errors.any { it.contains("not valid JSON") })
     }
 
+    @Test
     fun testValidDollarClassFilterPasses() {
-        val content = "method.doc[\${'$'}class:com.example.web.UserController]=user"
+        val content = "method.doc[\$class:com.example.web.UserController]=user"
         val result = RuleProposalValidator.validate(content)
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testGroovyFilterAndValueBlockPass() {
         val content = """
-            method.additional.header[groovy: it.containingClass().name().startsWith("com.example.web.")]={"name":"Authorization","value":"Bearer ${'$'}{token}","required":true}
+            method.additional.header[groovy: it.containingClass()?.qualifiedName()?.startsWith("com.example.web.")]={"name":"Authorization","value":"Bearer ${'$'}{token}","required":true}
             method.additional.header=groovy:```
             return '{"name":"Authorization","value":"Bearer ${'$'}{token}","required":true}'
             ```
@@ -73,6 +80,76 @@ class RuleProposalValidatorTest {
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
+    fun testDefineClassSimpleNameProducesSoftWarning() {
+        val content = """field.ignore=groovy: it.defineClass()?.name() == "com.example.dto.TraceBean""""
+        val result = RuleProposalValidator.validate(content)
+
+        assertTrue("errors: ${result.errors}", result.ok)
+        assertTrue(
+            "warnings: ${result.warnings}",
+            result.warnings.any {
+                it.contains("line 1") && it.contains("class-context name()") && it.contains("qualifiedName()")
+            }
+        )
+    }
+
+    @Test
+    fun testContainingClassSimpleNameProducesSoftWarning() {
+        val content =
+            """field.ignore=groovy: it.containingClass().name().startsWith("com.example.")"""
+        val result = RuleProposalValidator.validate(content)
+
+        assertTrue("errors: ${result.errors}", result.ok)
+        assertTrue("warnings: ${result.warnings}", result.warnings.any { it.contains("class-context name()") })
+    }
+
+    @Test
+    fun testClassSimpleNameInMultiLineGroovyBlockProducesSoftWarning() {
+        val content = """
+            field.ignore=groovy:```
+            def declaringType = it.defineClass()?.name()
+            return declaringType == "com.example.dto.TraceBean"
+            ```
+        """.trimIndent()
+        val result = RuleProposalValidator.validate(content)
+
+        assertTrue("errors: ${result.errors}", result.ok)
+        assertTrue(
+            "warnings: ${result.warnings}",
+            result.warnings.any { it.contains("line 2") && it.contains("class-context name()") }
+        )
+    }
+
+    @Test
+    fun testClassSimpleNameSplitAcrossGroovyBlockLinesProducesSoftWarning() {
+        val content = """
+            field.ignore=groovy:```
+            def declaringType = it.defineClass()
+                ?.name()
+            return declaringType == "com.example.dto.TraceBean"
+            ```
+        """.trimIndent()
+        val result = RuleProposalValidator.validate(content)
+
+        assertTrue("errors: ${result.errors}", result.ok)
+        assertTrue(
+            "warnings: ${result.warnings}",
+            result.warnings.any { it.contains("line 2") && it.contains("class-context name()") }
+        )
+    }
+
+    @Test
+    fun testClassQualifiedNameDoesNotProduceSimpleNameWarning() {
+        val content =
+            """field.ignore=groovy: it.defineClass()?.qualifiedName() == "com.example.dto.TraceBean"""
+        val result = RuleProposalValidator.validate(content)
+
+        assertTrue("errors: ${result.errors}", result.ok)
+        assertTrue("unexpected warnings: ${result.warnings}", result.warnings.isEmpty())
+    }
+
+    @Test
     fun testAliasesAreAcceptedAsKnownKeys() {
         // `doc.param` is an alias of `param.doc` per RuleKeys.kt.
         val content = "doc.param=the current user"
@@ -80,6 +157,7 @@ class RuleProposalValidatorTest {
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testCommentAndDirectiveLinesAreIgnored() {
         val content = """
             # a comment
@@ -95,6 +173,7 @@ class RuleProposalValidatorTest {
     // JSON-value keys: each of the four keys must validate JSON when inline.
     // -------------------------------------------------------------------------
 
+    @Test
     fun testMalformedParamValueIsBlocked() {
         val content = "method.additional.param=not json"
         val result = RuleProposalValidator.validate(content)
@@ -102,6 +181,7 @@ class RuleProposalValidatorTest {
         assertTrue(result.errors.any { it.contains("not valid JSON") && it.contains("method.additional.param") })
     }
 
+    @Test
     fun testMalformedResponseHeaderValueIsBlocked() {
         val content = "method.additional.response.header=X-Foo:bar"
         val result = RuleProposalValidator.validate(content)
@@ -111,6 +191,7 @@ class RuleProposalValidatorTest {
         )
     }
 
+    @Test
     fun testMalformedJsonAdditionalFieldValueIsBlocked() {
         val content = "json.additional.field=plain string"
         val result = RuleProposalValidator.validate(content)
@@ -118,12 +199,14 @@ class RuleProposalValidatorTest {
         assertTrue(result.errors.any { it.contains("not valid JSON") && it.contains("json.additional.field") })
     }
 
+    @Test
     fun testValidJsonParamValuePasses() {
         val content = """method.additional.param={"name":"page","value":"1"}"""
         val result = RuleProposalValidator.validate(content)
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testBlankJsonValueSkipsJsonCheck() {
         // An empty value for a JSON-value key should not trigger the JSON
         // parser — `value.isNotBlank()` short-circuits the check.
@@ -132,6 +215,7 @@ class RuleProposalValidatorTest {
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testGroovyPrefixedValueSkipsJsonCheck() {
         // `groovy:`-prefixed values are scripts, not JSON; the validator
         // must skip JSON validation for them.
@@ -144,18 +228,21 @@ class RuleProposalValidatorTest {
     // Filter prefixes: every valid prefix must be accepted.
     // -------------------------------------------------------------------------
 
+    @Test
     fun testAtPrefixFilterPasses() {
         val content = "method.doc[@com.example.WebController]=user"
         val result = RuleProposalValidator.validate(content)
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testRegexPrefixFilterPasses() {
         val content = "method.doc[#regex:.*Controller]=user"
         val result = RuleProposalValidator.validate(content)
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testTagPrefixFilterPasses() {
         // `#<tag>` — a hash-prefixed tag, distinct from `#regex:`.
         val content = "method.doc[#spring]=user"
@@ -163,12 +250,14 @@ class RuleProposalValidatorTest {
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testNotPrefixFilterPasses() {
         val content = "method.doc[!com.example.InternalController]=user"
         val result = RuleProposalValidator.validate(content)
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testGroovyPrefixFilterPasses() {
         val content = "method.doc[groovy: it.name().contains(\"Controller\")]=user"
         val result = RuleProposalValidator.validate(content)
@@ -179,15 +268,17 @@ class RuleProposalValidatorTest {
     // splitKeyFilterValue edge cases
     // -------------------------------------------------------------------------
 
-    fun testEmptyFilterBracketIsTreatedAsNoFilter() {
-        // `method.doc[]=value` — empty filter → treated as no filter (no prefix
-        // check), so no error. This exercises the `filter.isEmpty()` branch
-        // in splitKeyFilterValue.
+    @Test
+    fun testEmptyFilterBracketIsRejectedAsUnknownKey() {
+        // An empty filter is not valid `key[filter]` syntax. The shared parser
+        // deliberately preserves the whole left-hand side as the key.
         val content = "method.doc[]=user"
         val result = RuleProposalValidator.validate(content)
-        assertTrue("errors: ${result.errors}", result.ok)
+        assertFalse(result.ok)
+        assertTrue(result.errors.any { it.contains("unknown rule key") && it.contains("method.doc[]") })
     }
 
+    @Test
     fun testNonKeyValueLinesAreIgnored() {
         // Stray text that is not `key=value` and not a comment should not
         // produce errors (the parser skips lines it can't parse).
@@ -200,6 +291,7 @@ class RuleProposalValidatorTest {
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testBracketEqualsInsideFilterDoesNotSplitEarly() {
         // `=` inside `[...]` must not be treated as the key=value separator.
         // Here the filter contains `=` and the real `=` is after the `]`.
@@ -212,6 +304,7 @@ class RuleProposalValidatorTest {
     // Multi-line groovy value-block handling
     // -------------------------------------------------------------------------
 
+    @Test
     fun testMultiLineGroovyBlockBodyIsSkipped() {
         // The body of a ```-delimited block is free-form script — lines inside
         // must not be parsed as key=value, even if they look like one.
@@ -226,6 +319,7 @@ class RuleProposalValidatorTest {
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testBlockClosingLineEndingWithBackticks() {
         // A value ending with ``` (block opener on the same line as `key=`)
         // must enter block mode and skip subsequent lines until the closing ``` .
@@ -239,6 +333,7 @@ class RuleProposalValidatorTest {
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testMultipleErrorsAreAllReported() {
         // Two distinct hard errors should both appear in the result.
         val content = """
@@ -251,18 +346,21 @@ class RuleProposalValidatorTest {
         assertTrue(result.errors.any { it.contains("invalid filter") })
     }
 
+    @Test
     fun testEmptyContentIsValid() {
         val result = RuleProposalValidator.validate("")
         assertTrue("errors: ${result.errors}", result.ok)
         assertEquals(0, result.warnings.size)
     }
 
+    @Test
     fun testBlankLinesAreIgnored() {
         val content = "\n\n   \napi.name=My API\n\n"
         val result = RuleProposalValidator.validate(content)
         assertTrue("errors: ${result.errors}", result.ok)
     }
 
+    @Test
     fun testRuleValidationOkProperty() {
         // Direct coverage of the `ok` convenience property on the data class.
         val ok = RuleValidation(errors = emptyList(), warnings = listOf("w"))

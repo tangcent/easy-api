@@ -32,6 +32,18 @@ Multiple fields on the same class means multiple lines (the key uses
 default merge semantics — boolean rules do not merge, so each line is
 its own rule).
 
+When the user asks to ignore every field originally declared by a base
+class, compare the declaring class's **fully-qualified name**:
+
+```
+field.ignore=groovy:it.defineClass()?.qualifiedName() == "com.example.dto.TraceBean"
+```
+
+For inherited members, `containingClass()` is the class currently being
+exported, while `defineClass()` is the class that originally declared the
+field. Class-context `name()` returns only the simple name; always use
+`qualifiedName()` for FQN or package comparisons.
+
 ## Check existing rules first
 
 Before proposing, call `get_existing_rules_for_key` for `field.ignore`.

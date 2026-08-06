@@ -341,7 +341,7 @@ open class ScriptPsiClassContext(context: RuleContext) : ScriptItContext(context
  * it.args().each { p -> logger.info(p.name()) }
  *
  * // Get containing class
- * it.containingClass().name()
+ * it.containingClass()?.qualifiedName()
  * ```
  */
 open class ScriptPsiMethodContext(context: RuleContext) : ScriptItContext(context), MethodContext {
@@ -434,8 +434,8 @@ class ScriptPsiMethodInClassContext(
         return ScriptPsiClassContext(context.withElement(containingClass))
     }
 
-    override fun defineClass(): ScriptPsiClassContext? {
-        return psiMethod().containingClass?.let { ScriptPsiClassContext(context.withElement(it)) }
+    override fun defineClass(): ScriptPsiClassContext? = readSync {
+        psiMethod().containingClass?.let { ScriptPsiClassContext(context.withElement(it)) }
     }
 }
 
@@ -456,7 +456,7 @@ class ScriptPsiMethodInClassContext(
  * it.type().name()
  *
  * // Get containing class
- * it.containingClass().name()
+ * it.containingClass()?.qualifiedName()
  *
  * // Check if enum field
  * if (it.isEnumField()) { ... }
@@ -523,8 +523,8 @@ class ScriptPsiFieldInClassContext(
         return ScriptPsiClassContext(context.withElement(containingClass))
     }
 
-    override fun defineClass(): ScriptPsiClassContext? {
-        return psiField().containingClass?.let { ScriptPsiClassContext(context.withElement(it)) }
+    override fun defineClass(): ScriptPsiClassContext? = readSync {
+        psiField().containingClass?.let { ScriptPsiClassContext(context.withElement(it)) }
     }
 }
 
@@ -896,18 +896,18 @@ class ScriptResolvedClassContext(
 class ScriptResolvedMethodContext(context: RuleContext, private val resolvedMethod: ResolvedMethod) :
     ScriptPsiMethodContext(context.withElement(resolvedMethod.psiMethod)) {
 
-    override fun returnType(): ScriptTypeContext {
-        return ScriptTypeContext(context, resolvedMethod.returnType)
+    override fun returnType(): ScriptTypeContext = readSync {
+        ScriptTypeContext(context, resolvedMethod.returnType)
     }
 
-    override fun args(): Array<ScriptPsiParameterContext> {
+    override fun args(): Array<ScriptPsiParameterContext> = readSync {
         val params = resolvedMethod.params
-        return Array(params.size) { i -> ScriptResolvedParameterContext(context, params[i]) }
+        Array(params.size) { i -> ScriptResolvedParameterContext(context, params[i]) }
     }
 
-    override fun argTypes(): Array<ScriptTypeContext> {
+    override fun argTypes(): Array<ScriptTypeContext> = readSync {
         val params = resolvedMethod.params
-        return Array(params.size) { i -> ScriptTypeContext(context, params[i].type) }
+        Array(params.size) { i -> ScriptTypeContext(context, params[i].type) }
     }
 
     override fun containingClass(): ScriptPsiClassContext? {
@@ -916,32 +916,32 @@ class ScriptResolvedMethodContext(context: RuleContext, private val resolvedMeth
         return resolvedMethod.containClass?.let { ScriptPsiClassContext(context.withElement(it)) }
     }
 
-    override fun defineClass(): ScriptPsiClassContext? {
-        return resolvedMethod.psiMethod.containingClass?.let { ScriptPsiClassContext(context.withElement(it)) }
+    override fun defineClass(): ScriptPsiClassContext? = readSync {
+        resolvedMethod.psiMethod.containingClass?.let { ScriptPsiClassContext(context.withElement(it)) }
     }
 }
 
 class ScriptResolvedFieldContext(context: RuleContext, private val resolvedField: ResolvedField) :
     ScriptPsiFieldContext(context.withElement(resolvedField.psiField)) {
 
-    override fun type(): ScriptTypeContext {
-        return ScriptTypeContext(context, resolvedField.type)
+    override fun type(): ScriptTypeContext = readSync {
+        ScriptTypeContext(context, resolvedField.type)
     }
 
     override fun containingClass(): ScriptPsiClassContext? {
         return resolvedField.containClass?.let { ScriptPsiClassContext(context.withElement(it)) }
     }
 
-    override fun defineClass(): ScriptPsiClassContext? {
-        return resolvedField.psiField.containingClass?.let { ScriptPsiClassContext(context.withElement(it)) }
+    override fun defineClass(): ScriptPsiClassContext? = readSync {
+        resolvedField.psiField.containingClass?.let { ScriptPsiClassContext(context.withElement(it)) }
     }
 }
 
 class ScriptResolvedParameterContext(context: RuleContext, private val resolvedParam: ResolvedParam) :
     ScriptPsiParameterContext(context.withElement(resolvedParam.psiParameter)) {
 
-    override fun type(): ScriptTypeContext {
-        return ScriptTypeContext(context, resolvedParam.type)
+    override fun type(): ScriptTypeContext = readSync {
+        ScriptTypeContext(context, resolvedParam.type)
     }
 }
 

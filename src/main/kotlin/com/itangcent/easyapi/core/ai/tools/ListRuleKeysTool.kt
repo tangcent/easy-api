@@ -2,6 +2,7 @@ package com.itangcent.easyapi.core.ai.tools
 
 import com.itangcent.easyapi.core.ai.agent.PromptCatalog
 import com.itangcent.easyapi.core.rule.RuleKeyRegistry
+import com.itangcent.easyapi.core.rule.context.RuleScriptContextCatalog
 import com.itangcent.easyapi.core.util.json.GsonUtils
 
 /**
@@ -11,9 +12,14 @@ import com.itangcent.easyapi.core.util.json.GsonUtils
  * [com.itangcent.easyapi.core.rule.RuleKeys] plus every registered channel's
  * channel-specific keys plus the implicit keys read by name via
  * `configReader.getFirst(…)`. Returns a JSON array of `{name, type, source}`
- * objects:
- * - `source` is `"general"`, `"implicit"`, or the channel id (e.g.
- *   `"hoppscotch"`, `"yapi"`).
+ * objects. Every result also includes a compact `scriptContext` summary with
+ * the execution mode, possible `it` types, key-specific bindings, and the
+ * `get_rule_context` detail-tool name. Call `get_rule_context(key=…)` before
+ * writing a Groovy or Postman script; it returns the complete object method
+ * and property directory.
+ *
+ * `source` is `"general"`, `"implicit"`, or a channel/framework id (e.g.
+ * `"hoppscotch"`, `"yapi"`).
  *
  * Keys are de-duplicated by name by [RuleKeyRegistry] — general keys take
  * precedence over channel/implicit keys with the same name.
@@ -41,8 +47,9 @@ class ListRuleKeysTool : AiTool {
 
     override val description: String =
         "List all known EasyAPI rule keys. Returns a JSON array of " +
-            "{name, type, source, description?, detailPromptId?}. " +
-            "Use this to discover what can be configured."
+            "{name, type, source, scriptContext, description?, detailPromptId?}. " +
+            "scriptContext is a compact summary; call get_rule_context(key=…) " +
+            "for bindings and callable object APIs."
 
     override val kind: ToolKind = ToolKind.PERCEPTION
 
@@ -50,11 +57,12 @@ class ListRuleKeysTool : AiTool {
 
     override suspend fun execute(args: Map<String, Any?>, ctx: ToolContext): ToolResult {
         val keys = RuleKeyRegistry.getInstance(ctx.project).enabledKeys().map { info ->
-            val base = mutableMapOf(
+            val base = mutableMapOf<String, Any?>(
                 "name" to info.key.name,
                 "type" to info.key::class.simpleName,
                 "source" to info.source
             )
+            base["scriptContext"] = RuleScriptContextCatalog.describe(info.key, info.source).summary
             // Best-effort catalog join: attach description + detailPromptId
             // when a per-key recipe file exists. A missing/empty catalog
             // leaves the base shape unchanged (no throw).

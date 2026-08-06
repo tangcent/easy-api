@@ -23,9 +23,10 @@ import com.itangcent.easyapi.framework.spi.FrameworkRegistry
  * - **Hard errors** (block the proposal): unknown key, invalid filter prefix,
  *   malformed JSON value for the header/param keys.
  * - **Soft warnings** (never block): deprecated-but-valid filter forms such
- *   as the bare `class:` prefix; keys whose owning channel/framework is
- *   currently disabled in Settings (design C4a / task A5c). Reported back to
- *   the drafter / surfaced on the proposal card, but the proposal still
+ *   as the bare `class:` prefix; class-context `name()` calls that may be
+ *   mistaken for fully-qualified names; keys whose owning channel/framework
+ *   is currently disabled in Settings (design C4a / task A5c). Reported back
+ *   to the drafter / surfaced on the proposal card, but the proposal still
  *   proceeds.
  *
  * ## Key catalog
@@ -62,6 +63,9 @@ object RuleProposalValidator {
         "\$class:", "@", "#regex:", "#", "!", "groovy:"
     )
 
+    private val CLASS_CONTEXT_SIMPLE_NAME =
+        Regex("""(?:containingClass|defineClass)\(\)\s*\??\.\s*name\(\)""")
+
     /** Source kind for keys declared in [RuleKeys] (mirrors [RuleKeyRegistry]). */
     private const val SOURCE_GENERAL = "general"
     /** Source kind for keys read by name only (mirrors [RuleKeyRegistry]). */
@@ -93,19 +97,26 @@ object RuleProposalValidator {
             project?.let { buildDisabledSourceMap(it) } ?: emptyMap()
         val errors = mutableListOf<String>()
         val warnings = mutableListOf<String>()
+        val classContextSimpleNameWarningLines = classContextSimpleNameWarningLines(content)
         var inBlock = false
         content.lines().forEachIndexed { idx, raw ->
             val line = raw.trim()
             if (line.isEmpty()) return@forEachIndexed
-            // Multi-line groovy value-block: skip the body (it is a free-form
-            // script whose lines are not key=value).
+            // Plain comment (### is a directive, handled elsewhere; treat as
+            // non-rule for this check).
+            if (line.startsWith("#")) return@forEachIndexed
+            val lineNo = idx + 1
+            if (lineNo in classContextSimpleNameWarningLines) {
+                warnings += "line $lineNo: class-context name() returns a simple class name; " +
+                    "use qualifiedName() for FQN/package comparisons."
+            }
+            // Multi-line groovy value-block: scan each body line for semantic
+            // warnings above, but skip structural key=value validation because
+            // the body is a free-form script.
             if (inBlock) {
                 if (line == "```") inBlock = false
                 return@forEachIndexed
             }
-            // Plain comment (### is a directive, handled elsewhere; treat as
-            // non-rule for this check).
-            if (line.startsWith("#")) return@forEachIndexed
             val parsed = KeyValueLineParser.splitKeyFilterValue(line) ?: run {
                 // Not a key=value line — skip (directives, stray text). We do
                 // not error on every non-kv line to avoid false positives on
@@ -113,7 +124,6 @@ object RuleProposalValidator {
                 return@forEachIndexed
             }
             val (key, filter, value) = parsed
-            val lineNo = idx + 1
 
             if (key !in knownKeyNames) {
                 errors += "line $lineNo: unknown rule key '$key' (not in list_rule_keys)."
@@ -152,6 +162,25 @@ object RuleProposalValidator {
         }
         return RuleValidation(errors = errors, warnings = warnings)
     }
+
+    private fun classContextSimpleNameWarningLines(content: String): Set<Int> =
+        CLASS_CONTEXT_SIMPLE_NAME.findAll(content).mapNotNullTo(linkedSetOf()) { match ->
+            val matchStart = match.range.first
+            val lineStart = if (matchStart == 0) {
+                0
+            } else {
+                content.lastIndexOf('\n', matchStart - 1) + 1
+            }
+            val lineEnd = content.indexOf('\n', matchStart).let { index ->
+                if (index < 0) content.length else index
+            }
+            val sourceLine = content.substring(lineStart, lineEnd)
+            if (sourceLine.trimStart().startsWith("#")) {
+                null
+            } else {
+                content.substring(0, matchStart).count { it == '\n' } + 1
+            }
+        }
 
     private fun checkFilterPrefix(filter: String): FilterIssue? {
         if (filter.startsWith("class:")) return FilterIssue.Deprecated
