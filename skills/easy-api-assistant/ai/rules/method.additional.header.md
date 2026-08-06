@@ -39,13 +39,13 @@ value when the condition holds, or `null` when it doesn't.
 
 **Bad (unreadable single-line filter):**
 ```
-method.additional.header[groovy: it.containingClass().name().startsWith("com.example.merchant.") && !it.containingClass().name().equals("com.example.merchant.AuthController") && !it.containingClass().name().equals("com.example.merchant.PublicController")]={"name":"Authorization","value":"Bearer ${token}","desc":"JWT","required":true}
+method.additional.header[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.merchant.") && !it.containingClass()?.qualifiedName().equals("com.example.merchant.AuthController") && !it.containingClass()?.qualifiedName().equals("com.example.merchant.PublicController")]={"name":"Authorization","value":"Bearer ${token}","desc":"JWT","required":true}
 ```
 
 **Good (multi-line groovy value-block):**
 ```
 method.additional.header=groovy:```
-def cls = it.containingClass()?.name()
+def cls = it.containingClass()?.qualifiedName()
 if (cls?.startsWith("com.example.merchant.")
     && cls != "com.example.merchant.AuthController"
     && cls != "com.example.merchant.PublicController") {

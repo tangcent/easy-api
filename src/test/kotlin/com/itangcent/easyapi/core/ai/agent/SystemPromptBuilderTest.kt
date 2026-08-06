@@ -129,6 +129,14 @@ class SystemPromptBuilderTest {
             text.contains("get_detection_prompt")
         )
         Assert.assertTrue(
+            "base prompt should document get_rule_context",
+            text.contains("get_rule_context")
+        )
+        Assert.assertTrue(
+            "base prompt should require context lookup before scripts",
+            text.contains("before writing a Groovy or Postman")
+        )
+        Assert.assertTrue(
             "base prompt should document get_rule_detail",
             text.contains("get_rule_detail")
         )
@@ -241,7 +249,7 @@ class SystemPromptBuilderTest {
         // the only menu the sub-agent LLM should trust.
         val text = SystemPromptBuilder.buildSubAgent().content
         for (tool in listOf(
-            "list_rule_keys", "get_rule_detail", "get_psi_class_info",
+            "list_rule_keys", "get_rule_detail", "get_rule_context", "get_psi_class_info",
             "find_classes_by_annotation", "find_classes_by_supertype",
             "report_findings"
         )) {
@@ -289,7 +297,7 @@ class SystemPromptBuilderTest {
         }
         // And the 6 registered tools MUST be advertised.
         for (registered in listOf(
-            "list_rule_keys", "get_rule_detail", "get_psi_class_info",
+            "list_rule_keys", "get_rule_detail", "get_rule_context", "get_psi_class_info",
             "find_classes_by_annotation", "find_classes_by_supertype",
             "report_findings"
         )) {

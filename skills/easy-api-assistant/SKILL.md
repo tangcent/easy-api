@@ -354,13 +354,20 @@ Valid filter prefixes (and ONLY these):
 
 - `$class:<FQN>` — exact class-name match. **Wildcards are NOT supported.**
   For package/pattern matching use `groovy:` (e.g.
-  `groovy: it.containingClass()?.name()?.startsWith("com.example.web.")`).
+  `groovy: it.containingClass()?.qualifiedName()?.startsWith("com.example.web.")`).
 - `@<AnnotationFqn>` — annotation presence.
 - `#regex:<pattern>` — regex match; captured groups available as `${1}`,
   `${2}` in the value.
 - `#<tag>` — JavaDoc/KDoc tag.
 - `!<expr>` — negation.
 - `groovy:<script>` — truthy script result = match.
+
+Class identity in Groovy is context-sensitive:
+- `name()` on a class context returns only the simple name.
+- `qualifiedName()` returns the fully-qualified class name and is required for
+  FQN equality and package-prefix comparisons.
+- For inherited members, `containingClass()` is the class currently being
+  exported, while `defineClass()` is the original declaring class.
 
 There is **no `~` prefix** and **no bare `class:` prefix** — the older
 `class:com.example.Foo` and `~regex` forms are invalid; use `$class:` and
@@ -398,13 +405,13 @@ Binding Reference for the `it` object API.
 
 **Bad (unreadable single-line filter):**
 ```
-method.additional.header[groovy: it.containingClass()?.name()?.startsWith("com.example.merchant.") && it.containingClass()?.name() != "com.example.merchant.AuthController"]={"name":"Authorization","value":"Bearer ${token}","desc":"JWT","required":true}
+method.additional.header[groovy: it.containingClass()?.qualifiedName()?.startsWith("com.example.merchant.") && it.containingClass()?.qualifiedName() != "com.example.merchant.AuthController"]={"name":"Authorization","value":"Bearer ${token}","desc":"JWT","required":true}
 ```
 
 **Good (multi-line groovy value-block):**
 ```
 method.additional.header=groovy:```
-def cls = it.containingClass()?.name()
+def cls = it.containingClass()?.qualifiedName()
 if (cls?.startsWith("com.example.merchant.")
     && cls != "com.example.merchant.AuthController") {
     return '{"name":"Authorization","value":"Bearer ${token}","desc":"JWT","required":true}'

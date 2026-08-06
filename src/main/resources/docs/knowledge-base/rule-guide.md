@@ -277,7 +277,7 @@ method.doc[@org.springframework.lang.Deprecated]=deprecated
 method.doc[#internal]=internal
 
 # Package-prefix match via groovy (wildcards are NOT supported by $class:)
-method.doc[groovy: it.containingClass().name().startsWith("com.example.web.")]=web
+method.doc[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.web.")]=web
 ```
 
 ---
@@ -342,11 +342,14 @@ When a rule value is prefixed with `groovy:`, it runs as a Groovy script via the
 `it` is the central object in every script. It wraps the current PSI element and exposes a script-friendly API:
 
 ```groovy
-// Name of the current element
+// Name of the current element; for a class context this is the simple name
 it.name()
 
-// Fully-qualified name of the containing class
-it.containingClass().name()
+// Fully-qualified name of the containing/current export class
+it.containingClass()?.qualifiedName()
+
+// Fully-qualified name of the class that originally declared an inherited member
+it.defineClass()?.qualifiedName()
 
 // Annotation access — returns the annotation wrapper or null
 it.ann("org.springframework.web.bind.annotation.RequestMapping")?.path()
@@ -358,6 +361,12 @@ it.doc()
 // Has annotation?
 it.hasAnn("java.lang.Deprecated")
 ```
+
+On class contexts, `name()` returns a simple name such as `TraceBean`;
+`qualifiedName()` returns an FQN such as `com.example.dto.TraceBean`. Always
+use `qualifiedName()` for package or FQN comparisons. For inherited members,
+`containingClass()` identifies the current export class and `defineClass()`
+identifies the original declaring class.
 
 ---
 
@@ -395,17 +404,17 @@ the same catalog when scanning your project.
 
 | Pattern | Detection signal (FQN / shape to search for) | Rule recipe |
 |---------|----------------------------------------------|-------------|
-| **Filter / Interceptor requiring a header** | `jakarta.servlet.Filter`, `jakarta.servlet.http.HttpFilter`, `javax.servlet.Filter`, `org.springframework.web.servlet.HandlerInterceptor` — implementations often call `request.getHeader("X-…")` in `doFilter` / `preHandle`. Search for `extends`/`implements` these types and confirm the FQN by resolving the import. | Add the header to every endpoint (no filter — applies globally): `method.additional.header={"name":"X-My-Header","value":"required-value","desc":"","required":true}`. Or scope it to a package via groovy: `method.additional.header[groovy: it.containingClass().name().startsWith("com.example.web.")]={"name":"X-My-Header","value":"\${value}","desc":"","required":true}`. |
+| **Filter / Interceptor requiring a header** | `jakarta.servlet.Filter`, `jakarta.servlet.http.HttpFilter`, `javax.servlet.Filter`, `org.springframework.web.servlet.HandlerInterceptor` — implementations often call `request.getHeader("X-…")` in `doFilter` / `preHandle`. Search for `extends`/`implements` these types and confirm the FQN by resolving the import. | Add the header to every endpoint (no filter — applies globally): `method.additional.header={"name":"X-My-Header","value":"required-value","desc":"","required":true}`. Or scope it to a package via groovy: `method.additional.header[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.web.")]={"name":"X-My-Header","value":"\${value}","desc":"","required":true}`. |
 | **WebFilter (Spring WebFlux)** | `org.springframework.web.server.WebFilter` — `filter()` that inspects `ServerHttpRequest`. | Same as above — `method.additional.header=…`. |
 | **Response wrapper (`@ControllerAdvice` + `ResponseBodyAdvice`)** | `org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice` — implementations wrap the body in `{ code, data, msg }`. Search for implementors; check the `beforeBodyWrite` return type. | Unwrap the response for documentation: `json.rule.convert[#regex:com\.example\.common\.ApiResult<(.*?)>]=${1}` (repeat for each wrapper type). |
-| **Custom argument resolver (injects hidden param)** | `org.springframework.web.method.support.HandlerMethodArgumentResolver` — `supportsParameter` checks for a custom annotation or type; `resolveArgument` returns the value. The parameter is **not** declared in the source signature. | Inject the param into the docs: `api.param.parse.before[groovy: it.containingClass().name().startsWith("com.example.web.")]=com.example.CurrentUser:current_user:the current user`. Or use `api.param.parse.before[@com.example.CurrentUser]=…` if annotated. |
+| **Custom argument resolver (injects hidden param)** | `org.springframework.web.method.support.HandlerMethodArgumentResolver` — `supportsParameter` checks for a custom annotation or type; `resolveArgument` returns the value. The parameter is **not** declared in the source signature. | Inject the param into the docs: `api.param.parse.before[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.web.")]=com.example.CurrentUser:current_user:the current user`. Or use `api.param.parse.before[@com.example.CurrentUser]=…` if annotated. |
 | **Meta-annotations (composed `@RequestMapping`)** | A custom annotation like `@GetRestApi` that is itself annotated `@GetMapping`. Search for annotations meta-annotated with `@org.springframework.web.bind.annotation.RequestMapping`. | Tell EasyApi to treat the custom annotation as a controller method marker: `class.is.spring.ctrl=groovy: it.hasAnn("com.example.GetRestApi")`. |
-| **Field naming convention (snake_case / camelCase mismatch)** | The DTO uses `camelCase`, but the API contract is `snake_case` (or vice-versa). Often visible in Jackson `@JsonNaming` or a `PropertyNamingStrategy`. | `field.name[groovy: it.containingClass().name().startsWith("com.example.dto.")]=groovy: it.name().replaceAll("([A-Z])") { "_" + it[1].toLowerCase() }` |
+| **Field naming convention (snake_case / camelCase mismatch)** | The DTO uses `camelCase`, but the API contract is `snake_case` (or vice-versa). Often visible in Jackson `@JsonNaming` or a `PropertyNamingStrategy`. | `field.name[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.dto.")]=groovy: it.name().replaceAll("([A-Z])") { "_" + it[1].toLowerCase() }` |
 | **Field ignores (sensitive fields)** | Fields named `password`, `secret`, `token`, `apiKey` that should never appear in exports. | `field.ignore[#regex:.*password.*]=true` · `field.ignore[#regex:.*(secret\|token\|apikey).*]=true` |
-| **Required / demo / default for a field** | A field is always required by the API but has no `@NotNull` in source, or needs a demo value for the exported example. | `field.required[groovy: it.containingClass().name().startsWith("com.example.dto.")]=name,email` · `field.demo[$class:com.example.dto.User]=18` |
-| **Path prefix per module / package** | Every controller in `com.example.admin` should be prefixed `/admin` in the docs, even if `@RequestMapping` doesn't declare it. | `class.prefix.path[groovy: it.name().startsWith("com.example.admin.")]=/admin` |
+| **Required / demo / default for a field** | A field is always required by the API but has no `@NotNull` in source, or needs a demo value for the exported example. | `field.required[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.dto.")]=name,email` · `field.demo[$class:com.example.dto.User]=18` |
+| **Path prefix per module / package** | Every controller in `com.example.admin` should be prefixed `/admin` in the docs, even if `@RequestMapping` doesn't declare it. | `class.prefix.path[groovy: it.qualifiedName()?.startsWith("com.example.admin.")]=/admin` |
 | **Enum representation** | The API exposes an enum as `{ "name": "ACTIVE", "value": 1 }` but EasyApi exports just the name. | `json.rule.convert[$class:com.example.Status]=groovy: '{"name":"' + it.name() + '","value":' + it.ann("com.example.Code")?.value() + '}'` |
-| **Status / version tag** | Every endpoint in `v2` package should carry a version label. | `method.doc[groovy: it.containingClass().name().startsWith("com.example.v2.")]=v2` |
+| **Status / version tag** | Every endpoint in `v2` package should carry a version label. | `method.doc[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.v2.")]=v2` |
 | **`@RequirePermission("admin")` → tag / header** | A custom security annotation that should become an `method.doc` or a Postman header. Search the codebase for `@com.example.RequirePermission` (resolve imports to confirm the FQN). | `method.doc[@com.example.RequirePermission]=admin` · `method.additional.header[@com.example.RequirePermission]={"name":"X-Permission","value":"\${it.ann('com.example.RequirePermission')?.value()}","desc":"","required":true}` |
 
 > **Detection tip for the AI assistant:** before proposing a rule, search the
@@ -478,10 +487,10 @@ the same catalog when scanning your project.
 
 | Pattern | Detection signal (PSI tools) | Rule recipe (full bundle) |
 |---------|------------------------------|---------------------------|
-| **Auth Token Chaining** (flagship) | **Producer:** endpoint path contains `/login`, `/signin`, `/auth`, `/token`, or `/oauth/token` (case-insensitive) OR method name contains `login`/`signin`/`authenticate`/`token`; return type carries a field named `token`/`accessToken`/`access_token`/`jwt`/`idToken`/`authToken`. **Consumer:** controllers in packages *other than* the auth controller. | **Producer** (post-response — extracts token, stores in env var):<br>`postman.test[groovy: it.containingClass().name() == "com.example.AuthController"]=def token = pm.response.json().token; if (token) { pm.environment.set("Authorization", token) }`<br>**Consumer** (attaches Bearer header to secured endpoints):<br>`method.additional.header[groovy: it.containingClass().name().startsWith("com.example.api.")]={"name":"Authorization","value":"Bearer ${Authorization}","desc":"bearer token from login","required":true}`<br>**Env var:** `Authorization` (reuse existing if present — resolve the name from any existing `method.additional.header=…${…}` rule via `get_existing_rules_for_key`, not from the Environments panel).<br>⚠ Uses `postman.test` (NOT `postman.prerequest`) — the token only exists after the login response.<br>⚠ If the token field is ambiguous (multiple candidates), call `ask_clarification` (single_choice) before writing the script. |
+| **Auth Token Chaining** (flagship) | **Producer:** endpoint path contains `/login`, `/signin`, `/auth`, `/token`, or `/oauth/token` (case-insensitive) OR method name contains `login`/`signin`/`authenticate`/`token`; return type carries a field named `token`/`accessToken`/`access_token`/`jwt`/`idToken`/`authToken`. **Consumer:** controllers in packages *other than* the auth controller. | **Producer** (post-response — extracts token, stores in env var):<br>`postman.test[groovy: it.containingClass()?.qualifiedName() == "com.example.AuthController"]=def token = pm.response.json().token; if (token) { pm.environment.set("Authorization", token) }`<br>**Consumer** (attaches Bearer header to secured endpoints):<br>`method.additional.header[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.api.")]={"name":"Authorization","value":"Bearer ${Authorization}","desc":"bearer token from login","required":true}`<br>**Env var:** `Authorization` (reuse existing if present — resolve the name from any existing `method.additional.header=…${…}` rule via `get_existing_rules_for_key`, not from the Environments panel).<br>⚠ Uses `postman.test` (NOT `postman.prerequest`) — the token only exists after the login response.<br>⚠ If the token field is ambiguous (multiple candidates), call `ask_clarification` (single_choice) before writing the script. |
 | **Static Auth (API Key / Basic)** | Security filter/interceptor calling `request.getHeader("X-API-Key")` / `"Authorization"` starting `Basic `; or custom `@ApiKeyAuth` annotation. Discover via `find_classes_by_annotation` + `get_psi_class_info` (read filter body for `getHeader(...)`). | **API-key-in-header:**<br>`method.additional.header={"name":"X-API-Key","value":"${apiKey}","desc":"api key","required":true}`<br>**API-key-in-query:**<br>`method.additional.param={"name":"key","type":"String","value":"${apiKey}","required":true,"desc":"api key"}`<br>**Basic auth:**<br>`method.additional.header={"name":"Authorization","value":"Basic ${basicAuth}","desc":"http basic credentials","required":true}`<br>**No script** — the user supplies the credential once in the Environments panel (base64-encode `user:pass` for Basic). |
 | **Per-Request Injection (Correlation / Idempotency)** | Filter/interceptor reading `request.getHeader("X-Request-Id")` / `"X-Correlation-Id"` / `"X-Trace-Id"`; or `Idempotency-Key` header on POST/PUT methods. | **Correlation ID** (global, pre-request):<br>`postman.prerequest=pm.request.headers.upsert("X-Request-Id", java.util.UUID.randomUUID().toString())`<br>**Idempotency key** (scoped to mutating methods — never unscoped):<br>`postman.prerequest[groovy: it.methodType().name() == "POST" || it.methodType().name() == "PUT"]=pm.request.headers.upsert("Idempotency-Key", java.util.UUID.randomUUID().toString())`<br>Uses `pm.request.headers.upsert(...)` (add-or-replace, case-insensitive), not `.add(...)` (which would duplicate). |
-| **Request Signing (HMAC)** | Filter/interceptor using `javax.crypto.Mac` / `HmacSHA256` / `Sha256.hmac`; reads `appSecret`/`appKey`/`accessKeyId`; or custom `@SignedRequest` annotation. | **Pre-request signing script** (computes HMAC, attaches signature header):<br>`postman.prerequest[groovy: it.containingClass().name().startsWith("com.example.api.")]=def mac = javax.crypto.Mac.getInstance("HmacSHA256"); mac.init(new javax.crypto.spec.SecretKeySpec("${appSecret}".getBytes("UTF-8"), "HmacSHA256")); def stringToSign = pm.request.url + "\n" + pm.request.body; def raw = mac.doFinal(stringToSign.getBytes("UTF-8")); def sig = raw.collect { String.format("%02x", it) }.join(); pm.request.headers.upsert("X-Signature", sig)`<br>**No hardcoded secret** — `${appSecret}` is always an env-var reference.<br>⚠ For non-trivial signing (AWS SigV4, etc.) treat as a scaffold + call `ask_clarification` for the canonical-string / algorithm variant. |
+| **Request Signing (HMAC)** | Filter/interceptor using `javax.crypto.Mac` / `HmacSHA256` / `Sha256.hmac`; reads `appSecret`/`appKey`/`accessKeyId`; or custom `@SignedRequest` annotation. | **Pre-request signing script** (computes HMAC, attaches signature header):<br>`postman.prerequest[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.api.")]=def mac = javax.crypto.Mac.getInstance("HmacSHA256"); mac.init(new javax.crypto.spec.SecretKeySpec("${appSecret}".getBytes("UTF-8"), "HmacSHA256")); def stringToSign = pm.request.url + "\n" + pm.request.body; def raw = mac.doFinal(stringToSign.getBytes("UTF-8")); def sig = raw.collect { String.format("%02x", it) }.join(); pm.request.headers.upsert("X-Signature", sig)`<br>**No hardcoded secret** — `${appSecret}` is always an env-var reference.<br>⚠ For non-trivial signing (AWS SigV4, etc.) treat as a scaffold + call `ask_clarification` for the canonical-string / algorithm variant. |
 | **401-Refresh** | Refresh endpoint at `/refresh`, `/token/refresh`; OR user explicitly asks for auto-refresh; OR documented "if 401, call /refresh" convention. | **Post-call rule** (detects 401, calls refresh, sets new header, forces retry):<br>`http.call.after=groovy: if (response.code() == 401) { def refreshReq = new com.itangcent.easyapi.core.http.HttpRequest("https://api.example.com/refresh", "POST", java.util.Collections.emptyList(), java.util.Collections.emptyList(), "grant_type=refresh_token", java.util.Collections.emptyList(), java.util.Collections.emptyList(), null); def resp = httpClient.executeSync(refreshReq); def newToken = new groovy.json.JsonSlurper().parseText(resp.body).access_token; if (newToken) { request.setHeader("Authorization", "Bearer " + newToken); response.discard() } }`<br>**Retry limit:** up to 3 (enforced by `HttpClientScriptInterceptor`). The retry re-sends the mutated request wrapper, so `request.setHeader(...)` + `response.discard()` is sufficient — `pm` is NOT available in `http.call.after` (use `session.set(...)` for cross-request persistence if needed).<br>⚠ Keep the refresh endpoint itself script-free (recursion guard limits sub-request hooks to depth < 2). Wrap in `try/catch`. |
 
 > **Detection tip for the AI assistant:** before proposing a workflow bundle,
@@ -652,10 +661,10 @@ clarification needed.
 postman.host={{order-service}}
 
 # Producer (post-response — extracts token, stores in namespaced env var)
-postman.test[groovy: it.containingClass().name() == "com.example.order.AuthController"]=def token = pm.response.json().token; if (token) { pm.environment.set("order-service-token", token) }
+postman.test[groovy: it.containingClass()?.qualifiedName() == "com.example.order.AuthController"]=def token = pm.response.json().token; if (token) { pm.environment.set("order-service-token", token) }
 
 # Consumer (attaches namespaced Bearer header to order-service secured endpoints)
-method.additional.header[groovy: it.containingClass().name().startsWith("com.example.order.api.")]={"name":"Authorization","value":"Bearer ${order-service-token}","desc":"bearer token from order-service login","required":true}
+method.additional.header[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.order.api.")]={"name":"Authorization","value":"Bearer ${order-service-token}","desc":"bearer token from order-service login","required":true}
 ```
 
 **Bundle 2 — `payment-service`** (a second `propose_rule_content`):
@@ -665,10 +674,10 @@ method.additional.header[groovy: it.containingClass().name().startsWith("com.exa
 postman.host={{payment-service}}
 
 # Producer (post-response — extracts token, stores in namespaced env var)
-postman.test[groovy: it.containingClass().name() == "com.example.payment.AuthController"]=def token = pm.response.json().token; if (token) { pm.environment.set("payment-service-token", token) }
+postman.test[groovy: it.containingClass()?.qualifiedName() == "com.example.payment.AuthController"]=def token = pm.response.json().token; if (token) { pm.environment.set("payment-service-token", token) }
 
 # Consumer (attaches namespaced Bearer header to payment-service secured endpoints)
-method.additional.header[groovy: it.containingClass().name().startsWith("com.example.payment.api.")]={"name":"Authorization","value":"Bearer ${payment-service-token}","desc":"bearer token from payment-service login","required":true}
+method.additional.header[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.payment.api.")]={"name":"Authorization","value":"Bearer ${payment-service-token}","desc":"bearer token from payment-service login","required":true}
 ```
 
 **Env vars** (user creates in the Environments panel): `order-service` (host),
@@ -701,7 +710,7 @@ consumer + host + env var, all carrying the same key).
 filter:
 
 ```
-api.name[groovy: it.containingClass().name() == "com.example.UserCtrl" && it.name() == "getUserName"]=Fetch User
+api.name[groovy: it.containingClass()?.qualifiedName() == "com.example.UserCtrl" && it.name() == "getUserName"]=Fetch User
 ```
 
 ### 2. Tag all endpoints in a controller
@@ -726,7 +735,7 @@ field.ignore[#regex:.*password.*]=true
 ### 5. Add a prefix to all fields in a DTO
 
 ```
-field.name.prefix[groovy: it.containingClass().name().startsWith("com.example.dto.")]=prop_
+field.name.prefix[groovy: it.containingClass()?.qualifiedName().startsWith("com.example.dto.")]=prop_
 ```
 
 ### 6. Custom type conversion for Reactor types
@@ -778,7 +787,7 @@ Before EasyApi 3.0, rule editing happened in a dedicated "Built-in" tab inside t
   Note: `class:` (without `$`) is NOT a valid filter prefix in 3.0 — use `$class:`.
 - **`$class:` is exact-match only:** wildcards like `$class:com.example.*Controller`
   do NOT work. For package/pattern matching, use a `groovy:` filter
-  (e.g. `groovy: it.containingClass().name().startsWith("com.example.")`) or
+  (e.g. `groovy: it.containingClass()?.qualifiedName().startsWith("com.example.")`) or
   `#regex:`.
 - **No `~` regex prefix:** use `#regex:` instead.
 - **Header / param values are JSON:** `method.additional.header` takes a JSON

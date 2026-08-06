@@ -53,6 +53,17 @@ class PerceptionToolsTest : EasyApiLightCodeInsightFixtureTestCase() {
         Assert.assertTrue("should contain postman.test", text.contains("postman.test"))
     }
 
+    fun testListRuleKeysIncludesCompactScriptContext() {
+        val result = runBlocking { ListRuleKeysTool().execute(emptyMap(), ctx()) }
+        val keys: List<Map<String, Any?>> =
+            com.itangcent.easyapi.core.util.json.GsonUtils.fromJson((result as ToolResult.Text).value)
+        val fieldIgnore = keys.first { it["name"] == "field.ignore" }
+        val context = fieldIgnore["scriptContext"] as? Map<*, *>
+        Assert.assertNotNull("field.ignore should expose a context summary", context)
+        Assert.assertEquals("groovy-rule", context!!["executionMode"])
+        Assert.assertEquals("get_rule_context", context["detailTool"])
+    }
+
     fun testListRuleKeysAttachesCatalogMetadataForKeysWithRecipeFile() {
         // A5 catalog join: keys that have a per-key recipe file in
         // ai/rules/<key>.md get `description` + `detailPromptId` attached.
@@ -107,6 +118,38 @@ class PerceptionToolsTest : EasyApiLightCodeInsightFixtureTestCase() {
         // Every key should at least have name + type + source.
         Assert.assertTrue("should contain api.name", text.contains("api.name"))
         Assert.assertTrue("should contain \"source\"", text.contains("source"))
+    }
+
+    // --- GetRuleContextTool ---
+
+    fun testGetRuleContextReturnsKeySpecificObjectApi() {
+        val result = runBlocking {
+            GetRuleContextTool().execute(mapOf("key" to "http.call.after"), ctx())
+        }
+        Assert.assertTrue("result: $result", result is ToolResult.Text)
+        val text = (result as ToolResult.Text).value
+        Assert.assertTrue(text.contains("HttpRequestWrapper"))
+        Assert.assertTrue(text.contains("HttpResponseWrapper"))
+        Assert.assertTrue(text.contains("discard"))
+    }
+
+    fun testGetRuleContextAcceptsAliasesAndRejectsUnknownKeys() {
+        val aliasResult = runBlocking {
+            GetRuleContextTool().execute(mapOf("key" to "doc.field"), ctx())
+        }
+        Assert.assertTrue("result: $aliasResult", aliasResult is ToolResult.Text)
+        Assert.assertTrue((aliasResult as ToolResult.Text).value.contains("field.doc"))
+
+        val unknownResult = runBlocking {
+            GetRuleContextTool().execute(mapOf("key" to "not.a.real.key"), ctx())
+        }
+        Assert.assertTrue(unknownResult is ToolResult.Error)
+    }
+
+    fun testGetRuleContextRejectsMissingKey() {
+        val result = runBlocking { GetRuleContextTool().execute(emptyMap(), ctx()) }
+        Assert.assertTrue(result is ToolResult.Error)
+        Assert.assertTrue((result as ToolResult.Error).message.contains("missing required parameter"))
     }
 
     // --- GetPluginDocTool ---
@@ -429,6 +472,7 @@ class PerceptionToolsTest : EasyApiLightCodeInsightFixtureTestCase() {
         val tools = standardRuleTools()
         val names = tools.map { it.name }.toSet()
         Assert.assertTrue("list_rule_keys", names.contains("list_rule_keys"))
+        Assert.assertTrue("get_rule_context", names.contains("get_rule_context"))
         Assert.assertTrue("get_plugin_doc", names.contains("get_plugin_doc"))
         Assert.assertTrue("get_detection_prompt", names.contains("get_detection_prompt"))
         Assert.assertTrue("get_rule_detail", names.contains("get_rule_detail"))
@@ -450,7 +494,7 @@ class PerceptionToolsTest : EasyApiLightCodeInsightFixtureTestCase() {
             "write_rule_file must NOT be registered in v1",
             names.contains("write_rule_file")
         )
-        Assert.assertEquals("exactly 17 tools (15 + 2 task-list tools)", 17, tools.size)
+        Assert.assertEquals("exactly 18 tools (16 + 2 task-list tools)", 18, tools.size)
     }
 
     // --- GetDetectionPromptTool ---

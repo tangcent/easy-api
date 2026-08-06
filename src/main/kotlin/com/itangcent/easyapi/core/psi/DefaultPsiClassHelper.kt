@@ -357,7 +357,13 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
             // Build the field path for fieldContext injection into rule scripts
             val fieldPath = if (parentPath != null) "$parentPath.$fieldName" else fieldName
 
-            if (engine.evaluate(RuleKeys.FIELD_IGNORE, accessibleField.psi, fieldContext = fieldPath)) {
+            if (engine.evaluate(
+                    RuleKeys.FIELD_IGNORE,
+                    accessibleField.psi,
+                    containingClass = psiClass,
+                    fieldContext = fieldPath
+                )
+            ) {
                 continue
             }
 
@@ -365,19 +371,42 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
             if (accessibleField.psi is PsiField) {
                 val psiField = accessibleField.psi as PsiField
                 if (psiField.hasModifierProperty(PsiModifier.STATIC) && psiField.hasModifierProperty(PsiModifier.FINAL)) {
-                    if (engine.evaluate(RuleKeys.CONSTANT_FIELD_IGNORE, psiField)) {
+                    if (engine.evaluate(
+                            RuleKeys.CONSTANT_FIELD_IGNORE,
+                            psiField,
+                            containingClass = psiClass
+                        )
+                    ) {
                         continue
                     }
                 }
             }
 
-            engine.evaluate(RuleKeys.JSON_FIELD_PARSE_BEFORE, accessibleField.psi, fieldContext = fieldPath)
+            engine.evaluate(
+                RuleKeys.JSON_FIELD_PARSE_BEFORE,
+                accessibleField.psi,
+                containingClass = psiClass,
+                fieldContext = fieldPath
+            )
 
-            val customName = engine.evaluate(RuleKeys.FIELD_NAME, accessibleField.psi, fieldContext = fieldPath)
-            val prefix =
-                engine.evaluate(RuleKeys.FIELD_NAME_PREFIX, accessibleField.psi, fieldContext = fieldPath) ?: ""
-            val suffix =
-                engine.evaluate(RuleKeys.FIELD_NAME_SUFFIX, accessibleField.psi, fieldContext = fieldPath) ?: ""
+            val customName = engine.evaluate(
+                RuleKeys.FIELD_NAME,
+                accessibleField.psi,
+                containingClass = psiClass,
+                fieldContext = fieldPath
+            )
+            val prefix = engine.evaluate(
+                RuleKeys.FIELD_NAME_PREFIX,
+                accessibleField.psi,
+                containingClass = psiClass,
+                fieldContext = fieldPath
+            ) ?: ""
+            val suffix = engine.evaluate(
+                RuleKeys.FIELD_NAME_SUFFIX,
+                accessibleField.psi,
+                containingClass = psiClass,
+                fieldContext = fieldPath
+            ) ?: ""
             val baseName = customName?.takeIf { it.isNotBlank() } ?: fieldName
             val jsonFieldName = prefix + baseName + suffix
 
@@ -390,12 +419,30 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
                 break
             }
 
-            val fieldDefaultValue =
-                engine.evaluate(RuleKeys.FIELD_DEFAULT_VALUE, accessibleField.psi, fieldContext = fieldPath)
-            val fieldRequired = engine.evaluate(RuleKeys.FIELD_REQUIRED, accessibleField.psi, fieldContext = fieldPath)
-            val fieldDemo = engine.evaluate(RuleKeys.FIELD_DEMO, accessibleField.psi, fieldContext = fieldPath)
-            val fieldAdvancedStr =
-                engine.evaluate(RuleKeys.FIELD_ADVANCED, accessibleField.psi, fieldContext = fieldPath)
+            val fieldDefaultValue = engine.evaluate(
+                RuleKeys.FIELD_DEFAULT_VALUE,
+                accessibleField.psi,
+                containingClass = psiClass,
+                fieldContext = fieldPath
+            )
+            val fieldRequired = engine.evaluate(
+                RuleKeys.FIELD_REQUIRED,
+                accessibleField.psi,
+                containingClass = psiClass,
+                fieldContext = fieldPath
+            )
+            val fieldDemo = engine.evaluate(
+                RuleKeys.FIELD_DEMO,
+                accessibleField.psi,
+                containingClass = psiClass,
+                fieldContext = fieldPath
+            )
+            val fieldAdvancedStr = engine.evaluate(
+                RuleKeys.FIELD_ADVANCED,
+                accessibleField.psi,
+                containingClass = psiClass,
+                fieldContext = fieldPath
+            )
             val fieldAdvanced = if (!fieldAdvancedStr.isNullOrBlank()) {
                 runCatching { GsonUtils.fromJson<Map<String, Any?>>(fieldAdvancedStr) }
                     .onFailure { LOG.warn("DefaultPsiClassHelper: failed to parse field_advanced JSON: '$fieldAdvancedStr'", it) }
@@ -440,7 +487,12 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
             )
 
             // Check json.unwrapped — if true, merge the field's object fields into the parent
-            val unwrapped = engine.evaluate(RuleKeys.JSON_UNWRAPPED, accessibleField.psi, fieldContext = fieldPath)
+            val unwrapped = engine.evaluate(
+                RuleKeys.JSON_UNWRAPPED,
+                accessibleField.psi,
+                containingClass = psiClass,
+                fieldContext = fieldPath
+            )
             if (unwrapped && fieldModel.model is ObjectModel.Object) {
                 for ((nestedName, nestedField) in (fieldModel.model as ObjectModel.Object).fields) {
                     val unwrappedName = prefix + nestedName + suffix
@@ -452,7 +504,12 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
                 fields[jsonFieldName] = fieldModel
             }
 
-            engine.evaluate(RuleKeys.JSON_FIELD_PARSE_AFTER, accessibleField.psi, fieldContext = fieldPath)
+            engine.evaluate(
+                RuleKeys.JSON_FIELD_PARSE_AFTER,
+                accessibleField.psi,
+                containingClass = psiClass,
+                fieldContext = fieldPath
+            )
         }
 
         val additional = engine.evaluate(RuleKeys.JSON_ADDITIONAL_FIELD, psiClass)
@@ -484,7 +541,7 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
         visited.remove(qualifiedName)
 
         // Apply field ordering if field.order rules are configured
-        val orderedFields = applyFieldOrdering(fields, accessibleFields, engine)
+        val orderedFields = applyFieldOrdering(fields, accessibleFields, psiClass, engine)
         if (orderedFields != null) {
             fields.clear()
             fields.putAll(orderedFields)
@@ -1022,13 +1079,14 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
     private suspend fun applyFieldOrdering(
         fields: LinkedHashMap<String, FieldModel>,
         accessibleFields: List<AccessibleField>,
+        containingClass: PsiClass,
         engine: RuleEngine
     ): LinkedHashMap<String, FieldModel>? {
         // First try field.order.with (comparator-style)
         val fieldByName = accessibleFields.associateBy { it.name }
         val hasOrderWith = accessibleFields.any { af ->
             // Probe: check if any rule is configured for field.order.with
-            engine.evaluate(RuleKeys.FIELD_ORDER_WITH, af.psi) { ctx ->
+            engine.evaluate(RuleKeys.FIELD_ORDER_WITH, af.psi, containingClass) { ctx ->
                 ctx.setExt("a", af.psi)
                 ctx.setExt("b", af.psi)
             } != null
@@ -1041,7 +1099,7 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
                 val af2 = fieldByName[entry2.key]
                 if (af1 != null && af2 != null) {
                     val result = kotlinx.coroutines.runBlocking {
-                        engine.evaluate(RuleKeys.FIELD_ORDER_WITH, af1.psi) { ctx ->
+                        engine.evaluate(RuleKeys.FIELD_ORDER_WITH, af1.psi, containingClass) { ctx ->
                             ctx.setExt("a", af1.psi)
                             ctx.setExt("b", af2.psi)
                         }
@@ -1062,7 +1120,7 @@ class DefaultPsiClassHelper(private val project: Project) : PsiClassHelper {
         val fieldOrderMap = LinkedHashMap<String, String?>()
         var hasOrder = false
         for (af in accessibleFields) {
-            val order = engine.evaluate(RuleKeys.FIELD_ORDER, af.psi)
+            val order = engine.evaluate(RuleKeys.FIELD_ORDER, af.psi, containingClass)
             if (order != null) hasOrder = true
             fieldOrderMap[af.name] = order
         }

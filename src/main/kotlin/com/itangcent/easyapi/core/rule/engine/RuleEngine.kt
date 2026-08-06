@@ -46,9 +46,31 @@ class RuleEngine internal constructor(
         return forEachApplicable(key) { RuleContext.from(project, element, fieldContext) }
     }
 
+    suspend fun evaluate(
+        key: RuleKey.StringKey,
+        element: PsiElement,
+        containingClass: com.intellij.psi.PsiClass,
+        fieldContext: String? = null
+    ): String? {
+        return forEachApplicable(key) {
+            RuleContext.fromMember(project, element, containingClass, fieldContext)
+        }
+    }
+
     suspend fun evaluate(key: RuleKey.StringKey, element: PsiElement, contextHandle: (RuleContext) -> Unit): String? {
         return forEachApplicable(key) {
             RuleContext.from(project, element).also(contextHandle)
+        }
+    }
+
+    suspend fun evaluate(
+        key: RuleKey.StringKey,
+        element: PsiElement,
+        containingClass: com.intellij.psi.PsiClass,
+        contextHandle: (RuleContext) -> Unit
+    ): String? {
+        return forEachApplicable(key) {
+            RuleContext.fromMember(project, element, containingClass).also(contextHandle)
         }
     }
 
@@ -87,6 +109,22 @@ class RuleEngine internal constructor(
         return forEachApplicable(key) { RuleContext.from(project, element, fieldContext) } ?: false
     }
 
+    /**
+     * Evaluates a member rule from the perspective of [containingClass].
+     * This preserves the distinction between a member's current containing
+     * class and its original declaring class for inherited members.
+     */
+    suspend fun evaluate(
+        key: RuleKey.BooleanKey,
+        element: PsiElement,
+        containingClass: com.intellij.psi.PsiClass,
+        fieldContext: String? = null
+    ): Boolean {
+        return forEachApplicable(key) {
+            RuleContext.fromMember(project, element, containingClass, fieldContext)
+        } ?: false
+    }
+
     suspend fun evaluate(key: RuleKey.BooleanKey, element: PsiElement, contextHandle: (RuleContext) -> Unit): Boolean {
         return forEachApplicable(key) {
             RuleContext.from(project, element).also(contextHandle)
@@ -97,13 +135,43 @@ class RuleEngine internal constructor(
         return forEachApplicable(key) { RuleContext.from(project, element) }
     }
 
+    suspend fun evaluate(
+        key: RuleKey.IntKey,
+        element: PsiElement,
+        containingClass: com.intellij.psi.PsiClass
+    ): Int? {
+        return forEachApplicable(key) { RuleContext.fromMember(project, element, containingClass) }
+    }
+
     suspend fun evaluate(key: RuleKey.EventKey, element: PsiElement, fieldContext: String? = null) {
         forEachApplicable(key) { RuleContext.from(project, element, fieldContext) }
+    }
+
+    suspend fun evaluate(
+        key: RuleKey.EventKey,
+        element: PsiElement,
+        containingClass: com.intellij.psi.PsiClass,
+        fieldContext: String? = null
+    ) {
+        forEachApplicable(key) {
+            RuleContext.fromMember(project, element, containingClass, fieldContext)
+        }
     }
 
     suspend fun evaluate(key: RuleKey.EventKey, element: PsiElement, contextHandle: (RuleContext) -> Unit) {
         forEachApplicable(key) {
             RuleContext.from(project, element).also(contextHandle)
+        }
+    }
+
+    suspend fun evaluate(
+        key: RuleKey.EventKey,
+        element: PsiElement,
+        containingClass: com.intellij.psi.PsiClass,
+        contextHandle: (RuleContext) -> Unit
+    ) {
+        forEachApplicable(key) {
+            RuleContext.fromMember(project, element, containingClass).also(contextHandle)
         }
     }
 

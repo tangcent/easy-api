@@ -205,4 +205,41 @@ class FieldUtilsConfigIntegrationTest : EasyApiLightCodeInsightFixtureTestCase()
         // field-utils config ignores fields that are not private or protected
         assertFalse("Public field 'publicField' should be ignored", fields!!.containsKey("publicField"))
     }
+
+    /**
+     * Fields inherited from a `java.lang.*` class must be ignored while fields
+     * declared by the exported class remain visible. This exercises the
+     * difference between `containingClass()` and `defineClass()` with real PSI.
+     */
+    fun testFieldDeclaredByJavaLangSuperclassIsIgnored() = runTest {
+        myFixture.addClass(
+            """
+            package java.lang.fixture;
+            public class TraceBean {
+                protected String traceId;
+            }
+            """.trimIndent()
+        )
+        myFixture.addClass(
+            """
+            package com.itangcent.fieldutils;
+            import java.lang.fixture.TraceBean;
+            public class InheritedFieldDTO extends TraceBean {
+                private String ownField;
+            }
+            """.trimIndent()
+        )
+
+        val psiClass = findClass("com.itangcent.fieldutils.InheritedFieldDTO")
+        assertNotNull("Should find InheritedFieldDTO", psiClass)
+
+        val model = PsiClassHelper.getInstance(project).buildObjectModel(psiClass!!)
+        val fields = model?.asObject()?.fields
+        assertNotNull("Should build inherited object fields", fields)
+        assertTrue("Child field 'ownField' should be kept", fields!!.containsKey("ownField"))
+        assertFalse(
+            "Inherited field 'traceId' declared by java.lang.fixture.TraceBean should be ignored",
+            fields.containsKey("traceId")
+        )
+    }
 }

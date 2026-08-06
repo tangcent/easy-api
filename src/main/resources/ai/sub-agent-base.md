@@ -26,6 +26,10 @@ Perception tools (read-only, run automatically):
     recipes of every rule file scoped to that channel (and enabled in
     Settings). Use this when you want a tour of what a channel supports.
   - At least one of `key` / `channel` / `format` / `framework` is required.
+- `get_rule_context` — return structured, key-specific script bindings and
+  callable object APIs. Before drafting any Groovy or Postman script, use
+  `get_rule_context(key="…")` to distinguish rule-evaluation `it` from any
+  generated script's `pm` / `request` / `response` bindings.
 - `get_psi_class_info` — inspect a class's methods/fields/signature/annotations
   by fully-qualified name (e.g. `com.example.filter.MyJwtFilter`).
 - `find_classes_by_annotation` — discover classes by annotation FQN or simple

@@ -872,4 +872,27 @@ The existing EasyAPI rule script bindings remain available for advanced use case
 | `helper` / `H` | Class lookup |
 | `runtime` / `R` | Project/module metadata |
 
+### PSI class identity in rule scripts
+
+Rule scripts expose two different kinds of name APIs. Their semantics are
+intentionally different:
+
+| Context API | Result |
+|-------------|--------|
+| `name()` on a class context | simple class name, for example `TraceBean` |
+| `qualifiedName()` on a class context | Fully-qualified class name, for example `com.example.dto.TraceBean` |
+| `type().name()` | Fully-qualified type name, including type arguments when present |
+
+For inherited fields and methods:
+
+- `containingClass()` returns the class currently being exported.
+- `defineClass()` returns the class that originally declared the member.
+
+Always use `qualifiedName()` when comparing a class to an FQN or package
+prefix. For example, to ignore all fields declared by a shared base class:
+
+```groovy
+field.ignore=groovy:it.defineClass()?.qualifiedName() == "com.example.dto.TraceBean"
+```
+
 > **Recommendation:** For Pre-request and Post-response scripts in the API Dashboard, prefer the `pm.*` API for Postman compatibility. Use the legacy bindings only for IDE-specific operations (PSI inspection, file I/O, etc.).
