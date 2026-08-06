@@ -192,7 +192,10 @@ class ConfigTextParser(
         resolveSetting: (String) -> String?,
         result: MutableList<ConfigEntry>
     ) {
-        val loaded = resourceLoader.load(pathOrUrl, baseDir)
+        val includeTarget = resolveIncludeTarget(pathOrUrl)
+        val expandedPath = includeTarget.expandedPath
+            ?: failInclude(includeTarget, sourceId, baseDir)
+        val loaded = resourceLoader.load(expandedPath, baseDir)
         if (loaded != null) {
             result.addAll(
                 parseLines(
@@ -204,12 +207,84 @@ class ConfigTextParser(
                 )
             )
         } else if (!state.ignoreNotFoundFile) {
-            throw IllegalStateException("Cannot resolve include: $pathOrUrl")
+            failInclude(includeTarget, sourceId, baseDir)
         }
     }
 
+    private fun failInclude(
+        includeTarget: IncludeTarget,
+        sourceId: String,
+        baseDir: String?
+    ): Nothing {
+        val failure = includeFailure(includeTarget, sourceId, baseDir)
+        LOG.warn("Failed to resolve config include: ${includeTarget.rawPath}", failure)
+        throw failure
+    }
+
+    private fun resolveIncludeTarget(rawPath: String): IncludeTarget {
+        if (!rawPath.contains(MODULE_PATH_VARIABLE)) {
+            return IncludeTarget(rawPath, rawPath)
+        }
+
+        val moduleBase = activeModuleContentRoot()
+        val projectBase = project.basePath
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::normalizePath)
+        val modulePath = moduleBase ?: projectBase
+        return IncludeTarget(
+            rawPath = rawPath,
+            expandedPath = modulePath
+                ?.let { rawPath.replace(MODULE_PATH_VARIABLE, it) }
+                ?.let(::normalizePath),
+            moduleBase = moduleBase,
+            projectBase = projectBase
+        )
+    }
+
+    private fun activeModuleContentRoot(): String? {
+        val activeFile = project.getService(com.intellij.openapi.fileEditor.FileEditorManager::class.java)
+            ?.selectedFiles
+            ?.firstOrNull()
+            ?: return null
+        val projectFileIndex = project.getService(com.intellij.openapi.roots.ProjectFileIndex::class.java)
+            ?: return null
+        if (projectFileIndex.getModuleForFile(activeFile) == null) return null
+        return projectFileIndex.getContentRootForFile(activeFile)
+            ?.path
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::normalizePath)
+    }
+
+    private fun normalizePath(path: String): String {
+        return java.nio.file.Path.of(path).toAbsolutePath().normalize().toString()
+    }
+
+    private fun includeFailure(
+        includeTarget: IncludeTarget,
+        sourceId: String,
+        baseDir: String?
+    ): IllegalStateException {
+        return IllegalStateException(
+            "Cannot resolve include: ${includeTarget.rawPath}; " +
+                "rawInclude=${includeTarget.rawPath}; " +
+                "expandedPath=${includeTarget.expandedPath ?: "<unresolved>"}; " +
+                "baseDir=${baseDir ?: "<none>"}; " +
+                "moduleBase=${includeTarget.moduleBase ?: "<none>"}; " +
+                "projectBase=${includeTarget.projectBase ?: "<none>"}; " +
+                "sourceId=$sourceId"
+        )
+    }
+
+    private data class IncludeTarget(
+        val rawPath: String,
+        val expandedPath: String?,
+        val moduleBase: String? = null,
+        val projectBase: String? = null
+    )
+
     companion object {
         private const val INCLUDE_DIRECTIVE = "###include"
+        private const val MODULE_PATH_VARIABLE = "\${module_path}"
 
         fun getInstance(project: Project): ConfigTextParser = project.service()
     }

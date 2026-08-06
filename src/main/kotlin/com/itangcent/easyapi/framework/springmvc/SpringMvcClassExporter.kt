@@ -460,7 +460,14 @@ class SpringMvcClassExporter(
     ): ObjectModel? {
         for ((param, binding) in bindings) {
             if (binding != ParameterBinding.Body) continue
-            return endpointBuilder.expandBodyParam(param.type)
+
+            val psiParameter = param.psiParameter
+            engine.evaluate(RuleKeys.API_PARAM_PARSE_BEFORE, psiParameter)
+            try {
+                return endpointBuilder.expandBodyParam(param.type)
+            } finally {
+                engine.evaluate(RuleKeys.API_PARAM_PARSE_AFTER, psiParameter)
+            }
         }
         return null
     }
