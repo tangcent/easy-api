@@ -4,6 +4,10 @@ import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.ProjectManager
 import com.itangcent.easyapi.channel.spi.ChannelRegistry
 import com.itangcent.easyapi.core.export.recognizer.CompositeApiClassRecognizer
+import com.itangcent.easyapi.core.feature.FeatureId
+import com.itangcent.easyapi.core.feature.FeatureRegistry
+import com.itangcent.easyapi.core.feature.FeatureSettingsTransaction
+import com.itangcent.easyapi.core.feature.publishFeatureStateChange
 import com.itangcent.easyapi.core.ide.action.ChannelQuickActionGroup
 import com.itangcent.easyapi.format.spi.FieldFormatActionGroup
 import com.itangcent.easyapi.format.spi.FieldFormatChannelRegistry
@@ -27,7 +31,9 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
     private var tabs: JTabbedPane? = null
 
     private val generalPanel = GeneralSettingsPanel(project)
-    private val featuresPanel = FeaturesSettingsPanel(project)
+    private val featureSnapshot = FeatureRegistry.getInstance(project).snapshot()
+    private val featuresPanel = FeatureSettingsPanel(featureSnapshot)
+    private var featureTransaction: FeatureSettingsTransaction? = null
     private val httpPanel = HttpSettingsPanel()
     private val parsingOutputPanel = ParsingOutputSettingsPanel()
     private val extensionPanel = ExtensionConfigPanel()
@@ -190,10 +196,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         val environment = binder.read(EnvironmentSettings::class)
 
         return generalPanel.isModified(general) ||
-            featuresPanel.isModified(general) ||
-            featuresPanel.isFrameworkEnablementModified(CompositeApiClassRecognizer.getInstance(project).allRecognizers(), general) ||
-            featuresPanel.isChannelEnablementModified(ChannelRegistry.getInstance(project).allChannels(), general) ||
-            featuresPanel.isFieldFormatEnablementModified(FieldFormatChannelRegistry.getInstance(project).allChannels(), general) ||
+            (featureTransaction?.isModified() == true) ||
             generalPanel.isRepositoriesModified(grpc) ||
             httpPanel.isModified(binder.read(HttpSettings::class)) ||
             parsingOutputPanel.isModified(parsingOutput) ||
@@ -217,10 +220,12 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
 
         val general = binder.read(GeneralSettings::class)
         generalPanel.applyTo(general)
-        featuresPanel.applyTo(general)
-        featuresPanel.applyFrameworkEnablementTo(general)
-        featuresPanel.applyChannelEnablementTo(general)
-        featuresPanel.applyFieldFormatEnablementTo(general)
+        val activeFeatureTransaction = featureTransaction
+            ?: FeatureSettingsTransaction(featureSnapshot, general).also {
+                featureTransaction = it
+                featuresPanel.bindTransaction(it)
+            }
+        val featureChange = activeFeatureTransaction.commit(general)
 
         val grpc = binder.read(GrpcSettings::class)
         generalPanel.applyRepositoriesTo(grpc)
@@ -240,29 +245,27 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         val ai = binder.read(AiSettings::class)
         aiPanel.applyTo(ai)
 
-        // Channel panels: read their own typed module, apply, then persist.
+        // Dynamic panels retain their existing module-specific save behavior.
         channelPanels.forEach { entry -> applyChannel(binder, entry) }
-
-        // Framework and format panels: self-contained — they read/write their
-        // own modules via SettingBinder internally (applyTo is the trigger).
         frameworkPanels.forEach { it.applyTo(noopModule) }
         formatPanels.forEach { it.applyTo(noopModule) }
 
-        // persist all modules
-        binder.save(general)
         binder.save(grpc)
         binder.save(parsingOutput)
         binder.save(environment)
         binder.save(http)
         binder.save(ruleFile)
         binder.save(ai)
+        binder.save(general)
 
-        // Re-apply the enablement filter to the quick-action group so newly
-        // enabled channels appear and disabled channels are hidden without an
-        // IDE restart. Safe to call when no group is registered.
+        FeatureSettingsTransaction(featureSnapshot, general).also {
+            featureTransaction = it
+            featuresPanel.bindTransaction(it)
+        }
+        featureChange?.let(project::publishFeatureStateChange)
+
+        // Refresh quick actions after the persisted feature state is visible.
         ChannelQuickActionGroup.refreshActions(project)
-        // Mirror for field-format actions: re-register newly-enabled formats and
-        // let per-context update() hide disabled ones.
         FieldFormatActionGroup.refreshActions(project)
     }
 
@@ -305,10 +308,10 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
 
         val general = binder.read(GeneralSettings::class)
         generalPanel.resetFrom(general)
-        featuresPanel.resetFrom(general)
-        featuresPanel.resetFrameworkEnablementFrom(CompositeApiClassRecognizer.getInstance(project).allRecognizers(), general)
-        featuresPanel.resetChannelEnablementFrom(ChannelRegistry.getInstance(project).allChannels(), general)
-        featuresPanel.resetFieldFormatEnablementFrom(FieldFormatChannelRegistry.getInstance(project).allChannels(), general)
+        FeatureSettingsTransaction(featureSnapshot, general).also {
+            featureTransaction = it
+            featuresPanel.bindTransaction(it)
+        }
         generalPanel.resetRepositoriesFrom(binder.read(GrpcSettings::class))
 
         val parsingOutput = binder.read(ParsingOutputSettings::class)
@@ -337,6 +340,7 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
     }
 
     override fun disposeUIResources() {
+        featureTransaction = null
         panel = null
         tabs = null
     }
@@ -347,22 +351,38 @@ class EasyApiSettingsConfigurable(private val project: com.intellij.openapi.proj
         return (0 until t.tabCount).map { t.getTitleAt(it) }
     }
 
-    /** Test-only: the channel-enablement checkbox state for [channelId], or null. */
-    internal fun channelCheckboxStateForTest(channelId: String): Boolean? =
-        featuresPanel.channelCheckboxState(channelId)
+    internal fun featureDesiredStateForTest(id: FeatureId): Boolean? =
+        featuresPanel.desiredStateForTest(id)
 
-    /** Test-only: sets the channel-enablement checkbox state for [channelId]. */
-    internal fun setChannelCheckboxForTest(channelId: String, selected: Boolean) {
-        featuresPanel.setChannelCheckboxForTest(channelId, selected)
+    internal fun setFeatureDesiredStateForTest(id: FeatureId, selected: Boolean) {
+        featuresPanel.setDesiredStateForTest(id, selected)
     }
 
-    /** Test-only: the field-format enablement checkbox state for [channelId], or null. */
-    internal fun fieldFormatCheckboxStateForTest(channelId: String): Boolean? =
-        featuresPanel.fieldFormatCheckboxState(channelId)
+    internal fun featureControlEnabledForTest(id: FeatureId): Boolean? =
+        featuresPanel.isControlEnabledForTest(id)
 
-    /** Test-only: sets the field-format enablement checkbox state for [channelId]. */
+    internal fun featureDependencyTextForTest(id: FeatureId): String? =
+        featuresPanel.dependencyTextForTest(id)
+
+    internal fun featureTransactionModifiedForTest(): Boolean =
+        featureTransaction?.isModified() == true
+
+    /** Test-only compatibility seam for export-channel feature ids. */
+    internal fun channelCheckboxStateForTest(channelId: String): Boolean? =
+        featureDesiredStateForTest(FeatureId("channel/$channelId"))
+
+    /** Test-only compatibility seam for export-channel feature ids. */
+    internal fun setChannelCheckboxForTest(channelId: String, selected: Boolean) {
+        setFeatureDesiredStateForTest(FeatureId("channel/$channelId"), selected)
+    }
+
+    /** Test-only compatibility seam for field-format feature ids. */
+    internal fun fieldFormatCheckboxStateForTest(channelId: String): Boolean? =
+        featureDesiredStateForTest(FeatureId("field-format/$channelId"))
+
+    /** Test-only compatibility seam for field-format feature ids. */
     internal fun setFieldFormatCheckboxForTest(channelId: String, selected: Boolean) {
-        featuresPanel.setFieldFormatCheckboxForTest(channelId, selected)
+        setFeatureDesiredStateForTest(FeatureId("field-format/$channelId"), selected)
     }
 }
 

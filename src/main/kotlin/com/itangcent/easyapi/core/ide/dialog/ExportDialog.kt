@@ -65,7 +65,15 @@ class ExportDialog(
             channelOptionsPanels[channel.id] = panel
             hasAnyOptions[channel.id] = panel != null
             if (panel != null) {
-                optionsPanel.add(panel.component, channel.id)
+                // Wrap in BorderLayout.NORTH so the panel content stays at its
+                // preferred height. CardLayout sizes the container to the largest
+                // card (e.g. CurlOptionsPanel with ~9 rows); without this wrapper,
+                // panels using BoxLayout.Y_AXIS (Markdown/Postman/Hoppscotch)
+                // stretch their input rows to fill the container, making the
+                // input fields appear excessively tall.
+                val wrapper = JPanel(BorderLayout())
+                wrapper.add(panel.component, BorderLayout.NORTH)
+                optionsPanel.add(wrapper, channel.id)
             }
         }
 

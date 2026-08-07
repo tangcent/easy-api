@@ -1,270 +1,206 @@
 package com.itangcent.easyapi.core.cache.api
 
+import com.intellij.psi.PsiClass
 import com.itangcent.easyapi.core.export.ApiEndpoint
 import com.itangcent.easyapi.core.export.HttpMethod
 import com.itangcent.easyapi.core.export.httpMetadata
-import com.itangcent.easyapi.core.settings.module.GeneralSettings
-import com.itangcent.easyapi.core.settings.update
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
-import com.itangcent.easyapi.testFramework.TestConfigReader
-import com.itangcent.easyapi.testFramework.waitUntil
-import com.itangcent.easyapi.testFramework.waitUntilNotEmpty
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.runBlocking
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.withContext
+import java.util.ArrayDeque
+import java.util.concurrent.atomic.AtomicInteger
 
 class ApiIndexManagerTest : EasyApiLightCodeInsightFixtureTestCase() {
 
-    private lateinit var apiIndexManager: ApiIndexManager
     private lateinit var apiIndex: ApiIndex
+    private lateinit var scanExecutor: QueueScanExecutor
+    private lateinit var manager: ApiIndexManager
 
     override fun setUp() {
         super.setUp()
-        loadTestFiles()
-        apiIndexManager = ApiIndexManager.getInstance(project)
-        apiIndex = ApiIndex.getInstance(project)
-        runBlocking { apiIndex.invalidate() }
-        apiIndexManager.start(triggerInitialScan = false)
+        apiIndex = ApiIndex()
+        scanExecutor = QueueScanExecutor()
+        manager = createManager(scanExecutor)
     }
 
     override fun tearDown() {
-        apiIndexManager.stop()
-        // Give background coroutines time to finish cancellation before next test
-        Thread.sleep(200)
+        runBlocking { manager.stopAndJoin() }
         super.tearDown()
     }
 
-    private fun loadTestFiles() {
-        loadFile("spring/RequestMapping.java")
-        loadFile("spring/GetMapping.java")
-        loadFile("spring/PostMapping.java")
-        loadFile("spring/RestController.java")
-        loadFile("spring/Controller.java")
-        loadFile("spring/ResponseBody.java")
-        loadFile("spring/RequestParam.java")
-        loadFile("spring/PathVariable.java")
-        loadFile("spring/RequestBody.java")
-        loadFile("model/Result.java")
-        loadFile("model/UserInfo.java")
-        loadFile("api/UserCtrl.java")
+    fun testGetInstanceReturnsProjectService() {
+        val service = ApiIndexManager.getInstance(project)
+        assertNotNull("ApiIndexManager should be available as a project service", service)
+        assertSame("Project service lookup should be stable", service, ApiIndexManager.getInstance(project))
     }
 
-    override fun createConfigReader() = TestConfigReader.empty(project)
+    fun testContinuousSessionCanStopRestartAndRetainCache() = runBlocking {
+        val firstEndpoint = endpoint("first")
+        scanExecutor.enqueueResult(listOf(firstEndpoint))
 
-    /**
-     * Waits until the index holds a non-empty endpoint list.
-     *
-     * A full scan may mark the cache valid before PSI is fully resolved, finding
-     * 0 endpoints. When that happens we re-request a scan so the index is
-     * repopulated once PSI resolves. The initial [waitUntil] on [ApiIndex.isReady]
-     * bounds the wait for the first scan, avoiding a hang on `endpoints()`'
-     * internal `awaitCacheReady()` if a scan fails before populating the cache.
-     */
-    private suspend fun waitForEndpoints(timeout: Duration = 30.seconds): List<ApiEndpoint> {
-        waitUntil(timeout = timeout) { apiIndex.isReady() }
-        return waitUntilNotEmpty(timeout = timeout) {
-            val eps = apiIndex.endpoints()
-            if (eps.isEmpty() && apiIndex.isValid()) {
-                apiIndexManager.requestScan()
+        val firstGeneration = manager.startContinuous(triggerInitialScan = false)
+        val firstResult = manager.requestFullScan(firstGeneration, "test-first").await()
+
+        assertTrue("First full scan should succeed", firstResult is ApiScanResult.Success)
+        manager.stopAndJoin()
+        assertFalse("Continuous session should be stopped", manager.isStarted())
+        assertEquals(
+            "Stopping should retain the last successful cache",
+            listOf(firstEndpoint),
+            apiIndex.retainedSnapshot()
+        )
+
+        val secondEndpoint = endpoint("second")
+        scanExecutor.enqueueResult(listOf(secondEndpoint))
+        val secondGeneration = manager.startContinuous(triggerInitialScan = false)
+        val secondResult = manager.requestFullScan(secondGeneration, "test-second").await()
+
+        assertTrue("Restarted full scan should succeed", secondResult is ApiScanResult.Success)
+        assertTrue("Restart should allocate a newer generation", secondGeneration > firstGeneration)
+        assertEquals(
+            "Restarted session should replace the cache",
+            listOf(secondEndpoint),
+            apiIndex.retainedSnapshot()
+        )
+    }
+
+    fun testStoppedRequestIsRejectedWithoutStartingFromSettings() = runBlocking {
+        val result = manager.requestFullScan(source = "stopped-test").await()
+
+        assertTrue("A stopped manager should reject full work", result is ApiScanResult.Rejected)
+        assertFalse("A rejected request must not start a session", manager.isStarted())
+        assertEquals("No scan should execute", 0, scanExecutor.fullScanCount.get())
+    }
+
+    fun testOneShotFailureRetainsOldSnapshotAndLeavesNoSession() = runBlocking {
+        val retained = endpoint("retained")
+        apiIndex.updateEndpoints(listOf(retained))
+        scanExecutor.enqueueFailure(IllegalStateException("controlled failure"))
+
+        val result = manager.runOneShotFullScan("manual-test")
+
+        assertTrue("One-shot failure should be observable", result is ApiScanResult.Failed)
+        assertEquals(
+            "Failed one-shot work must retain the old snapshot",
+            listOf(retained),
+            apiIndex.retainedSnapshot()
+        )
+        assertNull("One-shot work must release its session", manager.sessionSnapshot())
+    }
+
+    fun testOneShotSuccessReplacesSnapshotWithoutContinuousSession() = runBlocking {
+        val retained = endpoint("retained")
+        val refreshed = endpoint("refreshed")
+        apiIndex.updateEndpoints(listOf(retained))
+        scanExecutor.enqueueResult(listOf(refreshed))
+
+        val result = manager.runOneShotFullScan("manual-test")
+
+        assertTrue("One-shot scan should succeed", result is ApiScanResult.Success)
+        assertEquals(
+            "Successful one-shot work should replace the snapshot",
+            listOf(refreshed),
+            apiIndex.retainedSnapshot()
+        )
+        assertFalse("One-shot work must not create a continuous session", manager.isStarted())
+        assertNull("One-shot work must release all channels and jobs", manager.sessionSnapshot())
+    }
+
+    fun testStopCancelsDelayedInitialWorkWithoutFixedSleep() = runBlocking {
+        manager.startContinuous(triggerInitialScan = true)
+        val beforeStop = manager.sessionSnapshot()
+
+        assertNotNull("A session snapshot should be visible while running", beforeStop)
+        assertTrue("Initial work should be pending", beforeStop!!.initialScanPending)
+
+        manager.stopAndJoin()
+
+        assertNull("Stopping should remove the active session", manager.sessionSnapshot())
+        assertEquals("Cancelled initial work must not scan", 0, scanExecutor.fullScanCount.get())
+    }
+
+    fun testOldGenerationCannotOverwriteRestartedSession() = runBlocking {
+        val oldEndpoint = endpoint("old-generation")
+        val newEndpoint = endpoint("new-generation")
+        val firstStarted = CompletableDeferred<Unit>()
+        val releaseFirst = CompletableDeferred<Unit>()
+        val calls = AtomicInteger(0)
+        val executor = object : ApiIndexScanExecutor {
+            override suspend fun scanAll(): List<ApiEndpoint> {
+                return if (calls.incrementAndGet() == 1) {
+                    firstStarted.complete(Unit)
+                    try {
+                        releaseFirst.await()
+                    } catch (e: CancellationException) {
+                        withContext(NonCancellable) { releaseFirst.await() }
+                    }
+                    listOf(oldEndpoint)
+                } else {
+                    listOf(newEndpoint)
+                }
             }
-            eps
+
+            override suspend fun scanClasses(classes: List<PsiClass>): List<ApiEndpoint> = emptyList()
         }
-    }
+        manager.stopAndJoin()
+        manager = createManager(executor)
 
-    fun testGetInstance() {
-        assertNotNull("ApiIndexManager should be retrievable", apiIndexManager)
-        assertSame("Should return same instance", apiIndexManager, ApiIndexManager.getInstance(project))
-    }
+        val oldGeneration = manager.startContinuous(triggerInitialScan = false)
+        val oldRequest = manager.requestFullScan(oldGeneration, "old")
+        firstStarted.await()
 
-    fun testRequestScan() = runTest {
-        apiIndexManager.requestScan()
+        manager.stop()
+        val newGeneration = manager.startContinuous(triggerInitialScan = false)
+        val newResult = manager.requestFullScan(newGeneration, "new").await()
+        releaseFirst.complete(Unit)
+        val oldResult = oldRequest.await()
 
-        val endpoints = waitForEndpoints()
-
-        assertTrue("Cache should be valid after scan", apiIndex.isValid())
-        assertTrue("Cache should have endpoints", endpoints.isNotEmpty())
-    }
-
-    fun testMultipleRequestScanDoesNotDuplicate() = runTest {
-        apiIndexManager.requestScan()
-
-        val firstCount = waitForEndpoints().size
-
-        apiIndexManager.requestScan()
-        // updateEndpoints replaces the cache (it does not append), so a second scan
-        // must not duplicate. Wait until the count settles back to firstCount.
-        waitUntil { apiIndex.endpoints().size == firstCount }
-
-        val secondCount = apiIndex.endpoints().size
-
-        assertEquals("Multiple scans should not duplicate endpoints", firstCount, secondCount)
-    }
-
-    fun testCacheUpdateEndpoints() = runTest {
-        val testEndpoints = listOf(
-            ApiEndpoint(
-                metadata = httpMetadata(
-                    path = "/test",
-                    method = HttpMethod.GET
-                ),
-                name = "Test Endpoint",
-                className = "com.test.TestCtrl"
-            )
+        assertTrue("New generation should commit successfully", newResult is ApiScanResult.Success)
+        assertTrue("Cancelled old work should be rejected", oldResult is ApiScanResult.Rejected)
+        assertEquals(
+            "Late output from the old generation must not overwrite the cache",
+            listOf(newEndpoint),
+            apiIndex.retainedSnapshot()
         )
-
-        apiIndex.updateEndpoints(testEndpoints)
-
-        assertTrue("Cache should be valid", apiIndex.isValid())
-        assertTrue("Cache should be ready", apiIndex.isReady())
-        assertEquals("Cache should contain test endpoints", testEndpoints, apiIndex.endpoints())
     }
 
-    fun testCacheInvalidate() = runTest {
-        val testEndpoints = listOf(
-            ApiEndpoint(
-                metadata = httpMetadata(
-                    path = "/test",
-                    method = HttpMethod.GET
-                ),
-                name = "Test Endpoint",
-                className = "com.test.TestCtrl"
-            )
-        )
+    private fun createManager(executor: ApiIndexScanExecutor): ApiIndexManager = ApiIndexManager(
+        project = project,
+        apiIndex = apiIndex,
+        scanExecutor = executor,
+        targetAnnotations = { emptySet() },
+        dispatcher = Dispatchers.Unconfined,
+        initialScanDelayMs = 60_000L,
+        minIncrementalScanIntervalMs = 0L
+    )
 
-        apiIndex.updateEndpoints(testEndpoints)
-        assertTrue("Cache should be valid", apiIndex.isValid())
-        assertTrue("Cache should be ready after update", apiIndex.isReady())
+    private fun endpoint(name: String): ApiEndpoint = ApiEndpoint(
+        metadata = httpMetadata(path = "/$name", method = HttpMethod.GET),
+        name = name,
+        className = "example.$name.Controller"
+    )
 
-        apiIndex.invalidate()
-        assertFalse("Cache should be invalid after invalidate", apiIndex.isValid())
-        assertTrue("Cache should still be ready after invalidate (cacheReady is never reset)", apiIndex.isReady())
-    }
+    private class QueueScanExecutor : ApiIndexScanExecutor {
+        private val fullScans = ArrayDeque<suspend () -> List<ApiEndpoint>>()
+        val fullScanCount = AtomicInteger(0)
 
-    fun testCacheAwait() = runTest {
-        val testEndpoints = listOf(
-            ApiEndpoint(
-                metadata = httpMetadata(
-                    path = "/test",
-                    method = HttpMethod.POST
-                ),
-                name = "Create Endpoint",
-                className = "com.test.TestCtrl"
-            )
-        )
-
-        apiIndex.updateEndpoints(testEndpoints)
-
-        val cachedEndpoints = apiIndex.endpoints()
-        assertEquals("await should return cached endpoints", testEndpoints, cachedEndpoints)
-    }
-
-    fun testStartAndStop() = runTest {
-        apiIndexManager.requestScan()
-
-        val endpoints = waitForEndpoints()
-        assertTrue("Cache should have endpoints after start and scan", endpoints.isNotEmpty())
-
-        apiIndexManager.stop()
-
-        assertTrue("Cache should still be valid after stop", apiIndex.isValid())
-    }
-
-    fun testCacheValidAfterUpdate() = runTest {
-        assertFalse("Cache should not be valid initially", apiIndex.isValid())
-
-        apiIndex.updateEndpoints(emptyList())
-
-        assertTrue("Cache should be valid after update even with empty list", apiIndex.isValid())
-    }
-
-    fun testEndpointProperties() = runTest {
-        apiIndexManager.requestScan()
-
-        val endpoints = waitForEndpoints()
-        assertTrue("Should have endpoints", endpoints.isNotEmpty())
-
-        val endpoint = endpoints.first()
-        assertNotNull("Endpoint should have path", endpoint.httpMetadata?.path)
-        assertNotNull("Endpoint should have method", endpoint.httpMetadata?.method)
-        assertNotNull("Endpoint should have className", endpoint.className)
-    }
-
-    fun testThrottling() = runTest {
-        apiIndexManager.requestScan()
-        apiIndexManager.requestScan()
-        apiIndexManager.requestScan()
-
-        val endpoints = waitForEndpoints()
-
-        assertTrue("Cache should be valid after scan", apiIndex.isValid())
-        assertTrue("Should have endpoints", endpoints.isNotEmpty())
-    }
-
-    /**
-     * Reproduces the bug: project opened with `apiScanEnabled=false`, so the
-     * startup activity never calls `ApiIndexManager.start()`. The user then
-     * enables the toggle in Settings and clicks Refresh in the API Dashboard.
-     *
-     * `requestScan()` must auto-start the index services on demand (defense
-     * in depth) so the scan actually runs without a project restart.
-     */
-    fun testRequestScanAutoStartsServicesWhenNotStarted() = runTest {
-        // Tear down the manager started in setUp() to simulate "services never
-        // started because apiScanEnabled was false at project open".
-        apiIndexManager.stop()
-        runBlocking { apiIndex.invalidate() }
-        assertFalse("Index should be invalid after invalidate", apiIndex.isValid())
-
-        // apiScanEnabled defaults to true in GeneralSettings, so requestScan
-        // must auto-start services and dispatch the scan immediately.
-        apiIndexManager.requestScan()
-
-        val endpoints = waitForEndpoints()
-        assertTrue("Cache should be valid after auto-start scan", apiIndex.isValid())
-        assertTrue("Auto-start scan should populate endpoints", endpoints.isNotEmpty())
-    }
-
-    /**
-     * When `apiScanEnabled=false`, `requestScan()` must remain a no-op even
-     * if the index services were never started. This guards against scans
-     * running while the master toggle is off.
-     */
-    fun testRequestScanNoOpWhenApiScanDisabledAndNotStarted() = runTest {
-        apiIndexManager.stop()
-        runBlocking { apiIndex.invalidate() }
-
-        settingBinder.update(GeneralSettings::class) {
-            apiScanEnabled = false
+        fun enqueueResult(endpoints: List<ApiEndpoint>) {
+            fullScans.addLast { endpoints }
         }
 
-        try {
-            apiIndexManager.requestScan()
-            // Give the background dispatcher a brief window to prove the
-            // negative — if a scan were dispatched, the cache would become
-            // valid shortly. Polling for a short timeout keeps the test fast.
-            val settledInvalid = waitUntilSettledInvalid(timeoutMs = 1500)
-            assertTrue(
-                "Cache should remain invalid when apiScanEnabled is false",
-                settledInvalid
-            )
-        } finally {
-            settingBinder.update(GeneralSettings::class) {
-                apiScanEnabled = true
-            }
+        fun enqueueFailure(throwable: Throwable) {
+            fullScans.addLast { throw throwable }
         }
-    }
 
-    /**
-     * Polls briefly to confirm the cache stays invalid. Returns `true` if the
-     * cache remained invalid for the entire [timeoutMs] window, `false` if it
-     * became valid (indicating a scan ran despite expectations).
-     */
-    private suspend fun waitUntilSettledInvalid(timeoutMs: Long): Boolean {
-        val deadline = System.currentTimeMillis() + timeoutMs
-        while (System.currentTimeMillis() < deadline) {
-            if (apiIndex.isValid()) return false
-            kotlinx.coroutines.delay(50)
+        override suspend fun scanAll(): List<ApiEndpoint> {
+            fullScanCount.incrementAndGet()
+            return if (fullScans.isEmpty()) emptyList() else fullScans.removeFirst().invoke()
         }
-        return !apiIndex.isValid()
+
+        override suspend fun scanClasses(classes: List<PsiClass>): List<ApiEndpoint> = emptyList()
     }
 }

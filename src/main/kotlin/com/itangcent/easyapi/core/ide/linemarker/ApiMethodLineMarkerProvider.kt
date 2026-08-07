@@ -6,20 +6,23 @@ import com.intellij.codeInsight.daemon.LineMarkerProvider
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiIdentifier
 import com.intellij.psi.PsiMethod
 import com.itangcent.easyapi.core.cache.api.ApiIndex
-import com.itangcent.easyapi.core.cache.api.ApiIndexManager
-import com.itangcent.easyapi.core.internal.threading.IdeDispatchers
-import com.itangcent.easyapi.core.internal.threading.swing
+import com.itangcent.easyapi.core.cache.api.ApiScanLifecycleController
+import com.itangcent.easyapi.core.cache.api.ApiScanRequestDecision
 import com.itangcent.easyapi.core.dashboard.ApiDashboardService
 import com.itangcent.easyapi.core.export.recognizer.CompositeApiClassRecognizer
+import com.itangcent.easyapi.core.feature.CoreFeatureIds
+import com.itangcent.easyapi.core.feature.FeatureStateService
 import com.itangcent.easyapi.core.grpc.GrpcMethodResolver
+import com.itangcent.easyapi.core.internal.threading.IdeDispatchers
+import com.itangcent.easyapi.core.internal.threading.read
+import com.itangcent.easyapi.core.internal.threading.swing
 import com.itangcent.easyapi.core.logging.IdeaLog
 import com.itangcent.easyapi.core.psi.helper.UnifiedAnnotationHelper
-import com.itangcent.easyapi.core.settings.module.GeneralSettings
-import com.itangcent.easyapi.core.settings.settings
 import com.itangcent.easyapi.core.util.ide.ProjectClassAvailabilityService
 import kotlinx.coroutines.runBlocking
 import java.awt.event.MouseEvent
@@ -31,9 +34,9 @@ import java.awt.event.MouseEvent
  * (Spring MVC, JAX-RS, etc.) that allows quick navigation
  * to the API Dashboard.
  *
- * When the endpoint is not found in the current index (e.g., after a branch
- * switch or new file), clicking the gutter icon triggers a re-scan of the
- * containing file before navigating.
+ * When the endpoint is not found in the retained index, clicking the gutter
+ * icon requests a lifecycle-controlled incremental scan before retrying
+ * navigation.
  *
  * ## Supported Annotations
  * - Spring MVC: @RequestMapping, @GetMapping, @PostMapping, etc.
@@ -41,54 +44,59 @@ import java.awt.event.MouseEvent
  *
  * @see ApiDashboardService for navigation target
  */
-class ApiMethodLineMarkerProvider : LineMarkerProvider {
+class ApiMethodLineMarkerProvider internal constructor(
+    private val editorIntegrationEffective: (Project) -> Boolean,
+    private val requestGutterIncremental: (Project, List<String>) -> ApiScanRequestDecision
+) : LineMarkerProvider, IdeaLog {
+
+    constructor() : this(
+        editorIntegrationEffective = { project ->
+            FeatureStateService.getInstance(project)
+                .isEffective(CoreFeatureIds.EDITOR_INTEGRATION)
+        },
+        requestGutterIncremental = { project, filePaths ->
+            ApiScanLifecycleController.getInstance(project)
+                .requestGutterIncremental(filePaths)
+        }
+    )
 
     private val annotationHelper = UnifiedAnnotationHelper()
+    private val navigationHandler = ApiMethodNavigationHandler()
 
+    /** @requires ReadAction context */
     override fun getLineMarkerInfo(element: PsiElement): LineMarkerInfo<*>? {
         if (element !is PsiIdentifier) return null
-        val parent = element.parent as? PsiMethod ?: return null
+        val method = element.parent as? PsiMethod ?: return null
 
-        if (!isGutterIconEnabled(element.project)) return null
-
-        if (!isApiMethod(parent) && !isIndexedMethod(parent)) return null
+        if (!editorIntegrationEffective(element.project)) return null
+        if (!isApiMethod(method) && !isIndexedMethod(method)) return null
 
         return LineMarkerInfo(
             element,
             element.textRange,
             AllIcons.Actions.Execute,
             { "Open in API Dashboard" },
-            ApiMethodNavigationHandler,
+            navigationHandler,
             GutterIconRenderer.Alignment.LEFT,
             { "Open in API Dashboard" }
         )
     }
 
-    private fun isIndexedMethod(method: PsiMethod): Boolean {
-        return ApiIndex.getInstance(method.project).containsMethod(method)
-    }
-
-    private fun isGutterIconEnabled(project: Project): Boolean {
-        val settings = project.settings<GeneralSettings>()
-        // The gutter icon navigates via the API index that scanning produces,
-        // so it is suppressed when the API scanning master toggle is off.
-        return settings.apiScanEnabled && settings.gutterIconEnabled
-    }
+    private fun isIndexedMethod(method: PsiMethod): Boolean =
+        ApiIndex.getInstance(method.project).containsMethod(method)
 
     private fun isApiMethod(method: PsiMethod): Boolean {
         val availabilityService = ProjectClassAvailabilityService.getInstance(method.project)
-        
+
         return runBlocking {
             allApiAnnotations.any { annotationFqn ->
-                availabilityService.hasClassInProject(annotationFqn) && 
+                availabilityService.hasClassInProject(annotationFqn) &&
                     annotationHelper.hasAnn(method, annotationFqn)
             } || isGrpcRpcMethod(method)
         }
     }
 
-    /**
-     * All possible API method annotations across supported frameworks.
-     */
+    /** All possible API method annotations across supported frameworks. */
     private val allApiAnnotations: List<String> = listOf(
         "org.springframework.web.bind.annotation.RequestMapping",
         "org.springframework.web.bind.annotation.GetMapping",
@@ -109,46 +117,50 @@ class ApiMethodLineMarkerProvider : LineMarkerProvider {
      * - Unary/server-streaming: (Req, StreamObserver<Resp>) -> void
      * - Client/bidirectional: (StreamObserver<Resp>) -> StreamObserver<Req>
      *
-     * Uses the `apiClassRecognizer` EP seam to verify the
-     * containing class is claimed by at least one recognizer's
-     * [ApiClassRecognizer.matchesClass] fast-path — without consulting the
-     * rule engine. Only then is the more expensive
-     * [GrpcMethodResolver.resolveStreamingType] invoked.
+     * Uses the `apiClassRecognizer` EP seam to verify the containing class is
+     * claimed by a recognizer's [com.itangcent.easyapi.core.export.recognizer.ApiClassRecognizer.matchesClass]
+     * fast path without consulting the rule engine. Only after this inexpensive
+     * check succeeds is the more expensive streaming-type resolver invoked.
      */
     private suspend fun isGrpcRpcMethod(method: PsiMethod): Boolean {
         val containingClass = method.containingClass ?: return false
         val composite = CompositeApiClassRecognizer.getInstance(method.project)
         if (composite.recognizers().none { it.matchesClass(containingClass) }) return false
-        val resolver = GrpcMethodResolver.getInstance(method.project)
-        return resolver.resolveStreamingType(method) != null
+        return GrpcMethodResolver.getInstance(method.project).resolveStreamingType(method) != null
     }
 
-    private object ApiMethodNavigationHandler : GutterIconNavigationHandler<PsiElement>, IdeaLog {
+    /**
+     * Navigates to a method and delegates a cache-miss fallback to lifecycle admission.
+     *
+     * @requires Background context
+     */
+    internal suspend fun navigateToMethod(method: PsiMethod) {
+        val project = method.project
+        val service = ApiDashboardService.getInstance(project)
+        val found = service.navigateToMethod(method)
 
+        swing {
+            ToolWindowManager.getInstance(project)
+                .getToolWindow("API Dashboard")
+                ?.activate(null)
+        }
+
+        if (found) return
+
+        val filePath = read { method.containingFile?.virtualFile?.path } ?: return
+        LOG.info("Endpoint not found in index, requesting incremental scan for: $filePath")
+        requestGutterIncremental(project, listOf(filePath))
+
+        swing {
+            service.navigateToMethod(method)
+        }
+    }
+
+    private inner class ApiMethodNavigationHandler : GutterIconNavigationHandler<PsiElement> {
         override fun navigate(e: MouseEvent, element: PsiElement) {
             val method = element.parent as? PsiMethod ?: return
-            val project = element.project
-
             IdeDispatchers.backgroundAsync {
-                val service = ApiDashboardService.getInstance(project)
-                val found = service.navigateToMethod(method)
-
-                swing {
-                    com.intellij.openapi.wm.ToolWindowManager.getInstance(project)
-                        .getToolWindow("API Dashboard")
-                        ?.activate(null)
-                }
-
-                if (!found) {
-                    val filePath = method.containingFile?.virtualFile?.path ?: return@backgroundAsync
-                    LOG.info("Endpoint not found in index, re-scanning file: $filePath")
-
-                    ApiIndexManager.getInstance(project).reIndex(listOf(filePath))
-
-                    swing {
-                        service.navigateToMethod(method)
-                    }
-                }
+                navigateToMethod(method)
             }
         }
     }

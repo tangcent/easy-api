@@ -8,113 +8,213 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
-import com.itangcent.easyapi.core.internal.threading.IdeDispatchers
+import com.intellij.util.messages.MessageBusConnection
+import com.itangcent.easyapi.core.feature.CoreFeatureIds
 import com.itangcent.easyapi.core.ide.DumbModeHelper
+import com.itangcent.easyapi.core.internal.threading.IdeDispatchers
 import com.itangcent.easyapi.core.logging.IdeaLog
-import com.itangcent.easyapi.core.settings.module.GeneralSettings
-import com.itangcent.easyapi.core.settings.settings
-import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
- * Listens for file changes and triggers API index updates.
+ * Batches relevant `.java` and `.kt` VFS changes and forwards admitted work to the
+ * lifecycle controller.
  *
- * Monitors `.java` and `.kt` file changes and notifies [ApiIndexManager]
- * to reindex the affected files. Uses debouncing to batch rapid changes.
- *
- * ## Features
- * - Automatic file change detection via VFS listener
- * - Debouncing with configurable delay (default: 2 seconds)
- * - Dumb mode awareness (skips during indexing)
- *
- * @see ApiIndexManager for index updates
+ * Rapid changes are coalesced by a 30-second debounce, and events received during
+ * dumb mode are rejected without creating pending work. The message-bus connection
+ * is explicitly restartable. Admission occurs before pending files or a debounce
+ * job are created, so disabled or stale generations cannot accumulate work.
  */
 @Service(Service.Level.PROJECT)
-class ApiFileChangeListener(private val project: Project) : BulkFileListener, Disposable, IdeaLog {
+class ApiFileChangeListener internal constructor(
+    private val project: Project,
+    private val requestSinkProvider: () -> ApiScanRequestSink,
+    private val connectionFactory: () -> MessageBusConnection,
+    dispatcher: CoroutineDispatcher,
+    private val debounceDelayMs: Long
+) : BulkFileListener, Disposable, IdeaLog {
+
+    constructor(project: Project) : this(
+        project = project,
+        requestSinkProvider = { ApiScanLifecycleController.getInstance(project) },
+        connectionFactory = {
+            ApplicationManager.getApplication().messageBus.connect()
+        },
+        dispatcher = IdeDispatchers.Background,
+        debounceDelayMs = DEFAULT_DEBOUNCE_DELAY_MS
+    )
 
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
         LOG.warn("Uncaught coroutine exception in ApiFileChangeListener", throwable)
     }
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher + exceptionHandler)
+    private val stateLock = Any()
+    private val pendingFiles = linkedSetOf<String>()
 
-    private val scope = CoroutineScope(SupervisorJob() + IdeDispatchers.Background + exceptionHandler)
+    @Volatile
+    private var connection: MessageBusConnection? = null
 
-    private val pendingFiles = mutableSetOf<String>()
-    private val pendingFilesMutex = Mutex()
+    @Volatile
+    private var activeGeneration: Long? = null
+
     private var debounceJob: Job? = null
-    private val throttleDelayMs = 30000L
 
-    fun start() {
-        ApplicationManager.getApplication()
-            .messageBus
-            .connect(this)
-            .subscribe(VirtualFileManager.VFS_CHANGES, this)
+    /** Starts one VFS subscription for [generation]. */
+    fun start(generation: Long): Boolean = synchronized(stateLock) {
+        if (connection != null) return false
+        val newConnection = connectionFactory()
+        try {
+            newConnection.subscribe(VirtualFileManager.VFS_CHANGES, this)
+            connection = newConnection
+            activeGeneration = generation
+            LOG.info(
+                "VFS listener featureId=${CoreFeatureIds.API_SCANNING.value} " +
+                    "target=true generation=$generation source=controller result=started"
+            )
+            true
+        } catch (e: Exception) {
+            try {
+                newConnection.disconnect()
+            } catch (cleanupFailure: Exception) {
+                LOG.warn("Failed to clean up VFS listener after start failure", cleanupFailure)
+            }
+            LOG.warn("Failed to start VFS API listener generation=$generation", e)
+            throw e
+        }
+    }
+
+    /** Compatibility start that uses the controller's current generation. */
+    fun start(): Boolean = start(ApiScanLifecycleController.getInstance(project).snapshot().generation)
+
+    /** Stops the subscription and synchronously clears all pending debounce state. */
+    fun stop(): Boolean {
+        val connectionToClose: MessageBusConnection?
+        val jobToCancel: Job?
+        val generation: Long?
+        synchronized(stateLock) {
+            connectionToClose = connection
+            jobToCancel = debounceJob
+            generation = activeGeneration
+            connection = null
+            activeGeneration = null
+            debounceJob = null
+            pendingFiles.clear()
+        }
+        jobToCancel?.cancel()
+        if (connectionToClose != null) {
+            try {
+                connectionToClose.disconnect()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LOG.warn("Failed to disconnect VFS API listener generation=$generation", e)
+            }
+            LOG.info(
+                "VFS listener featureId=${CoreFeatureIds.API_SCANNING.value} " +
+                    "target=false generation=$generation source=controller result=stopped"
+            )
+        }
+        return connectionToClose != null
     }
 
     override fun after(events: MutableList<out VFileEvent>) {
-        val settings = project.settings<GeneralSettings>()
-        // Master toggle: when API scanning is off, skip all processing.
-        if (!settings.apiScanEnabled) {
-            return
-        }
-
-        if (!settings.autoScanEnabled) {
-            return
-        }
-
-        if (DumbModeHelper.isDumb(project)) {
-            return
-        }
-
-        val changedFiles = events
-            .mapNotNull { event ->
-                val file = event.file ?: return@mapNotNull null
-                val fileName = file.name
-                if (fileName.endsWith(".java") || fileName.endsWith(".kt")) {
-                    file.path
-                } else {
-                    null
-                }
-            }
-            .filter { it.isNotEmpty() }
-
-        if (changedFiles.isEmpty()) {
-            return
-        }
-
-        scope.launch {
-            pendingFilesMutex.withLock {
-                pendingFiles.addAll(changedFiles)
+        if (events.isEmpty()) return
+        val changedFiles = events.mapNotNull { event ->
+            val file = event.file ?: return@mapNotNull null
+            if (file.name.endsWith(".java") || file.name.endsWith(".kt")) {
+                file.path.takeIf(String::isNotEmpty)
+            } else {
+                null
             }
         }
-
-        debounceJob?.cancel()
-        debounceJob = scope.launch {
-            delay(throttleDelayMs)
-            processPendingChanges()
-        }
+        onFilesChanged(changedFiles)
     }
 
-    private suspend fun processPendingChanges() {
-        val filesToProcess = pendingFilesMutex.withLock {
-            if (pendingFiles.isEmpty()) {
+    internal fun onFilesChanged(filePaths: List<String>): ApiScanRequestDecision {
+        val distinctPaths = filePaths.filter(String::isNotEmpty).distinct()
+        if (distinctPaths.isEmpty()) return ApiScanRequestDecision.REJECTED_DISABLED
+
+        val sink = requestSinkProvider()
+        val admission = sink.admitVfs() ?: return ApiScanRequestDecision.REJECTED_DISABLED
+        if (DumbModeHelper.isDumb(project)) {
+            LOG.info(
+                "VFS API request featureId=${CoreFeatureIds.API_SCANNING.value} " +
+                    "target=true generation=${admission.generation} source=vfs " +
+                    "result=rejected_dumb_mode"
+            )
+            return ApiScanRequestDecision.REJECTED_DUMB_MODE
+        }
+        synchronized(stateLock) {
+            val generation = activeGeneration
+            if (connection == null || generation == null) {
+                return ApiScanRequestDecision.REJECTED_DISABLED
+            }
+            if (generation != admission.generation) {
+                return ApiScanRequestDecision.REJECTED_STALE_GENERATION
+            }
+
+            pendingFiles.addAll(distinctPaths)
+            debounceJob?.cancel()
+            debounceJob = scope.launch {
+                delay(debounceDelayMs)
+                flushPending(admission)
+            }
+        }
+        return ApiScanRequestDecision.ACCEPTED
+    }
+
+    internal fun isStarted(): Boolean = connection != null
+
+    internal fun pendingFileCount(): Int = synchronized(stateLock) { pendingFiles.size }
+
+    internal fun hasDebounceWork(): Boolean = synchronized(stateLock) {
+        debounceJob?.isActive == true
+    }
+
+    private suspend fun flushPending(admission: ApiScanAdmission) {
+        val files = synchronized(stateLock) {
+            if (activeGeneration != admission.generation || connection == null) {
+                pendingFiles.clear()
+                debounceJob = null
                 return
             }
-            val files = pendingFiles.toList()
-            pendingFiles.clear()
-            files
+            pendingFiles.toList().also {
+                pendingFiles.clear()
+                debounceJob = null
+            }
         }
+        if (files.isEmpty()) return
 
-        LOG.info("Processing ${filesToProcess.size} changed files")
-        ApiIndexManager.getInstance(project).reIndex(filesToProcess)
+        try {
+            requestSinkProvider().submitVfs(admission, files)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LOG.warn(
+                "Failed to submit VFS API changes generation=${admission.generation}",
+                e
+            )
+        }
     }
 
     override fun dispose() {
-        debounceJob?.cancel()
-        scope.cancel()
+        try {
+            stop()
+        } finally {
+            scope.cancel()
+        }
     }
 
     companion object {
+        private const val DEFAULT_DEBOUNCE_DELAY_MS = 30_000L
+
         fun getInstance(project: Project): ApiFileChangeListener = project.service()
     }
 }

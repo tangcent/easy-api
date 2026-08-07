@@ -35,11 +35,14 @@ class ApiMethodLineMarkerProviderCharacterizationTest : EasyApiLightCodeInsightF
 
     override fun setUp() {
         super.setUp()
+        // Keep editor integration effective so this test isolates API and gRPC recognition.
         // Enable all 5 frameworks so recognizers are not filtered out by isEnabled.
         // Feign (default-off) and Actuator (default-off) need explicit enablement;
         // JAX-RS (default-on), gRPC (default-on), SpringMVC (always-on) are
         // already on, so no entry is needed for them.
         SettingBinder.getInstance(project).update(GeneralSettings::class) {
+            apiScanEnabled = true
+            gutterIconEnabled = true
             enabledFrameworks = arrayOf("Feign", "SpringActuator")
         }
         loadTestFiles()
