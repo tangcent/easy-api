@@ -19,7 +19,7 @@ class ExtensionConfigParserTest {
         """.trimIndent()
 
         val config = ExtensionConfigParser.parse(content)
-        
+
         assertNotNull(config)
         assertEquals("swagger", config!!.code)
         assertEquals("Swagger 2.x annotation support", config.description)
@@ -40,7 +40,7 @@ class ExtensionConfigParserTest {
         """.trimIndent()
 
         val config = ExtensionConfigParser.parse(content)
-        
+
         assertNotNull(config)
         assertEquals("minimal", config!!.code)
         assertEquals("Minimal extension", config.description)
@@ -52,18 +52,18 @@ class ExtensionConfigParserTest {
     @Test
     fun testParse_noYamlFrontMatter() {
         val content = "key=value"
-        
+
         val config = ExtensionConfigParser.parse(content)
-        
+
         assertNull("Should return null when no code is provided", config)
     }
 
     @Test
     fun testParse_emptyContent() {
         val content = ""
-        
+
         val config = ExtensionConfigParser.parse(content)
-        
+
         assertNull(config)
     }
 
@@ -79,7 +79,7 @@ class ExtensionConfigParserTest {
         """.trimIndent()
 
         val config = ExtensionConfigParser.parse(content)
-        
+
         assertNotNull(config)
         assertEquals("my-extension", config!!.code)
         assertEquals("My Extension with spaces", config.description)
@@ -99,7 +99,7 @@ class ExtensionConfigParserTest {
         """.trimIndent()
 
         val config = ExtensionConfigParser.parse(content)
-        
+
         assertNotNull(config)
         assertTrue(config!!.content.contains("key1=value1"))
         assertTrue(config.content.contains("key2=value2"))
@@ -118,7 +118,7 @@ class ExtensionConfigParserTest {
         """.trimIndent()
 
         val stripped = ExtensionConfigParser.stripYamlFrontMatter(content)
-        
+
         assertFalse(stripped.contains("---"))
         assertFalse(stripped.contains("code:"))
         assertFalse(stripped.contains("description:"))
@@ -129,18 +129,18 @@ class ExtensionConfigParserTest {
     @Test
     fun testStripYamlFrontMatter_withoutYaml() {
         val content = "key=value\nanother=setting"
-        
+
         val stripped = ExtensionConfigParser.stripYamlFrontMatter(content)
-        
+
         assertEquals(content, stripped)
     }
 
     @Test
     fun testStripYamlFrontMatter_emptyContent() {
         val content = ""
-        
+
         val stripped = ExtensionConfigParser.stripYamlFrontMatter(content)
-        
+
         assertEquals("", stripped)
     }
 
@@ -154,7 +154,7 @@ class ExtensionConfigParserTest {
         """.trimIndent()
 
         val stripped = ExtensionConfigParser.stripYamlFrontMatter(content)
-        
+
         assertEquals("", stripped)
     }
 
@@ -170,7 +170,7 @@ class ExtensionConfigParserTest {
         """.trimIndent()
 
         val config = ExtensionConfigParser.parse(content)
-        
+
         assertNotNull(config)
         assertFalse(config!!.defaultEnabled)
     }
@@ -187,7 +187,7 @@ class ExtensionConfigParserTest {
         """.trimIndent()
 
         val config = ExtensionConfigParser.parse(content)
-        
+
         assertNotNull(config)
         assertNull(config!!.onClass)
         assertTrue(config.defaultEnabled)

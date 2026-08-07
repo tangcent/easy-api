@@ -30,7 +30,9 @@ class SessionStorage(private val project: Project) : AbstractStorage() {
 
     init {
         EventBus.getInstance(project).register(EventKeys.ON_COMPLETED) {
-            data.clear()
+            synchronized(this@SessionStorage) {
+                data.clear()
+            }
         }
     }
 

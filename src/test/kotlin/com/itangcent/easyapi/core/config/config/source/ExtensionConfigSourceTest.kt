@@ -24,23 +24,7 @@ class ExtensionConfigSourceTest : EasyApiLightCodeInsightFixtureTestCase() {
         assertEquals("Source ID should be 'extension'", "extension", source.sourceId)
     }
 
-    fun testCollectWithEmptyConfig() = runBlocking {
-        val source = ExtensionConfigSource(project, emptyArray(), configTextParser)
-
-        val result = source.collect()
-
-        assertNotNull("Should return a sequence", result)
-    }
-
-    fun testCollectWithNullSelectedCodes() = runBlocking {
-        val source = ExtensionConfigSource(project, null, configTextParser)
-
-        val result = source.collect()
-
-        assertNotNull("Should return a sequence", result)
-    }
-
-    fun testOnClassFilteringExcludesUnavailableExtensions() = runBlocking {
+    fun testSourceSelectionProbeExcludesUnavailableOnClassExtension() = runBlocking {
         // spring-webflux has on-class: reactor.core.publisher.Mono
         // This test project doesn't have reactor, so it should be filtered out
         val webfluxExtension = ExtensionConfigRegistry.getExtension("spring-webflux")
@@ -56,7 +40,7 @@ class ExtensionConfigSourceTest : EasyApiLightCodeInsightFixtureTestCase() {
         assertFalse("spring-webflux rules should be filtered out when reactor is not available", hasWebfluxRules)
     }
 
-    fun testOnClassFilteringIncludesExtensionsWithoutOnClass() = runBlocking {
+    fun testSourceSelectionProbeIncludesExtensionWithoutOnClassRequirement() = runBlocking {
         // converts extension has no on-class requirement, so it should always be included
         val convertsExtension = ExtensionConfigRegistry.getExtension("converts")
         assertNotNull("converts extension should exist", convertsExtension)

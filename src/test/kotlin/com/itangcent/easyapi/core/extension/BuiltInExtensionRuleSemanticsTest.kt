@@ -27,7 +27,7 @@ class BuiltInExtensionRuleSemanticsTest {
 
         assertTrue(
             "Class contexts return a simple name from name(); use qualifiedName() " +
-                "for FQN/package comparisons:\n${violations.joinToString("\n")}",
+                    "for FQN/package comparisons:\n${violations.joinToString("\n")}",
             violations.isEmpty()
         )
     }

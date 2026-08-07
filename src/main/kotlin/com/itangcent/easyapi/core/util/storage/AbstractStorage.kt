@@ -36,7 +36,9 @@ abstract class AbstractStorage : Storage {
     // ── two-arg implementations ─────────────────────────────────────
 
     override fun get(group: String?, name: String?): Any? {
-        return getCache(group ?: DEFAULT_GROUP)[name]
+        return synchronized(this) {
+            getCache(group ?: DEFAULT_GROUP)[name]
+        }
     }
 
     override fun set(group: String?, name: String?, value: Any?) {
@@ -60,7 +62,9 @@ abstract class AbstractStorage : Storage {
     }
 
     override fun keys(group: String?): Array<Any?> {
-        return getCache(group ?: DEFAULT_GROUP).keys.toTypedArray()
+        return synchronized(this) {
+            getCache(group ?: DEFAULT_GROUP).keys.toTypedArray()
+        }
     }
 
     override fun clear(group: String?) {
