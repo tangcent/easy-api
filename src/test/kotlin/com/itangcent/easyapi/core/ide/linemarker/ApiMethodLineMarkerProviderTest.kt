@@ -1,13 +1,14 @@
 package com.itangcent.easyapi.core.ide.linemarker
 
-import com.intellij.psi.PsiClass
+import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiMethod
-import com.intellij.psi.util.PsiTreeUtil
+import com.itangcent.easyapi.core.cache.api.ApiScanRequestDecision
+import com.itangcent.easyapi.core.feature.CoreFeatureIds
+import com.itangcent.easyapi.core.feature.FeatureStateService
 import com.itangcent.easyapi.core.settings.module.GeneralSettings
 import com.itangcent.easyapi.core.settings.update
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
 import com.itangcent.easyapi.testFramework.TestConfigReader
-import com.itangcent.easyapi.core.util.ide.ProjectClassAvailabilityService
 
 class ApiMethodLineMarkerProviderTest : EasyApiLightCodeInsightFixtureTestCase() {
 
@@ -15,180 +16,107 @@ class ApiMethodLineMarkerProviderTest : EasyApiLightCodeInsightFixtureTestCase()
 
     override fun setUp() {
         super.setUp()
-        loadTestFiles()
-        lineMarkerProvider = ApiMethodLineMarkerProvider()
-    }
-
-    private fun loadTestFiles() {
         loadFile("spring/RestController.java")
         loadFile("spring/GetMapping.java")
         loadFile("spring/RequestMapping.java")
         loadFile("api/UserCtrl.java")
+        lineMarkerProvider = ApiMethodLineMarkerProvider()
     }
 
     override fun createConfigReader() = TestConfigReader.empty(project)
 
-    fun testLineMarkerProviderDoesNotFailOnNonApiMethod() = runTest {
-        val file = myFixture.configureByFile("api/UserCtrl.java")
-        val classes = PsiTreeUtil.getChildrenOfType(file, PsiClass::class.java) ?: emptyArray()
-
-        assertTrue("Should have classes in test file", classes.isNotEmpty())
-
-        val methods = classes.flatMap { it.methods.toList() }
-        assertTrue("Should have methods in test file", methods.isNotEmpty())
-
-        methods.forEach { method ->
-            val identifier = method.nameIdentifier
-            if (identifier != null) {
-                val marker = lineMarkerProvider.getLineMarkerInfo(identifier)
-            }
-        }
-    }
-
-    fun testProjectClassAvailabilityServiceIsUsed() = runTest {
-        val availabilityService = ProjectClassAvailabilityService.getInstance(project)
-
-        val hasSpringAnnotations = availabilityService.hasAnyClassInProject(
-            setOf(
-                "org.springframework.web.bind.annotation.RequestMapping",
-                "org.springframework.web.bind.annotation.GetMapping"
-            )
-        )
-        assertTrue("Should detect Spring annotations in project", hasSpringAnnotations)
-
-        val hasJaxrsAnnotations = availabilityService.hasAnyClassInProject(
-            setOf(
-                "javax.ws.rs.GET",
-                "javax.ws.rs.Path"
-            )
-        )
-        assertFalse("Should not detect JAX-RS annotations in project", hasJaxrsAnnotations)
-    }
-
-    fun testGrpcFrameworkCheck() = runTest {
-        val availabilityService = ProjectClassAvailabilityService.getInstance(project)
-
-        val hasGrpc = availabilityService.hasAnyClassInProject(
-            setOf("net.devh.boot.grpc.server.service.GrpcService")
-        ) || availabilityService.hasClassInProject("io.grpc.BindableService")
-
-        assertFalse("Should not detect gRPC framework in project", hasGrpc)
-    }
-
-    fun testOnlyChecksAvailableAnnotations() = runTest {
-        val availabilityService = ProjectClassAvailabilityService.getInstance(project)
-
-        val allApiAnnotations = listOf(
-            "org.springframework.web.bind.annotation.RequestMapping",
-            "org.springframework.web.bind.annotation.GetMapping",
-            "org.springframework.web.bind.annotation.PostMapping",
-            "org.springframework.web.bind.annotation.PutMapping",
-            "org.springframework.web.bind.annotation.DeleteMapping",
-            "org.springframework.web.bind.annotation.PatchMapping",
-            "javax.ws.rs.GET",
-            "javax.ws.rs.POST",
-            "javax.ws.rs.PUT",
-            "javax.ws.rs.DELETE",
-            "javax.ws.rs.PATCH",
-            "javax.ws.rs.Path"
-        )
-
-        val availableAnnotations = allApiAnnotations.filter {
-            availabilityService.hasClassInProject(it)
-        }
-
-        assertTrue("Should have some available Spring annotations", availableAnnotations.isNotEmpty())
-        assertTrue(
-            "Available annotations should be subset of all annotations",
-            availableAnnotations.size < allApiAnnotations.size
-        )
-    }
-
-    fun testNoLineMarkerWhenGutterIconDisabled() = runTest {
-        settingBinder.update(GeneralSettings::class) {
-            gutterIconEnabled = false
-        }
-
-        val file = myFixture.configureByFile("api/UserCtrl.java")
-        val classes = PsiTreeUtil.getChildrenOfType(file, PsiClass::class.java) ?: emptyArray()
-        assertTrue("Should have classes in test file", classes.isNotEmpty())
-
-        val methods = classes.flatMap { it.methods.toList() }
-        assertTrue("Should have methods in test file", methods.isNotEmpty())
-
-        methods.forEach { method ->
-            val identifier = method.nameIdentifier
-            if (identifier != null) {
-                val marker = lineMarkerProvider.getLineMarkerInfo(identifier)
-                assertNull(
-                    "Should not show gutter icon when gutterIconEnabled is false",
-                    marker
-                )
-            }
-        }
-    }
-
-    fun testLineMarkerWhenGutterIconEnabled() = runTest {
+    override fun tearDown() {
         settingBinder.update(GeneralSettings::class) {
             apiScanEnabled = true
             gutterIconEnabled = true
         }
+        super.tearDown()
+    }
 
-        val file = myFixture.configureByFile("api/UserCtrl.java")
-        val classes = PsiTreeUtil.getChildrenOfType(file, PsiClass::class.java) ?: emptyArray()
-        assertTrue("Should have classes in test file", classes.isNotEmpty())
-
-        val methods = classes.flatMap { it.methods.toList() }
-        assertTrue("Should have methods in test file", methods.isNotEmpty())
-
-        var foundMarker = false
-        methods.forEach { method ->
-            val identifier = method.nameIdentifier
-            if (identifier != null) {
-                val marker = lineMarkerProvider.getLineMarkerInfo(identifier)
-                if (marker != null) {
-                    foundMarker = true
-                }
-            }
+    fun testDesiredEditorDisabledProducesNoMarker() = runTest {
+        settingBinder.update(GeneralSettings::class) {
+            apiScanEnabled = true
+            gutterIconEnabled = false
         }
-        assertTrue(
-            "Should show gutter icon on at least one API method when gutterIconEnabled is true",
-            foundMarker
+        val method = apiMethod()
+
+        assertFalse(
+            "Editor integration should be effectively disabled by its own desired state",
+            FeatureStateService.getInstance(project).isEffective(CoreFeatureIds.EDITOR_INTEGRATION)
+        )
+        assertNull(
+            "Effectively disabled editor integration should not produce a marker",
+            lineMarkerProvider.getLineMarkerInfo(method.nameIdentifier!!)
         )
     }
 
-    fun testNoLineMarkerWhenApiScanDisabled() = runTest {
-        // Master toggle off should suppress gutter icons even if
-        // gutterIconEnabled is true, because the gutter icon navigates via
-        // the API index that scanning produces.
+    fun testParentScanningDisabledProducesNoMarker() = runTest {
         settingBinder.update(GeneralSettings::class) {
             apiScanEnabled = false
             gutterIconEnabled = true
         }
+        val method = apiMethod()
 
-        try {
-            val file = myFixture.configureByFile("api/UserCtrl.java")
-            val classes = PsiTreeUtil.getChildrenOfType(file, PsiClass::class.java) ?: emptyArray()
-            assertTrue("Should have classes in test file", classes.isNotEmpty())
+        assertFalse(
+            "Editor integration should be ineffective when scanning is disabled",
+            FeatureStateService.getInstance(project).isEffective(CoreFeatureIds.EDITOR_INTEGRATION)
+        )
+        assertNull(
+            "Parent-disabled editor integration should not produce a marker",
+            lineMarkerProvider.getLineMarkerInfo(method.nameIdentifier!!)
+        )
+    }
 
-            val methods = classes.flatMap { it.methods.toList() }
-            assertTrue("Should have methods in test file", methods.isNotEmpty())
-
-            methods.forEach { method ->
-                val identifier = method.nameIdentifier
-                if (identifier != null) {
-                    val marker = lineMarkerProvider.getLineMarkerInfo(identifier)
-                    assertNull(
-                        "Should not show gutter icon when apiScanEnabled is false",
-                        marker
-                    )
-                }
-            }
-        } finally {
-            // Reset master toggle so subsequent tests are not affected.
-            settingBinder.update(GeneralSettings::class) {
-                apiScanEnabled = true
-            }
+    fun testMarkerReturnsAfterEffectiveStateIsRestored() = runTest {
+        val method = apiMethod()
+        settingBinder.update(GeneralSettings::class) {
+            apiScanEnabled = false
+            gutterIconEnabled = true
         }
+        assertNull(
+            "Marker should be absent while the dependency is disabled",
+            lineMarkerProvider.getLineMarkerInfo(method.nameIdentifier!!)
+        )
+
+        settingBinder.update(GeneralSettings::class) {
+            apiScanEnabled = true
+        }
+
+        assertTrue(
+            "Editor integration should become effective when scanning is restored",
+            FeatureStateService.getInstance(project).isEffective(CoreFeatureIds.EDITOR_INTEGRATION)
+        )
+        assertNotNull(
+            "The same provider should restore the API marker",
+            lineMarkerProvider.getLineMarkerInfo(method.nameIdentifier!!)
+        )
+    }
+
+    fun testFallbackDelegatesToLifecycleAdmissionSeam() = runTest {
+        val admittedPaths = mutableListOf<List<String>>()
+        val provider = ApiMethodLineMarkerProvider(
+            editorIntegrationEffective = { true },
+            requestGutterIncremental = { _: Project, paths: List<String> ->
+                admittedPaths += paths
+                ApiScanRequestDecision.REJECTED_EDITOR_DISABLED
+            }
+        )
+
+        provider.navigateToMethod(apiMethod())
+
+        assertEquals("Cache miss should make exactly one controlled request", 1, admittedPaths.size)
+        assertEquals("Fallback should submit one containing file", 1, admittedPaths.single().size)
+        assertTrue(
+            "Fallback should submit the API method's source file",
+            admittedPaths.single().single().endsWith("UserCtrl.java")
+        )
+    }
+
+    private fun apiMethod(): PsiMethod {
+        val controller = findClass("com.itangcent.api.UserCtrl")
+        assertNotNull("Spring controller fixture should resolve", controller)
+        val method = findMethod(controller!!, "greeting")
+        assertNotNull("Spring API method fixture should resolve", method)
+        return method!!
     }
 }

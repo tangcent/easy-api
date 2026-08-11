@@ -27,17 +27,10 @@ import com.itangcent.easyapi.core.cache.AppCacheRepository
 import com.itangcent.easyapi.core.cache.ProjectCacheRepository
 import com.itangcent.easyapi.core.internal.threading.backgroundAsync
 import com.itangcent.easyapi.core.internal.threading.swingAsync
-import com.itangcent.easyapi.channel.spi.Channel
-import com.itangcent.easyapi.channel.spi.ChannelRegistry
-import com.itangcent.easyapi.format.spi.FieldFormatChannel
-import com.itangcent.easyapi.format.spi.FieldFormatChannelRegistry
-import com.itangcent.easyapi.framework.spi.FrameworkRegistry
 import com.itangcent.easyapi.core.repository.DefaultRepositories
 import com.itangcent.easyapi.core.repository.RepositoryConfig
 import com.itangcent.easyapi.core.repository.RepositoryType
 import com.itangcent.easyapi.core.export.PathSelector
-import com.itangcent.easyapi.core.export.recognizer.ApiClassRecognizer
-import com.itangcent.easyapi.core.export.recognizer.CompositeApiClassRecognizer
 import com.itangcent.easyapi.core.http.ApacheHttpClient
 import com.itangcent.easyapi.core.extension.ExtensionConfigRegistry
 import com.itangcent.easyapi.core.logging.IdeaLog
@@ -101,32 +94,14 @@ interface SettingsPanel<T : Settings> {
 }
 
 /**
- * General settings panel for basic plugin configuration.
+ * General settings panel for notifications, output, diagnostics, cache, and repositories.
  *
- * Holds the *behavior / config* toggles — scanning, editor, output,
- * diagnostics, cache, repositories. All *enablement* toggles (framework
- * support, export channels, field-format channels) live in
- * [FeaturesSettingsPanel] so "enable a thing" has one coherent home.
- *
- * Typed by [GeneralSettings]; the repositories table is cross-module (its data
- * belongs to [GrpcSettings]) and is wired via the `*Repositories*` helpers,
- * mirroring the cross-module pattern used by [FeaturesSettingsPanel].
+ * Feature enablement is rendered independently by [FeatureSettingsPanel]. Scanning
+ * and editor-integration booleans are therefore intentionally not read, applied,
+ * or included in this panel's modification check. The repositories table remains
+ * cross-module because its data belongs to [GrpcSettings].
  */
 class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Project) : SettingsPanel<GeneralSettings> {
-    private val apiScanEnabled = JBCheckBox("Enable API scanning", true).apply {
-        toolTipText = "Master toggle for API scanning. When off, auto-scan, concurrent scan, " +
-            "and the gutter icon (which navigates via the API index produced by scanning) are all disabled."
-    }
-    private val autoScanEnabled = JBCheckBox("Enable automatic API scanning on file changes", true).apply {
-        toolTipText = "Automatically re-scan APIs when source files are modified"
-    }
-    private val concurrentScanEnabled = JBCheckBox("Enable concurrent API scanning (experimental)", false).apply {
-        toolTipText = "Use multiple threads for API scanning (may improve performance but is experimental)"
-    }
-    private val gutterIconEnabled = JBCheckBox("Show gutter icon on API methods", true).apply {
-        toolTipText =
-            "Show a gutter icon on API methods for quick navigation to the API Dashboard. Disable if it conflicts with other plugins."
-    }
     private val switchNotice = JBCheckBox("Show notification on settings switch", true).apply {
         toolTipText = "Show a notification when switching between different setting profiles"
     }
@@ -164,23 +139,6 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
     private val repositoryTable = TableView(repositoryTableModel)
 
     init {
-        // Master toggle: when API scanning is disabled, cascade-disable and
-        // uncheck the dependent checkboxes — auto-scan & concurrent scan (which
-        // drive scanning) and the gutter icon (which navigates via the API index
-        // that scanning produces). The gutter icon lives in the "Editor" panel
-        // but is cascaded here because it depends on the index.
-        apiScanEnabled.addActionListener {
-            val enabled = apiScanEnabled.isSelected
-            autoScanEnabled.isEnabled = enabled
-            concurrentScanEnabled.isEnabled = enabled
-            gutterIconEnabled.isEnabled = enabled
-            if (!enabled) {
-                autoScanEnabled.isSelected = false
-                concurrentScanEnabled.isSelected = false
-                gutterIconEnabled.isSelected = false
-            }
-        }
-
         val projectRow = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
             add(JLabel("Project Cache:"))
             add(projectCacheSizeLabel)
@@ -401,15 +359,8 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
     override val component: JComponent = FormBuilder.createFormBuilder()
         .addComponent(
             SettingsUiKit.titledPanel(
-                "Scanning", listOf(
-                    apiScanEnabled, autoScanEnabled, concurrentScanEnabled
-                )
-            )
-        )
-        .addComponent(
-            SettingsUiKit.titledPanel(
-                "Editor", listOf(
-                    gutterIconEnabled, switchNotice
+                "Notifications", listOf(
+                    switchNotice
                 )
             )
         )
@@ -433,16 +384,6 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
         .panel
 
     override fun resetFrom(settings: GeneralSettings?) {
-        apiScanEnabled.isSelected = settings?.apiScanEnabled ?: true
-        // Apply cascading enabled/disabled state based on master toggle. When
-        // the master is off, dependents are forced off visually.
-        val scanEnabled = apiScanEnabled.isSelected
-        autoScanEnabled.isEnabled = scanEnabled
-        concurrentScanEnabled.isEnabled = scanEnabled
-        gutterIconEnabled.isEnabled = scanEnabled
-        autoScanEnabled.isSelected = if (scanEnabled) (settings?.autoScanEnabled ?: true) else false
-        concurrentScanEnabled.isSelected = if (scanEnabled) (settings?.concurrentScanEnabled ?: false) else false
-        gutterIconEnabled.isSelected = if (scanEnabled) (settings?.gutterIconEnabled ?: true) else false
         switchNotice.isSelected = settings?.switchNotice ?: true
         logLevelCombo.selectedItem = CommonSettingsHelper.VerbosityLevel.toLevel(settings?.logLevel ?: 0)
         outputCharsetCombo.selectedItem = settings?.outputCharset ?: "UTF-8"
@@ -464,12 +405,6 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
     }
 
     override fun applyTo(settings: GeneralSettings) {
-        val scanEnabled = apiScanEnabled.isSelected
-        settings.apiScanEnabled = scanEnabled
-        // When the master toggle is off, dependent features are forced off.
-        settings.autoScanEnabled = if (scanEnabled) autoScanEnabled.isSelected else false
-        settings.concurrentScanEnabled = if (scanEnabled) concurrentScanEnabled.isSelected else false
-        settings.gutterIconEnabled = if (scanEnabled) gutterIconEnabled.isSelected else false
         settings.switchNotice = switchNotice.isSelected
         settings.logLevel = (logLevelCombo.selectedItem as? CommonSettingsHelper.VerbosityLevel)?.level ?: 0
         settings.outputCharset = outputCharsetCombo.selectedItem?.toString() ?: "UTF-8"
@@ -487,11 +422,7 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
 
     override fun isModified(settings: GeneralSettings?): Boolean {
         val s = settings ?: return false
-        return apiScanEnabled.isSelected != s.apiScanEnabled ||
-                autoScanEnabled.isSelected != s.autoScanEnabled ||
-                concurrentScanEnabled.isSelected != s.concurrentScanEnabled ||
-                gutterIconEnabled.isSelected != s.gutterIconEnabled ||
-                switchNotice.isSelected != s.switchNotice ||
+        return switchNotice.isSelected != s.switchNotice ||
                 (logLevelCombo.selectedItem as? CommonSettingsHelper.VerbosityLevel)?.level != s.logLevel ||
                 outputCharsetCombo.selectedItem?.toString() != s.outputCharset
     }
@@ -508,365 +439,6 @@ class GeneralSettingsPanel(private val project: com.intellij.openapi.project.Pro
     }
 
     companion object : IdeaLog
-}
-
-/**
- * Features settings panel — the single home for all *enablement* toggles.
- *
- * Consolidates three groups that are conceptually one thing ("should this
- * extension point be active?"):
- * - **Framework support** (Feign, JAX-RS, Actuator) — moved here from
- *   [GeneralSettingsPanel] so all enable/disable checkboxes share a tab.
- * - **Export Channels** — one checkbox per registered [Channel], built
- *   dynamically from [ChannelRegistry.allChannels].
- * - **Field Format Channels** — one checkbox per registered
- *   [FieldFormatChannel], built from
- *   [FieldFormatChannelRegistry.allChannels].
- *
- * Typed by [GeneralSettings] (the same module [GeneralSettingsPanel] reads),
- * so a panel touching a module it doesn't "own" follows the existing
- * `grpcRepositories` precedent. The channel/format checkbox logic is isolated
- * in cross-module helpers that mirror that pattern.
- */
-class FeaturesSettingsPanel(private val project: com.intellij.openapi.project.Project) : SettingsPanel<GeneralSettings> {
-
-    /**
-     * Dynamic checkbox→recognizer mapping for the "Framework Support" section.
-     *
-     * Built once from [CompositeApiClassRecognizer.allRecognizers] (deliberately
-     * **unfiltered**, so disabled frameworks are listed and can be re-enabled).
-     * Empty when no recognizers are registered, in which case the
-     * section is skipped gracefully.
-     */
-    private val frameworkEnablementCheckboxes = mutableListOf<Pair<ApiClassRecognizer, JBCheckBox>>()
-
-    /**
-     * Dynamic checkbox→channel mapping for the "Export Channels" section.
-     *
-     * Built once from [ChannelRegistry.allChannels] (deliberately **unfiltered**,
-     * so disabled channels are listed and can be re-enabled). Empty
-     * when no channels are registered, in which case the section is skipped
-     * gracefully.
-     */
-    private val channelEnablementCheckboxes = mutableListOf<Pair<Channel, JBCheckBox>>()
-
-    /**
-     * Dynamic checkbox→format mapping for the "Field Format Channels" section.
-     *
-     * Built once from [FieldFormatChannelRegistry.allChannels] (deliberately
-     * **unfiltered**, so disabled formats are listed and can be re-enabled).
-     * Empty when no formats are registered, in which case the
-     * section is skipped gracefully.
-     */
-    private val fieldFormatEnablementCheckboxes = mutableListOf<Pair<FieldFormatChannel, JBCheckBox>>()
-
-    /**
-     * Builds the "Framework Support" titled panel containing one [JBCheckBox]
-     * per registered recognizer. Uses
-     * [CompositeApiClassRecognizer.allRecognizers] (unfiltered) so disabled
-     * frameworks remain listed and re-enableable.
-     *
-     * Returns an empty panel when no recognizers are registered
-     * (graceful skip, no error).
-     */
-    private fun buildFrameworkEnablementPanel(): JComponent {
-        val allRecognizers = CompositeApiClassRecognizer.getInstance(project).allRecognizers()
-        frameworkEnablementCheckboxes.clear()
-        if (allRecognizers.isEmpty()) {
-            return JPanel()
-        }
-        val registry = FrameworkRegistry.getInstance(project)
-        val checkboxes = allRecognizers.map { recognizer ->
-            JBCheckBox(recognizer.frameworkName, registry.isEnabled(recognizer)).apply {
-                toolTipText = "Enable ${recognizer.frameworkName} framework support"
-            }.also { cb -> frameworkEnablementCheckboxes.add(recognizer to cb) }
-        }
-        return SettingsUiKit.titledPanel("Framework Support", checkboxes)
-    }
-
-    /**
-     * Builds the "Export Channels" titled panel containing one [JBCheckBox] per
-     * registered channel. Uses [ChannelRegistry.allChannels]
-     * (unfiltered) so disabled channels remain listed and re-enableable.
-     *
-     * Returns an empty panel when no channels are registered (graceful
-     * skip, no error).
-     */
-    private fun buildChannelEnablementPanel(): JComponent {
-        val allChannels = ChannelRegistry.getInstance(project).allChannels()
-        channelEnablementCheckboxes.clear()
-        if (allChannels.isEmpty()) {
-            return JPanel()
-        }
-        val checkboxes = allChannels.map { channel ->
-            JBCheckBox(channel.displayName).apply {
-                toolTipText = "Enable the ${channel.displayName} export channel"
-            }.also { cb -> channelEnablementCheckboxes.add(channel to cb) }
-        }
-        return SettingsUiKit.titledPanel("Export Channels", checkboxes)
-    }
-
-    /**
-     * Builds the "Field Format channels" titled panel containing one [JBCheckBox]
-     * per registered format. Uses
-     * [FieldFormatChannelRegistry.allChannels] (unfiltered) so disabled formats
-     * remain listed and re-enableable.
-     *
-     * Returns an empty panel when no formats are registered (graceful
-     * skip, no error).
-     */
-    private fun buildFieldFormatEnablementPanel(): JComponent {
-        val allFormats = FieldFormatChannelRegistry.getInstance(project).allChannels()
-        fieldFormatEnablementCheckboxes.clear()
-        if (allFormats.isEmpty()) {
-            return JPanel()
-        }
-        val checkboxes = allFormats.map { format ->
-            JBCheckBox(format.displayName).apply {
-                toolTipText = "Enable the ${format.displayName} field-format action"
-            }.also { cb -> fieldFormatEnablementCheckboxes.add(format to cb) }
-        }
-        return SettingsUiKit.titledPanel("Field Format Channels", checkboxes)
-    }
-
-    override val component: JComponent = FormBuilder.createFormBuilder()
-        .addComponent(buildFrameworkEnablementPanel())
-        .addComponent(buildChannelEnablementPanel())
-        .addComponent(buildFieldFormatEnablementPanel())
-        .addComponentFillVertically(JPanel(), 0)
-        .panel
-        // The panel's only content is checkboxes, whose preferred width is
-        // narrow text. Match the width of the other panels (whose wide content
-        // — the repositories table, 150px labeledRow labels — drives a near-600px
-        // preferred width) so this tab doesn't render noticeably narrower.
-        .apply { preferredSize = Dimension(600, preferredSize.height) }
-
-    override fun resetFrom(settings: GeneralSettings?) {
-        // Framework enablement is handled by [resetFrameworkEnablementFrom],
-        // invoked from [EasyApiSettingsConfigurable] with the unfiltered
-        // recognizer list. No static per-framework state remains on this panel.
-    }
-
-    override fun applyTo(settings: GeneralSettings) {
-        // Framework enablement is handled by [applyFrameworkEnablementTo],
-        // invoked from [EasyApiSettingsConfigurable]. No static per-framework
-        // state remains on this panel.
-    }
-
-    override fun isModified(settings: GeneralSettings?): Boolean {
-        // Framework enablement modifications are detected by
-        // [isFrameworkEnablementModified], invoked from
-        // [EasyApiSettingsConfigurable]. No static per-framework state remains.
-        return false
-    }
-
-    // --- Framework enablement (cross-module methods, mirror the channel ones) ---
-    // The data lives on [GeneralSettings] (enabledFrameworks / disabledFrameworks),
-    // but the UI is built from [CompositeApiClassRecognizer.allRecognizers].
-    // These three methods keep the checkbox-list logic isolated and testable.
-
-    /**
-     * Resets the "Framework Support" checkboxes to the effective enabled state
-     * derived from [GeneralSettings.enabledFrameworks] /
-     * [GeneralSettings.disabledFrameworks] overlaid on each recognizer's
-     * [ApiClassRecognizer.enabledByDefault].
-     *
-     * No-op when no recognizers are registered.
-     */
-    fun resetFrameworkEnablementFrom(recognizers: List<ApiClassRecognizer>, settings: GeneralSettings) {
-        frameworkEnablementCheckboxes.forEach { (recognizer, cb) ->
-            cb.isSelected = FrameworkRegistry.resolveEnabled(
-                recognizer, settings.enabledFrameworks, settings.disabledFrameworks
-            )
-        }
-    }
-
-    /**
-     * Reads the "Framework Support" checkboxes and writes them back to
-     * [GeneralSettings.enabledFrameworks] / [GeneralSettings.disabledFrameworks].
-     *
-     * Normalization (mirrors the channel pattern): an id is never written to
-     * both arrays. A default-off framework checked → `enabledFrameworks`; a
-     * default-on framework unchecked → `disabledFrameworks`; matching-default
-     * frameworks produce no entry (fall back to `enabledByDefault`).
-     */
-    fun applyFrameworkEnablementTo(settings: GeneralSettings) {
-        val enabled = mutableListOf<String>()
-        val disabled = mutableListOf<String>()
-        frameworkEnablementCheckboxes.forEach { (recognizer, cb) ->
-            when {
-                cb.isSelected && !recognizer.enabledByDefault -> enabled.add(recognizer.frameworkName)
-                !cb.isSelected && recognizer.enabledByDefault -> disabled.add(recognizer.frameworkName)
-                // default-on & checked → no entry (falls back to default-on)
-                // default-off & unchecked → no entry (falls back to default-off)
-            }
-        }
-        settings.enabledFrameworks = enabled.toTypedArray()
-        settings.disabledFrameworks = disabled.toTypedArray()
-    }
-
-    /**
-     * Returns `true` if any "Framework Support" checkbox differs from the
-     * effective enabled state in [settings]. No-op (returns `false`) when no
-     * recognizers are registered.
-     */
-    fun isFrameworkEnablementModified(recognizers: List<ApiClassRecognizer>, settings: GeneralSettings): Boolean {
-        frameworkEnablementCheckboxes.forEach { (recognizer, cb) ->
-            val effective = FrameworkRegistry.resolveEnabled(
-                recognizer, settings.enabledFrameworks, settings.disabledFrameworks
-            )
-            if (cb.isSelected != effective) return true
-        }
-        return false
-    }
-
-    /** Test-only: the checkbox selection state for framework [frameworkId], or null if absent. */
-    internal fun frameworkCheckboxState(frameworkId: String): Boolean? =
-        frameworkEnablementCheckboxes.firstOrNull { it.first.frameworkName == frameworkId }?.second?.isSelected
-
-    /** Test-only: sets the checkbox selection state for framework [frameworkId] (no-op if absent). */
-    internal fun setFrameworkCheckboxForTest(frameworkId: String, selected: Boolean) {
-        frameworkEnablementCheckboxes.firstOrNull { it.first.frameworkName == frameworkId }?.second?.isSelected = selected
-    }
-
-    // --- Channel enablement (cross-module methods, mirror the *Repositories* pattern) ---
-    // The data lives on [GeneralSettings] (enabledChannels / disabledChannels),
-    // but the UI is built from [ChannelRegistry.allChannels]. These three methods
-    // keep the checkbox-list logic isolated and testable.
-
-    /**
-     * Resets the "Export Channels" checkboxes to the effective enabled state
-     * derived from [GeneralSettings.enabledChannels] / [GeneralSettings.disabledChannels]
-     * overlaid on each channel's [Channel.enabledByDefault].
-     *
-     * No-op when no channels are registered.
-     */
-    fun resetChannelEnablementFrom(channels: List<Channel>, settings: GeneralSettings) {
-        channelEnablementCheckboxes.forEach { (channel, cb) ->
-            cb.isSelected = ChannelRegistry.resolveEnabled(
-                channel, settings.enabledChannels, settings.disabledChannels
-            )
-        }
-    }
-
-    /**
-     * Reads the "Export Channels" checkboxes and writes them back to
-     * [GeneralSettings.enabledChannels] / [GeneralSettings.disabledChannels].
-     *
-     * Normalization (design "Normalization on save"): an id is never written to
-     * both arrays. A default-off channel checked → `enabledChannels`; a
-     * default-on channel unchecked → `disabledChannels`; matching-default
-     * channels produce no entry (fall back to `enabledByDefault`).
-     */
-    fun applyChannelEnablementTo(settings: GeneralSettings) {
-        val enabled = mutableListOf<String>()
-        val disabled = mutableListOf<String>()
-        channelEnablementCheckboxes.forEach { (channel, cb) ->
-            when {
-                cb.isSelected && !channel.enabledByDefault -> enabled.add(channel.id)
-                !cb.isSelected && channel.enabledByDefault -> disabled.add(channel.id)
-                // default-on & checked → no entry (falls back to default-on)
-                // default-off & unchecked → no entry (falls back to default-off)
-            }
-        }
-        settings.enabledChannels = enabled.toTypedArray()
-        settings.disabledChannels = disabled.toTypedArray()
-    }
-
-    /**
-     * Returns `true` if any "Export Channels" checkbox differs from the effective
-     * enabled state in [settings]. No-op (returns `false`) when no channels are
-     * registered.
-     */
-    fun isChannelEnablementModified(channels: List<Channel>, settings: GeneralSettings): Boolean {
-        channelEnablementCheckboxes.forEach { (channel, cb) ->
-            val effective = ChannelRegistry.resolveEnabled(
-                channel, settings.enabledChannels, settings.disabledChannels
-            )
-            if (cb.isSelected != effective) return true
-        }
-        return false
-    }
-
-    /** Test-only: the checkbox selection state for [channelId], or null if absent. */
-    internal fun channelCheckboxState(channelId: String): Boolean? =
-        channelEnablementCheckboxes.firstOrNull { it.first.id == channelId }?.second?.isSelected
-
-    /** Test-only: sets the checkbox selection state for [channelId] (no-op if absent). */
-    internal fun setChannelCheckboxForTest(channelId: String, selected: Boolean) {
-        channelEnablementCheckboxes.firstOrNull { it.first.id == channelId }?.second?.isSelected = selected
-    }
-
-    // --- Field-format enablement (cross-module methods, mirror the channel ones) ---
-    // The data lives on [GeneralSettings] (enabledFieldFormatChannels /
-    // disabledFieldFormatChannels), but the UI is built from
-    // [FieldFormatChannelRegistry.allChannels]. These three methods keep the
-    // checkbox-list logic isolated and testable.
-
-    /**
-     * Resets the "Field Format Channels" checkboxes to the effective enabled
-     * state derived from [GeneralSettings.enabledFieldFormatChannels] /
-     * [GeneralSettings.disabledFieldFormatChannels] overlaid on each format's
-     * [FieldFormatChannel.enabledByDefault].
-     *
-     * No-op when no formats are registered.
-     */
-    fun resetFieldFormatEnablementFrom(channels: List<FieldFormatChannel>, settings: GeneralSettings) {
-        fieldFormatEnablementCheckboxes.forEach { (channel, cb) ->
-            cb.isSelected = FieldFormatChannelRegistry.resolveEnabled(
-                channel, settings.enabledFieldFormatChannels, settings.disabledFieldFormatChannels
-            )
-        }
-    }
-
-    /**
-     * Reads the "Field Format Channels" checkboxes and writes them back to
-     * [GeneralSettings.enabledFieldFormatChannels] /
-     * [GeneralSettings.disabledFieldFormatChannels].
-     *
-     * Normalization (design "Normalization on save"): an id is never written to
-     * both arrays. A default-off format checked → `enabledFieldFormatChannels`;
-     * a default-on format unchecked → `disabledFieldFormatChannels`; matching-
-     * default formats produce no entry (fall back to `enabledByDefault`).
-     */
-    fun applyFieldFormatEnablementTo(settings: GeneralSettings) {
-        val enabled = mutableListOf<String>()
-        val disabled = mutableListOf<String>()
-        fieldFormatEnablementCheckboxes.forEach { (channel, cb) ->
-            when {
-                cb.isSelected && !channel.enabledByDefault -> enabled.add(channel.id)
-                !cb.isSelected && channel.enabledByDefault -> disabled.add(channel.id)
-                // default-on & checked → no entry (falls back to default-on)
-                // default-off & unchecked → no entry (falls back to default-off)
-            }
-        }
-        settings.enabledFieldFormatChannels = enabled.toTypedArray()
-        settings.disabledFieldFormatChannels = disabled.toTypedArray()
-    }
-
-    /**
-     * Returns `true` if any "Field Format Channels" checkbox differs from the
-     * effective enabled state in [settings]. No-op (returns `false`) when no
-     * formats are registered.
-     */
-    fun isFieldFormatEnablementModified(channels: List<FieldFormatChannel>, settings: GeneralSettings): Boolean {
-        fieldFormatEnablementCheckboxes.forEach { (channel, cb) ->
-            val effective = FieldFormatChannelRegistry.resolveEnabled(
-                channel, settings.enabledFieldFormatChannels, settings.disabledFieldFormatChannels
-            )
-            if (cb.isSelected != effective) return true
-        }
-        return false
-    }
-
-    /** Test-only: the checkbox selection state for format [channelId], or null if absent. */
-    internal fun fieldFormatCheckboxState(channelId: String): Boolean? =
-        fieldFormatEnablementCheckboxes.firstOrNull { it.first.id == channelId }?.second?.isSelected
-
-    /** Test-only: sets the checkbox selection state for format [channelId] (no-op if absent). */
-    internal fun setFieldFormatCheckboxForTest(channelId: String, selected: Boolean) {
-        fieldFormatEnablementCheckboxes.firstOrNull { it.first.id == channelId }?.second?.isSelected = selected
-    }
 }
 
 object CommonSettingsHelper {

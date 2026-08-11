@@ -13,7 +13,13 @@ import com.intellij.ui.treeStructure.Tree
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import com.itangcent.easyapi.core.cache.api.ApiIndex
-import com.itangcent.easyapi.core.cache.api.ApiIndexManager
+import com.itangcent.easyapi.core.cache.api.ApiScanLifecycleController
+import com.itangcent.easyapi.core.cache.api.ApiScanLifecycleSnapshot
+import com.itangcent.easyapi.core.cache.api.ApiScanResult
+import com.itangcent.easyapi.core.feature.CoreFeatureIds
+import com.itangcent.easyapi.core.feature.FeatureStateEvents
+import com.itangcent.easyapi.core.feature.FeatureStateService
+import com.itangcent.easyapi.core.internal.threading.IdeDispatchers
 import com.itangcent.easyapi.core.internal.threading.backgroundAsync
 import com.itangcent.easyapi.core.internal.threading.swing
 import com.itangcent.easyapi.core.export.ExportOrchestrator
@@ -31,6 +37,15 @@ import com.itangcent.easyapi.core.logging.IdeaLog
 import com.itangcent.easyapi.core.psi.type.areMethodsRelated
 import com.itangcent.easyapi.core.script.ScriptEditorPanel
 import com.itangcent.easyapi.core.script.ScriptScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Dimension
@@ -44,6 +59,35 @@ import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.TreePath
 import javax.swing.tree.TreeSelectionModel
 
+internal interface ApiDashboardRuntime {
+    fun retainedSnapshot(): List<ApiEndpoint>
+    fun subscribe(listener: suspend (List<ApiEndpoint>) -> Unit)
+    fun isScanningEffective(): Boolean
+    fun lifecycleSnapshot(): ApiScanLifecycleSnapshot
+    fun manualRefresh(): Deferred<ApiScanResult>
+}
+
+private class ProjectApiDashboardRuntime(private val project: Project) : ApiDashboardRuntime {
+    private val apiIndex: ApiIndex
+        get() = ApiIndex.getInstance(project)
+
+    private val lifecycleController: ApiScanLifecycleController
+        get() = ApiScanLifecycleController.getInstance(project)
+
+    override fun retainedSnapshot(): List<ApiEndpoint> = apiIndex.retainedSnapshot()
+
+    override fun subscribe(listener: suspend (List<ApiEndpoint>) -> Unit) {
+        apiIndex.subscribe(listener)
+    }
+
+    override fun isScanningEffective(): Boolean =
+        FeatureStateService.getInstance(project).isEffective(CoreFeatureIds.API_SCANNING)
+
+    override fun lifecycleSnapshot(): ApiScanLifecycleSnapshot = lifecycleController.snapshot()
+
+    override fun manualRefresh(): Deferred<ApiScanResult> = lifecycleController.manualRefresh()
+}
+
 /**
  * Main dashboard panel for displaying and managing API endpoints in a tree structure.
  * 
@@ -53,16 +97,27 @@ import javax.swing.tree.TreeSelectionModel
  * - Export capabilities to various formats
  * - Navigation to source code
  * - Context menu with copy and export options
- * 
+ *
+ * @requires Swing context for construction and disposal
  * @param project The IntelliJ IDEA project context
  */
-class ApiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), IdeaLog {
+class ApiDashboardPanel internal constructor(
+    private val project: Project,
+    private val runtime: ApiDashboardRuntime,
+    dispatcher: CoroutineDispatcher
+) : JPanel(BorderLayout()), IdeaLog {
 
-    /** Index for accessing cached API endpoint data */
-    private val apiIndex = ApiIndex.getInstance(project)
+    constructor(project: Project) : this(
+        project,
+        ProjectApiDashboardRuntime(project),
+        IdeDispatchers.Background
+    )
 
-    /** Manager for triggering API index scans */
-    private val apiIndexManager = ApiIndexManager.getInstance(project)
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        LOG.warn("Uncaught coroutine exception in ApiDashboardPanel", throwable)
+    }
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher + exceptionHandler)
+    private val featureConnection = project.messageBus.connect()
 
     /** Tree model backing the API tree view */
     private val treeModel = DefaultTreeModel(DefaultMutableTreeNode("Loading..."))
@@ -72,6 +127,9 @@ class ApiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), 
 
     /** Search input field for filtering endpoints */
     private val searchField = JTextField()
+
+    /** Current scan state shown without replacing retained endpoint content. */
+    private val scanStatusLabel = JLabel()
 
     /** Panel for displaying details of the selected endpoint */
     private val endpointDetailsPanel: EndpointDetailsPanel
@@ -93,6 +151,12 @@ class ApiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), 
 
     /** Cached list of all endpoints for filtering operations */
     private var cachedEndpoints: List<ApiEndpoint> = emptyList()
+
+    /** Number of manual refresh operations still awaiting completion. */
+    private var activeRefreshes: Int = 0
+
+    @Volatile
+    private var disposed: Boolean = false
 
     /** Timer for debouncing search input to avoid excessive filtering */
     private var searchDebounceTimer: Timer? = null
@@ -118,6 +182,7 @@ class ApiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), 
         setupUI()
         setupTreeListeners()
         setupApis()
+        setupFeatureStateUpdates()
         setupEnvToggle()
     }
 
@@ -209,6 +274,8 @@ class ApiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), 
         searchField.preferredSize = Dimension(200, searchField.preferredSize.height)
         searchField.maximumSize = Dimension(300, searchField.preferredSize.height)
         toolBar.add(searchField)
+        toolBar.add(Box.createHorizontalGlue())
+        toolBar.add(scanStatusLabel)
 
         searchDebounceTimer = Timer(300) { filterTree() }
         searchDebounceTimer?.isRepeats = false
@@ -582,6 +649,7 @@ class ApiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), 
      * Shows helpful tips if no endpoints are found.
      * 
      * @param endpoints The list of endpoints to display
+     * @requires Swing context
      */
     private fun updateTree(endpoints: List<ApiEndpoint>) {
         if (endpoints.isEmpty()) {
@@ -748,39 +816,108 @@ class ApiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), 
     }
 
     /**
-     * Initializes API data loading and subscribes to cache updates.
-     * When the cache is updated, refreshes the tree display.
+     * Initializes API data from the retained cache and subscribes to successful updates.
+     *
+     * @requires Swing context
      */
     private fun setupApis() {
-        backgroundAsync {
-            updateTree(apiIndex.endpoints())
-            apiIndex.subscribe { endpoints ->
-                LOG.info("Cache updated, refreshing tree with ${endpoints.size} endpoints")
-                cachedEndpoints = endpoints
-                swing {
-                    updateTree(endpoints)
+        applySnapshot(runtime.retainedSnapshot())
+        updateIdleStatus()
+        runtime.subscribe { endpoints ->
+            if (disposed) return@subscribe
+            LOG.info("Cache updated, refreshing tree with ${endpoints.size} endpoints")
+            swing {
+                if (!disposed) {
+                    applySnapshot(endpoints)
+                    if (activeRefreshes == 0) updateIdleStatus()
                 }
             }
         }
     }
 
-    /**
-     * Refreshes the API endpoint list by invalidating the cache and requesting a new scan.
-     * Shows a "Scanning..." state during the refresh operation.
-     */
-    fun refresh() {
-        LOG.info("Refreshing API endpoints...")
-        backgroundAsync {
-            LOG.info("Invalidating cache...")
-            apiIndex.invalidate()
-            swing {
-                LOG.info("Setting tree to 'Scanning...' state")
-                treeModel.setRoot(DefaultMutableTreeNode("Scanning..."))
+    private fun setupFeatureStateUpdates() {
+        featureConnection.subscribe(
+            FeatureStateEvents.TOPIC,
+            FeatureStateEvents { change ->
+                val scanningChanged = change.entries.any { it.id == CoreFeatureIds.API_SCANNING }
+                if (scanningChanged && !disposed) {
+                    scope.launch {
+                        swing {
+                            if (!disposed && activeRefreshes == 0) updateIdleStatus()
+                        }
+                    }
+                }
             }
-            LOG.info("Requesting re-scan...")
-            apiIndexManager.requestScan()
+        )
+    }
+
+    /** @requires Swing context */
+    private fun applySnapshot(endpoints: List<ApiEndpoint>) {
+        cachedEndpoints = endpoints.toList()
+        updateTree(cachedEndpoints)
+    }
+
+    /** @requires Swing context */
+    private fun updateIdleStatus(stale: Boolean = false) {
+        val paused = !runtime.isScanningEffective()
+        scanStatusLabel.text = when {
+            stale && paused -> "Paused - stale snapshot"
+            stale -> "Stale - showing retained snapshot"
+            paused -> "Paused - showing retained snapshot"
+            else -> ""
         }
     }
+
+    /** @requires Swing context */
+    private fun updateScanningStatus() {
+        scanStatusLabel.text = "Scanning - showing retained snapshot"
+    }
+
+    /**
+     * Requests a lifecycle-controlled manual refresh without clearing retained content.
+     *
+     * Awaiting scan completion happens on the panel's background dispatcher. The
+     * returned completion is intended for callers that need to observe the result;
+     * UI callers can safely ignore it.
+     */
+    fun refresh(): Deferred<ApiScanResult> = scope.async {
+        swing {
+            activeRefreshes++
+            updateScanningStatus()
+        }
+
+        val result = try {
+            runtime.manualRefresh().await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LOG.warn("Manual API refresh failed before returning a result", e)
+            ApiScanResult.Failed(runtime.lifecycleSnapshot().generation, e)
+        }
+
+        val refreshedSnapshot = if (result is ApiScanResult.Success) {
+            runtime.retainedSnapshot()
+        } else {
+            null
+        }
+
+        swing {
+            refreshedSnapshot?.let(::applySnapshot)
+            activeRefreshes = (activeRefreshes - 1).coerceAtLeast(0)
+            if (activeRefreshes > 0) {
+                updateScanningStatus()
+            } else {
+                updateIdleStatus(stale = result !is ApiScanResult.Success)
+            }
+        }
+        result
+    }
+
+    /** @requires Swing context */
+    internal fun displayedEndpoints(): List<ApiEndpoint> = cachedEndpoints.toList()
+
+    /** @requires Swing context */
+    internal fun dashboardStatusText(): String = scanStatusLabel.text
 
     /**
      * Selects the first endpoint matching the given class in the tree.
@@ -872,8 +1009,14 @@ class ApiDashboardPanel(private val project: Project) : JPanel(BorderLayout()), 
     /**
      * Cleans up resources when the panel is disposed.
      * Stops timers, cancels coroutines, and disposes child components.
+     *
+     * @requires Swing context
      */
     fun dispose() {
+        if (disposed) return
+        disposed = true
+        featureConnection.disconnect()
+        scope.cancel()
         searchDebounceTimer?.stop()
         scriptEditorPanel.saveIfDirty()
         endpointDetailsPanel.dispose()

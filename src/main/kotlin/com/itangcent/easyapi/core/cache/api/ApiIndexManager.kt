@@ -7,254 +7,698 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiManager
+import com.itangcent.easyapi.core.dashboard.ApiScanner
+import com.itangcent.easyapi.core.export.ApiEndpoint
+import com.itangcent.easyapi.core.export.recognizer.CompositeApiClassRecognizer
 import com.itangcent.easyapi.core.internal.threading.IdeDispatchers
 import com.itangcent.easyapi.core.internal.threading.read
-import com.itangcent.easyapi.core.dashboard.ApiScanner
-import com.itangcent.easyapi.core.export.recognizer.CompositeApiClassRecognizer
-import com.itangcent.easyapi.core.ide.DumbModeHelper
 import com.itangcent.easyapi.core.logging.IdeaLog
-import com.itangcent.easyapi.core.settings.module.GeneralSettings
-import com.itangcent.easyapi.core.settings.settings
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.Channel.Factory.CONFLATED
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
+
+/** Explains why a scan request was not executed. */
+enum class ApiScanRejectionReason {
+    NO_ACTIVE_SESSION,
+    STALE_GENERATION,
+    SESSION_STOPPED
+}
+
+/** Result of a controlled full or incremental scan request. */
+sealed interface ApiScanResult {
+    val generation: Long
+
+    /** A scan completed and its result was accepted for the active generation. */
+    data class Success(
+        override val generation: Long,
+        val endpointCount: Int
+    ) : ApiScanResult
+
+    /** A request was rejected before it could mutate the index. */
+    data class Rejected(
+        override val generation: Long,
+        val reason: ApiScanRejectionReason
+    ) : ApiScanResult
+
+    /** A scan failed without replacing the last successful index snapshot. */
+    data class Failed(
+        override val generation: Long,
+        val throwable: Throwable
+    ) : ApiScanResult
+}
+
+internal interface ApiIndexScanExecutor {
+    suspend fun scanAll(): List<ApiEndpoint>
+    suspend fun scanClasses(classes: List<PsiClass>): List<ApiEndpoint>
+}
+
+private class ProjectApiIndexScanExecutor(project: Project) : ApiIndexScanExecutor {
+    private val scanner = ApiScanner.getInstance(project)
+
+    override suspend fun scanAll(): List<ApiEndpoint> = scanner.scanAll()
+
+    override suspend fun scanClasses(classes: List<PsiClass>): List<ApiEndpoint> =
+        scanner.scanClasses(classes).toList()
+}
+
+internal data class ApiIndexSessionSnapshot(
+    val generation: Long,
+    val continuous: Boolean,
+    val initialScanPending: Boolean,
+    val pendingFullRequests: Int,
+    val pendingIncrementalRequests: Int
+)
 
 /**
- * Manages the API endpoint index with support for full and incremental scans.
+ * Runs controller-owned API indexing sessions.
  *
- * Coordinates between file change events and the API index cache:
- * - Full scans: Triggered on startup or manual refresh
- * - Incremental scans: Triggered by file changes
- *
- * ## Architecture
- * Uses channels for work coordination:
- * - `fullScanChannel`: Conflated channel for full scan requests
- * - `incrementalScanChannel`: Unlimited channel for file change batches
- *
- * ## Thread Safety
- * Uses SupervisorJob and exception handler to prevent cascade failures.
- *
- * @see ApiIndex for the cached endpoint storage
- * @see ApiFileChangeListener for file change detection
+ * Every continuous or one-shot session has an independent [SupervisorJob], a
+ * generation token, and dedicated full and incremental request channels. A
+ * stopped generation is never allowed to commit scan output to [ApiIndex].
  */
 @Service(Service.Level.PROJECT)
-class ApiIndexManager(private val project: Project) : Disposable, IdeaLog {
+class ApiIndexManager internal constructor(
+    private val project: Project,
+    private val apiIndex: ApiIndex,
+    private val scanExecutor: ApiIndexScanExecutor,
+    private val targetAnnotations: () -> Set<String>,
+    private val dispatcher: CoroutineDispatcher,
+    private val initialScanDelayMs: Long,
+    private val minIncrementalScanIntervalMs: Long
+) : Disposable, IdeaLog {
 
-    private val apiScanner: ApiScanner = ApiScanner.getInstance(project)
-    private val apiIndex: ApiIndex = ApiIndex.getInstance(project)
-    private val apiClassRecognizer: CompositeApiClassRecognizer = CompositeApiClassRecognizer.getInstance(project)
+    constructor(project: Project) : this(
+        project = project,
+        apiIndex = ApiIndex.getInstance(project),
+        scanExecutor = ProjectApiIndexScanExecutor(project),
+        targetAnnotations = {
+            CompositeApiClassRecognizer.getInstance(project).allTargetAnnotations.toSet()
+        },
+        dispatcher = IdeDispatchers.Background,
+        initialScanDelayMs = DEFAULT_INITIAL_SCAN_DELAY_MS,
+        minIncrementalScanIntervalMs = DEFAULT_INCREMENTAL_SCAN_INTERVAL_MS
+    )
+
+    private enum class SessionKind {
+        CONTINUOUS,
+        ONE_SHOT
+    }
+
+    private data class FullScanRequest(
+        val source: String,
+        val completion: CompletableDeferred<ApiScanResult>?
+    )
+
+    private data class IncrementalScanRequest(
+        val source: String,
+        val filePaths: List<String>,
+        val completion: CompletableDeferred<ApiScanResult>?
+    )
+
+    private class ScanSession(
+        val generation: Long,
+        val kind: SessionKind,
+        val job: Job,
+        val scope: CoroutineScope,
+        val fullChannel: Channel<FullScanRequest>,
+        val incrementalChannel: Channel<IncrementalScanRequest>
+    ) {
+        val pendingFullRequests = AtomicInteger(0)
+        val pendingIncrementalRequests = AtomicInteger(0)
+
+        @Volatile
+        var initialJob: Job? = null
+
+        @Volatile
+        var lastIncrementalScanTime: Long = 0L
+    }
+
+    private data class StopHandle(
+        val generation: Long,
+        val session: ScanSession?
+    )
 
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
         LOG.warn("Uncaught coroutine exception in ApiIndexManager", throwable)
     }
-
-    private var scope = CoroutineScope(SupervisorJob() + IdeDispatchers.Background + exceptionHandler)
-
-    private var lastScanTime = 0L
-    private val minScanIntervalMs = 10000L
-    private val initialScanDelayMs = 5000L
-
-    /**
-     * Conflated channel for full scan requests — multiple requests coalesce into one.
-     */
-    private var fullScanChannel = Channel<Unit>(CONFLATED)
-
-    /**
-     * Unlimited channel for incremental scan requests — each batch of files is processed.
-     */
-    private var incrementalScanChannel = Channel<List<String>>(Channel.UNLIMITED)
+    private val sessionLock = Any()
+    private val generationCounter = AtomicLong(0L)
 
     @Volatile
-    private var started = false
+    private var activeSession: ScanSession? = null
+
+    /** Returns whether a continuous session is currently accepting work. */
+    internal fun isStarted(): Boolean = activeSession?.let {
+        it.kind == SessionKind.CONTINUOUS && it.job.isActive
+    } == true
+
+    /** Returns the current manager generation, including stopped generations. */
+    fun currentGeneration(): Long = generationCounter.get()
 
     /**
-     * `true` once [start] has successfully initialized the scan consumers.
-     * Test-visible for lifecycle assertions in [ApiScanStartupControllerTest].
+     * Starts one continuous session if none is running.
+     *
+     * Repeated calls are idempotent and never schedule duplicate initial scans.
      */
-    internal fun isStarted(): Boolean = started
-
-    fun start(triggerInitialScan: Boolean = true) {
-        if (started) {
-            if (triggerInitialScan) {
-                scope.launch {
-                    delay(initialScanDelayMs)
-                    fullScanChannel.trySend(Unit)
-                }
+    fun startContinuous(triggerInitialScan: Boolean = true): Long {
+        val session = synchronized(sessionLock) {
+            val current = activeSession
+            if (current != null && current.kind == SessionKind.CONTINUOUS && current.job.isActive) {
+                return current.generation
             }
+            check(current == null || !current.job.isActive) {
+                "Cannot start a continuous API scan session while one-shot work is active"
+            }
+            createSessionLocked(SessionKind.CONTINUOUS)
+        }
+
+        LOG.info(
+            "API scan session started generation=${session.generation} " +
+                "source=controller result=running"
+        )
+        if (triggerInitialScan) {
+            scheduleInitialScan(session)
+        }
+        return session.generation
+    }
+
+    /** Compatibility alias for existing consumers. */
+    fun start(triggerInitialScan: Boolean = true) {
+        startContinuous(triggerInitialScan)
+    }
+
+    /**
+     * Stops the active session immediately while retaining [ApiIndex].
+     *
+     * This method closes admission and cancels work without waiting for child
+     * coroutines. Use [stopAndJoin] when completion must be observed.
+     */
+    fun stop() {
+        stopContinuous()
+    }
+
+    /** Cancels and detaches the active session without waiting for scan code to return. */
+    fun stopContinuous(): Long {
+        val handle = detachActiveSession()
+        LOG.info(
+            "API scan session stopped generation=${handle.generation} " +
+                "source=controller result=cancelled"
+        )
+        return handle.generation
+    }
+
+    /** Stops the active session and waits until all session children finish. */
+    suspend fun stopAndJoin(): Long {
+        val handle = detachActiveSession()
+        handle.session?.job?.join()
+        LOG.info(
+            "API scan session stopped generation=${handle.generation} " +
+                "source=controller result=cancelled"
+        )
+        return handle.generation
+    }
+
+    /**
+     * Enqueues a full scan for the active continuous generation.
+     *
+     * The returned completion resolves after the scan commits, fails, or is
+     * rejected. The manager never starts itself from this method.
+     */
+    fun requestFullScan(
+        expectedGeneration: Long? = null,
+        source: String = "compatibility"
+    ): Deferred<ApiScanResult> {
+        val completion = CompletableDeferred<ApiScanResult>()
+        val session = synchronized(sessionLock) {
+            val current = activeSession
+            when {
+                current == null || current.kind != SessionKind.CONTINUOUS || !current.job.isActive -> {
+                    completion.complete(
+                        ApiScanResult.Rejected(currentGeneration(), ApiScanRejectionReason.NO_ACTIVE_SESSION)
+                    )
+                    null
+                }
+
+                expectedGeneration != null && current.generation != expectedGeneration -> {
+                    completion.complete(
+                        ApiScanResult.Rejected(current.generation, ApiScanRejectionReason.STALE_GENERATION)
+                    )
+                    null
+                }
+
+                else -> current
+            }
+        }
+        if (session != null) {
+            enqueueFull(session, FullScanRequest(source, completion))
+        }
+        return completion
+    }
+
+    /** Compatibility request that never reads settings or starts a session. */
+    fun requestScan() {
+        val request = requestFullScan(source = "compatibility")
+        if (request.isCompleted) {
+            LOG.info(
+                "API full scan request generation=${currentGeneration()} " +
+                    "source=compatibility result=rejected"
+            )
+        }
+    }
+
+    /** Enqueues incremental work for the active continuous generation. */
+    fun requestIncrementalScan(
+        filePaths: List<String>,
+        expectedGeneration: Long? = null,
+        source: String = "compatibility"
+    ): Deferred<ApiScanResult> {
+        val completion = CompletableDeferred<ApiScanResult>()
+        if (filePaths.isEmpty()) {
+            completion.complete(ApiScanResult.Success(currentGeneration(), 0))
+            return completion
+        }
+
+        val session = synchronized(sessionLock) {
+            val current = activeSession
+            when {
+                current == null || current.kind != SessionKind.CONTINUOUS || !current.job.isActive -> {
+                    completion.complete(
+                        ApiScanResult.Rejected(currentGeneration(), ApiScanRejectionReason.NO_ACTIVE_SESSION)
+                    )
+                    null
+                }
+
+                expectedGeneration != null && current.generation != expectedGeneration -> {
+                    completion.complete(
+                        ApiScanResult.Rejected(current.generation, ApiScanRejectionReason.STALE_GENERATION)
+                    )
+                    null
+                }
+
+                else -> current
+            }
+        }
+        if (session != null) {
+            enqueueIncremental(
+                session,
+                IncrementalScanRequest(source, filePaths.distinct(), completion)
+            )
+        }
+        return completion
+    }
+
+    /** Compatibility alias that only enqueues into an existing session. */
+    suspend fun reIndex(filePaths: List<String>) {
+        requestIncrementalScan(filePaths, source = "compatibility")
+    }
+
+    /**
+     * Starts isolated one-shot work and returns its observable completion.
+     *
+     * The orchestration coroutine is independent from any continuous session;
+     * the session itself still owns the scan worker and generation token.
+     */
+    fun runOneShotFullScanAsync(source: String = "manual-refresh"): Deferred<ApiScanResult> {
+        val continuous = synchronized(sessionLock) {
+            activeSession?.takeIf { it.kind == SessionKind.CONTINUOUS && it.job.isActive }
+        }
+        if (continuous != null) {
+            return requestFullScan(continuous.generation, source)
+        }
+
+        val session = synchronized(sessionLock) {
+            check(activeSession == null || activeSession?.job?.isActive == false) {
+                "A one-shot API scan is already active"
+            }
+            createSessionLocked(SessionKind.ONE_SHOT)
+        }
+        LOG.info(
+            "API one-shot scan started generation=${session.generation} " +
+                "source=$source result=running"
+        )
+
+        val completion = CompletableDeferred<ApiScanResult>()
+        enqueueFull(session, FullScanRequest(source, completion))
+        val owner = SupervisorJob()
+        val deferred = CoroutineScope(owner + dispatcher + exceptionHandler).async {
+            try {
+                completion.await()
+            } finally {
+                val handle = detachSession(session)
+                handle.session?.job?.join()
+                LOG.info(
+                    "API one-shot scan stopped generation=${handle.generation} " +
+                        "source=$source result=stopped"
+                )
+            }
+        }
+        deferred.invokeOnCompletion { owner.cancel() }
+        return deferred
+    }
+
+    /**
+     * Runs one full scan without creating continuous listeners.
+     *
+     * A failed scan leaves the retained cache untouched. If a continuous
+     * session is already active, the request is routed through that session.
+     */
+    suspend fun runOneShotFullScan(source: String = "manual-refresh"): ApiScanResult =
+        runOneShotFullScanAsync(source).await()
+
+    internal fun sessionSnapshot(): ApiIndexSessionSnapshot? = activeSession?.let { session ->
+        ApiIndexSessionSnapshot(
+            generation = session.generation,
+            continuous = session.kind == SessionKind.CONTINUOUS,
+            initialScanPending = session.initialJob?.isActive == true,
+            pendingFullRequests = session.pendingFullRequests.get(),
+            pendingIncrementalRequests = session.pendingIncrementalRequests.get()
+        )
+    }
+
+    private fun createSessionLocked(kind: SessionKind): ScanSession {
+        val generation = generationCounter.incrementAndGet()
+        val job = SupervisorJob()
+        val scope = CoroutineScope(job + dispatcher + exceptionHandler)
+        val session = ScanSession(
+            generation = generation,
+            kind = kind,
+            job = job,
+            scope = scope,
+            fullChannel = Channel(Channel.UNLIMITED),
+            incrementalChannel = Channel(Channel.UNLIMITED)
+        )
+        activeSession = session
+        scope.launch { processFullScans(session) }
+        scope.launch { processIncrementalScans(session) }
+        return session
+    }
+
+    private fun scheduleInitialScan(session: ScanSession) {
+        synchronized(sessionLock) {
+            if (!isCurrentLocked(session) || session.initialJob?.isActive == true) return
+            session.initialJob = session.scope.launch {
+                delay(initialScanDelayMs)
+                enqueueFull(session, FullScanRequest("initial", null))
+            }
+        }
+    }
+
+    private fun enqueueFull(session: ScanSession, request: FullScanRequest) {
+        if (!isCurrent(session)) {
+            request.completion?.complete(
+                ApiScanResult.Rejected(currentGeneration(), ApiScanRejectionReason.STALE_GENERATION)
+            )
             return
         }
-        LOG.info("ApiIndexManager starting...")
-
-        // Reinitialize if previously stopped
-        if (!scope.isActive) {
-            scope = CoroutineScope(SupervisorJob() + IdeDispatchers.Background + exceptionHandler)
-            fullScanChannel = Channel(CONFLATED)
-            incrementalScanChannel = Channel(Channel.UNLIMITED)
+        session.pendingFullRequests.incrementAndGet()
+        if (session.fullChannel.trySend(request).isFailure) {
+            session.pendingFullRequests.decrementAndGet()
+            request.completion?.complete(
+                ApiScanResult.Rejected(currentGeneration(), ApiScanRejectionReason.SESSION_STOPPED)
+            )
         }
+    }
 
-        scope.launch { processFullScans() }
-        scope.launch { processIncrementalScans() }
-        started = true
+    private fun enqueueIncremental(session: ScanSession, request: IncrementalScanRequest) {
+        if (!isCurrent(session)) {
+            request.completion?.complete(
+                ApiScanResult.Rejected(currentGeneration(), ApiScanRejectionReason.STALE_GENERATION)
+            )
+            return
+        }
+        session.pendingIncrementalRequests.incrementAndGet()
+        if (session.incrementalChannel.trySend(request).isFailure) {
+            session.pendingIncrementalRequests.decrementAndGet()
+            request.completion?.complete(
+                ApiScanResult.Rejected(currentGeneration(), ApiScanRejectionReason.SESSION_STOPPED)
+            )
+        }
+    }
 
-        if (triggerInitialScan) {
-            scope.launch {
-                delay(initialScanDelayMs)
-                fullScanChannel.trySend(Unit)
+    private suspend fun processFullScans(session: ScanSession) {
+        try {
+            for (firstRequest in session.fullChannel) {
+                val requests = mutableListOf(firstRequest)
+                while (true) {
+                    val additional = session.fullChannel.tryReceive().getOrNull() ?: break
+                    requests += additional
+                }
+                try {
+                    val source = requests.joinToString(",") { it.source }.take(160)
+                    val result = executeFullScan(session, source)
+                    requests.forEach { it.completion?.complete(result) }
+                } catch (e: CancellationException) {
+                    val rejected = ApiScanResult.Rejected(
+                        currentGeneration(),
+                        ApiScanRejectionReason.SESSION_STOPPED
+                    )
+                    requests.forEach { it.completion?.complete(rejected) }
+                    throw e
+                } finally {
+                    session.pendingFullRequests.addAndGet(-requests.size)
+                }
             }
+        } finally {
+            rejectQueuedFullRequests(session)
         }
     }
 
-    fun stop() {
-        LOG.info("ApiIndexManager stopping...")
-        fullScanChannel.close()
-        incrementalScanChannel.close()
-        scope.cancel()
-        started = false
+    private suspend fun processIncrementalScans(session: ScanSession) {
+        try {
+            for (firstRequest in session.incrementalChannel) {
+                val requests = mutableListOf(firstRequest)
+                while (true) {
+                    val additional = session.incrementalChannel.tryReceive().getOrNull() ?: break
+                    requests += additional
+                }
+                try {
+                    throttleIncrementalSession(session)
+                    val paths = requests.flatMap { it.filePaths }.distinct()
+                    val source = requests.joinToString(",") { it.source }.take(160)
+                    val result = executeIncrementalScan(session, paths, source)
+                    requests.forEach { it.completion?.complete(result) }
+                } catch (e: CancellationException) {
+                    val rejected = ApiScanResult.Rejected(
+                        currentGeneration(),
+                        ApiScanRejectionReason.SESSION_STOPPED
+                    )
+                    requests.forEach { it.completion?.complete(rejected) }
+                    throw e
+                } finally {
+                    session.pendingIncrementalRequests.addAndGet(-requests.size)
+                }
+            }
+        } finally {
+            rejectQueuedIncrementalRequests(session)
+        }
     }
 
-    /**
-     * Requests a full scan. Returns immediately.
-     *
-     * Defense-in-depth: if the index services were never started (e.g. the
-     * project was opened with `apiScanEnabled=false` and the settings-changed
-     * listener somehow didn't fire), start them now so the dashboard's Refresh
-     * action still triggers a scan rather than silently dropping the request
-     * on a closed [fullScanChannel]. The scan is dispatched immediately rather
-     * than via [start]'s delayed initial-scan path, so the user sees results
-     * without the normal 5-second startup delay.
-     */
-    fun requestScan() {
-        if (!started) {
-            val apiScanEnabled = project.settings<GeneralSettings>().apiScanEnabled
-            if (apiScanEnabled) {
-                LOG.info("requestScan called before start — starting API index services on demand")
-                // Skip the delayed initial scan; we'll dispatch the request
-                // ourselves immediately below once the consumer is running.
-                start(triggerInitialScan = false)
+    private suspend fun executeFullScan(session: ScanSession, source: String): ApiScanResult {
+        return try {
+            LOG.info(
+                "API full scan generation=${session.generation} source=$source result=started"
+            )
+            val endpoints = scanExecutor.scanAll()
+            val mutation = synchronized(sessionLock) {
+                if (!isCurrentLocked(session)) {
+                    null
+                } else {
+                    apiIndex.replaceEndpointsSnapshot(endpoints)
+                }
+            }
+            if (mutation == null) {
+                ApiScanResult.Rejected(currentGeneration(), ApiScanRejectionReason.STALE_GENERATION)
             } else {
-                LOG.info("Full scan requested while apiScanEnabled=false — ignoring")
-                return
+                apiIndex.publishMutation(mutation, "API full scan committed")
+                LOG.info(
+                    "API full scan generation=${session.generation} source=$source " +
+                        "result=success endpoints=${endpoints.size}"
+                )
+                ApiScanResult.Success(session.generation, endpoints.size)
             }
-        }
-        LOG.info("Full scan requested")
-        val sent = fullScanChannel.trySend(Unit)
-        LOG.info("Full scan request sent: ${sent.isSuccess}")
-    }
-
-    /**
-     * Reindex files.
-     * Called by [ApiFileChangeListener] when source files change.
-     */
-    suspend fun reIndex(filePaths: List<String>) {
-        incrementalScanChannel.send(filePaths)
-    }
-
-    private suspend fun processFullScans() {
-        for (signal in fullScanChannel) {
-            try {
-                DumbModeHelper.waitForSmartMode(project)
-                LOG.info("Scanning for API endpoints...")
-                val endpoints = apiScanner.scanAll()
-                apiIndex.updateEndpoints(endpoints)
-                LOG.info("API scan completed, found ${endpoints.size} endpoints")
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                LOG.warn("API scan failed", e)
-            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LOG.warn(
+                "API full scan generation=${session.generation} source=$source result=failed",
+                e
+            )
+            ApiScanResult.Failed(session.generation, e)
         }
     }
 
-    private suspend fun processIncrementalScans() {
-        for (filePaths in incrementalScanChannel) {
-            // Throttle: skip if last scan was too recent
-            val now = System.currentTimeMillis()
-            val timeSinceLastScan = now - lastScanTime
-            if (timeSinceLastScan < minScanIntervalMs) {
-                LOG.info("Throttling scan, only ${timeSinceLastScan}ms since last scan")
-                delay(minScanIntervalMs - timeSinceLastScan)
+    private suspend fun executeIncrementalScan(
+        session: ScanSession,
+        filePaths: List<String>,
+        source: String
+    ): ApiScanResult {
+        return try {
+            val changedClasses = findClassesFromFiles(filePaths)
+            if (changedClasses.isEmpty()) {
+                LOG.info(
+                    "API incremental scan generation=${session.generation} source=$source " +
+                        "result=no-api-classes"
+                )
+                return ApiScanResult.Success(session.generation, 0)
             }
 
-            // Drain any additional pending batches to coalesce work
-            val allFiles = filePaths.toMutableSet()
-            while (true) {
-                val more = incrementalScanChannel.tryReceive().getOrNull() ?: break
-                allFiles.addAll(more)
+            val changedClassNames = read {
+                changedClasses.mapNotNull { it.qualifiedName }.toSet()
             }
-
-            try {
-                val changedClasses = findClassesFromFiles(allFiles.toList())
-                val changedClassNames = read { changedClasses.mapNotNull { it.qualifiedName }.toSet() }
-
-                if (changedClasses.isEmpty()) {
-                    LOG.info("No API classes found in changed files")
-                    continue
+            val endpoints = scanExecutor.scanClasses(changedClasses)
+            val classEndpoints = changedClassNames.associateWith { className ->
+                endpoints.filter { it.className == className }
+            }
+            val mutation = synchronized(sessionLock) {
+                if (!isCurrentLocked(session)) {
+                    null
+                } else {
+                    apiIndex.updateEndpointsByClassesSnapshot(classEndpoints)
                 }
-
-                LOG.info("Found ${changedClasses.size} API classes in changed files")
-
-                val newEndpoints = apiScanner.scanClasses(changedClasses).toList()
-                val classEndpoints = changedClassNames.associateWith { className ->
-                    newEndpoints.filter { it.className == className }
-                }
-
-                apiIndex.updateEndpointsByClasses(classEndpoints)
-                lastScanTime = System.currentTimeMillis()
-                LOG.info("Incremental scan completed, updated ${newEndpoints.size} endpoints from ${changedClasses.size} classes")
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                LOG.warn("Incremental scan failed, triggering full scan", e)
-                fullScanChannel.trySend(Unit)
             }
+            if (mutation == null) {
+                ApiScanResult.Rejected(currentGeneration(), ApiScanRejectionReason.STALE_GENERATION)
+            } else {
+                apiIndex.publishMutation(mutation, "API incremental scan committed")
+                session.lastIncrementalScanTime = System.currentTimeMillis()
+                LOG.info(
+                    "API incremental scan generation=${session.generation} source=$source " +
+                        "result=success endpoints=${endpoints.size}"
+                )
+                ApiScanResult.Success(session.generation, endpoints.size)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LOG.warn(
+                "API incremental scan generation=${session.generation} source=$source " +
+                    "result=failed; scheduling full scan",
+                e
+            )
+            enqueueFull(session, FullScanRequest("incremental-fallback", null))
+            ApiScanResult.Failed(session.generation, e)
         }
     }
 
+    private suspend fun throttleIncrementalSession(session: ScanSession) {
+        val elapsed = System.currentTimeMillis() - session.lastIncrementalScanTime
+        if (session.lastIncrementalScanTime > 0L && elapsed < minIncrementalScanIntervalMs) {
+            delay(minIncrementalScanIntervalMs - elapsed)
+        }
+    }
+
+    /** @requires Background context; PSI and VFS reads acquire ReadAction internally. */
     private suspend fun findClassesFromFiles(filePaths: List<String>): List<PsiClass> {
         val classes = mutableListOf<PsiClass>()
-
-        // Process in chunks to avoid blocking UI
         filePaths.chunked(10).forEach { chunk ->
             val chunkClasses = read {
                 val psiManager = PsiManager.getInstance(project)
-                val result = mutableListOf<PsiClass>()
-
-                for (filePath in chunk) {
-                    try {
-                        val virtualFile = LocalFileSystem.getInstance().findFileByPath(filePath)
-                        if (virtualFile != null && virtualFile.exists()) {
-                            val psiFile = psiManager.findFile(virtualFile)
-                            if (psiFile != null) {
-                                val fileClasses = psiFile.children.filterIsInstance<PsiClass>()
-                                val apiClasses = fileClasses.filter { psiClass ->
-                                    isApiClassFast(psiClass)
-                                }
-                                result.addAll(apiClasses)
+                buildList {
+                    chunk.forEach { filePath ->
+                        try {
+                            val virtualFile = LocalFileSystem.getInstance().findFileByPath(filePath)
+                            if (virtualFile != null && virtualFile.exists()) {
+                                val psiFile = psiManager.findFile(virtualFile)
+                                addAll(
+                                    psiFile?.children
+                                        ?.filterIsInstance<PsiClass>()
+                                        ?.filter(::isApiClassFast)
+                                        .orEmpty()
+                                )
                             }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            LOG.warn("Failed to resolve changed API file path=$filePath", e)
                         }
-                    } catch (e: Exception) {
-                        LOG.warn("Error finding class for file: $filePath", e)
                     }
                 }
-                result
             }
-            classes.addAll(chunkClasses)
-            yield() // Allow other coroutines to run
+            classes += chunkClasses
+            yield()
         }
-
         return classes
     }
 
     private fun isApiClassFast(psiClass: PsiClass): Boolean {
         val annotationNames = psiClass.annotations.mapNotNull { it.qualifiedName }
-        return annotationNames.any { it in apiClassRecognizer.allTargetAnnotations }
+        val targets = targetAnnotations()
+        return annotationNames.any { it in targets }
     }
+
+    private fun rejectQueuedFullRequests(session: ScanSession) {
+        while (true) {
+            val request = session.fullChannel.tryReceive().getOrNull() ?: break
+            session.pendingFullRequests.decrementAndGet()
+            request.completion?.complete(
+                ApiScanResult.Rejected(currentGeneration(), ApiScanRejectionReason.SESSION_STOPPED)
+            )
+        }
+    }
+
+    private fun rejectQueuedIncrementalRequests(session: ScanSession) {
+        while (true) {
+            val request = session.incrementalChannel.tryReceive().getOrNull() ?: break
+            session.pendingIncrementalRequests.decrementAndGet()
+            request.completion?.complete(
+                ApiScanResult.Rejected(currentGeneration(), ApiScanRejectionReason.SESSION_STOPPED)
+            )
+        }
+    }
+
+    private fun detachActiveSession(): StopHandle = synchronized(sessionLock) {
+        detachSessionLocked(activeSession)
+    }
+
+    private fun detachSession(session: ScanSession): StopHandle = synchronized(sessionLock) {
+        if (activeSession !== session) {
+            StopHandle(currentGeneration(), null)
+        } else {
+            detachSessionLocked(session)
+        }
+    }
+
+    private fun detachSessionLocked(session: ScanSession?): StopHandle {
+        if (session == null) return StopHandle(currentGeneration(), null)
+        activeSession = null
+        val stoppedGeneration = generationCounter.incrementAndGet()
+        session.initialJob?.cancel()
+        session.fullChannel.close()
+        session.incrementalChannel.close()
+        session.scope.cancel()
+        return StopHandle(stoppedGeneration, session)
+    }
+
+    private fun isCurrent(session: ScanSession): Boolean = synchronized(sessionLock) {
+        isCurrentLocked(session)
+    }
+
+    private fun isCurrentLocked(session: ScanSession): Boolean =
+        activeSession === session &&
+            session.job.isActive &&
+            generationCounter.get() == session.generation
 
     override fun dispose() {
         stop()
     }
 
     companion object {
+        private const val DEFAULT_INITIAL_SCAN_DELAY_MS = 5_000L
+        private const val DEFAULT_INCREMENTAL_SCAN_INTERVAL_MS = 10_000L
+
         fun getInstance(project: Project): ApiIndexManager = project.service()
     }
 }

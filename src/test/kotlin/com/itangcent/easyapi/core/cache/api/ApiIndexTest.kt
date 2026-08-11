@@ -35,6 +35,30 @@ class ApiIndexTest : EasyApiLightCodeInsightFixtureTestCase() {
         assertFalse(apiIndex.isReady())
     }
 
+    fun testRetainedSnapshotDoesNotWaitForInitialScan() {
+        assertEquals(
+            "Initial retained snapshot should be available immediately",
+            emptyList<ApiEndpoint>(),
+            apiIndex.retainedSnapshot()
+        )
+    }
+
+    fun testRetainedSnapshotSurvivesNormalLifecycleReads() {
+        val endpoint = ApiEndpoint(
+            name = "retained",
+            metadata = httpMetadata(path = "/retained", method = HttpMethod.GET),
+            className = "com.example.RetainedController"
+        )
+
+        runBlocking { apiIndex.updateEndpoints(listOf(endpoint)) }
+
+        assertEquals(
+            "Retained snapshot should expose the last successful update without waiting",
+            listOf(endpoint),
+            apiIndex.retainedSnapshot()
+        )
+    }
+
     fun testInvalidate() {
         runBlocking {
             val endpoint = ApiEndpoint(

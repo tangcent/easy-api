@@ -25,7 +25,14 @@ repositories {
 dependencies {
     intellijPlatform {
         intellijIdeaCommunity("2025.2.1")
-        bundledPlugins("com.intellij.java", "org.jetbrains.idea.maven", "org.jetbrains.plugins.gradle", "org.jetbrains.kotlin", "org.intellij.groovy", "org.intellij.intelliLang")
+        bundledPlugins(
+            "com.intellij.java",
+            "org.jetbrains.idea.maven",
+            "org.jetbrains.plugins.gradle",
+            "org.jetbrains.kotlin",
+            "org.intellij.groovy",
+            "org.intellij.intelliLang"
+        )
         plugin("org.intellij.scala:2025.2.51")
         pluginVerifier()
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
@@ -77,6 +84,11 @@ dependencies {
     }
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("io.kotest:kotest-property-jvm:5.9.1") {
+        // Use the IntelliJ test runtime's compatible Kotlin and coroutines libraries.
+        exclude(group = "org.jetbrains.kotlin")
+        exclude(group = "org.jetbrains.kotlinx")
+    }
     testImplementation("org.mockito:mockito-core:5.8.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
 
@@ -113,16 +125,22 @@ protobuf {
     }
 }
 
+// Build with whatever JDK (17 or 21) the developer has installed — no pinned
+// toolchain. The jvmTarget / sourceCompatibility / targetCompatibility below
+// keep the bytecode JDK 17 compatible regardless of which JDK runs the build.
 kotlin {
-    jvmToolchain(17)
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+}
+
+// Guard against accidental use of JDK 21-only APIs when building with JDK 21
+// but targeting JDK 17 bytecode (e.g. protobuf-generated Java sources).
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(17)
 }
 
 tasks.withType<Test>().configureEach {

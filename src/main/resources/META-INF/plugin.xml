@@ -29,9 +29,12 @@
              filters by ApiClassRecognizer.isEnabled(project) — so core.*
              no longer hard-imports framework.<id>.* recognizer classes (DAG rule). -->
         <extensionPoint name="apiClassRecognizer" interface="com.itangcent.easyapi.core.export.recognizer.ApiClassRecognizer" area="IDEA_PROJECT" dynamic="true"/>
+        <extensionPoint name="featureContributor" interface="com.itangcent.easyapi.core.feature.FeatureContributor" area="IDEA_PROJECT" dynamic="true"/>
     </extensionPoints>
 
     <extensions defaultExtensionNs="com.itangcent.idea.plugin.easy-api">
+        <featureContributor implementation="com.itangcent.easyapi.core.feature.CoreFeatureContributor"/>
+        <featureContributor implementation="com.itangcent.easyapi.core.feature.LegacyFeatureContributor"/>
         <classExporter implementation="com.itangcent.easyapi.framework.springmvc.SpringMvcClassExporter"/>
         <classExporter implementation="com.itangcent.easyapi.framework.feign.FeignClassExporter"/>
         <classExporter implementation="com.itangcent.easyapi.framework.jaxrs.JaxRsClassExporter"/>
@@ -106,8 +109,7 @@
                         serviceImplementation="com.itangcent.easyapi.channel.postman.sync.EnvironmentSyncService"/>
         <projectService serviceImplementation="com.itangcent.easyapi.core.psi.helper.DocMetadataResolver"/>
         <projectService serviceImplementation="com.itangcent.easyapi.core.cache.VcsBranchChangeListener"/>
-        <projectService serviceImplementation="com.itangcent.easyapi.core.cache.api.ApiScanStartupController"/>
-        <projectService serviceImplementation="com.itangcent.easyapi.core.cache.api.ApiScanSettingsListener"/>
+        <projectService serviceImplementation="com.itangcent.easyapi.core.cache.api.ApiScanLifecycleController"/>
         <projectService serviceImplementation="com.itangcent.easyapi.core.ide.PropertiesService"/>
 
         <postStartupActivity implementation="com.itangcent.easyapi.core.ide.ApiIndexStartupActivity"/>

@@ -21,6 +21,7 @@ import com.intellij.psi.PsiMember
 import com.intellij.psi.impl.compiled.ClsClassImpl
 import com.intellij.psi.search.GlobalSearchScope
 import com.itangcent.easyapi.core.internal.threading.read
+import com.itangcent.easyapi.core.internal.threading.readSync
 import java.io.File
 import java.util.*
 
@@ -141,7 +142,7 @@ class SourceHelper(private val project: Project) : com.itangcent.easyapi.core.lo
      * @return The source PsiClass if found, otherwise the original class
      */
     fun getSourceClassSync(original: PsiClass): PsiClass {
-        return tryGetSourceClass(original)
+        return readSync { tryGetSourceClass(original) }
     }
 
     /**
@@ -254,6 +255,7 @@ class SourceHelper(private val project: Project) : com.itangcent.easyapi.core.lo
                     is PsiField -> sourceClass.findFieldByName(element.name, false) ?: element
                     is PsiMethod -> sourceClass.findMethodsByName(element.name, false)
                         .firstOrNull() as? PsiMethod ?: element
+
                     else -> element
                 }
             }
