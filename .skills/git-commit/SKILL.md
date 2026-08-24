@@ -7,7 +7,9 @@ description: "Generates standardized Git commit messages following conventional 
 
 This skill generates clear, standardized Git commit messages that prioritize **human readability** and **debugging efficiency**.
 
-**Core Principle:** The subject line answers *"What is the user/system impact?"* (Issue Y). The body explains *"How did we implement it?"* (Solution X).
+**Core Principle:** The subject line answers *"What does the user get?"* and is written from the **end user's** perspective. The body explains *"How did we implement it?"* (Solution X) for developers.
+
+> **Why the subject must be user-facing:** `script/release.sh` builds `CHANGELOG.md` from commit **subjects only** (`git log --pretty=format:"%s"`); the body is never published. Users read those subjects to decide whether to upgrade, so the subject must describe a user-visible change, not internal architecture. See §0 below.
 
 ## When to Use
 
@@ -16,6 +18,34 @@ Invoke this skill when:
 - User wants to commit staged changes and needs a proper message
 - User asks for help formatting a git commit
 - User mentions "commit", "commit message", or "git commit" in the context of creating one
+
+## 0. Release-Note Contract (Critical)
+
+`script/release.sh` builds `CHANGELOG.md` from commit **subjects only** — it runs `git log --pretty=format:"%s"` since the last `vX.Y.Z` tag and groups results by type. **The body is never shown to users.** This makes the subject the single user-facing artifact of a commit, so it must be written for a plugin user, not for a contributor.
+
+### How subjects become changelog entries
+
+| Commit type | Changelog section | Prefix handling in `release.sh` |
+| :--- | :--- | :--- |
+| `feat:` / `feat(scope):` | **Added** | `feat:` (no scope) is stripped; `feat(scope):` is kept **verbatim** |
+| `fix:` / `fix(scope):` | **Fixed** | same stripping rule |
+| `refactor:` / `refactor(scope):` | **Changed** | same stripping rule |
+| anything else (`chore`, `docs`, `style`, `enhance`, `perf`, `test`, `build`, `amend`) | **Improved** | kept verbatim |
+
+Because scoped subjects appear with the `type(scope):` prefix intact, `feat(settings): apply toggles live` renders as the bullet `- feat(settings): apply toggles live`. Make sure the whole string reads naturally as a user-facing bullet.
+
+### Subject must be user-facing
+
+Write the subject as **what the user will observe or be able to do** after this change — not the internal mechanism.
+
+| Developer-facing (internal) | User-facing (what the user gets) |
+| :--- | :--- |
+| `Unify feature lifecycle controls` | `allow turning off most features` |
+| `Introduce project feature registry` | `toggle features without restarting the IDE` |
+| `Replace startup-only scan controller` | `API scanning responds to settings without restart` |
+| `Serialize lifecycle with generation-scoped sessions` | `discard stale API results, keep last good snapshot` |
+
+Reserve internal terms (registry, lifecycle controller, dependency resolution, generation-scoped, extension point, serialized lifecycle) for the **body**, where developers read the "how".
 
 ## Workflow
 
@@ -79,6 +109,7 @@ EOF
 - **Content Focus (CRITICAL):**
     - If the commit is a **`fix:`** (bug fix), the subject **MUST** describe the **problem (Y)** (e.g., `Fix login redirect loop on Safari`). **DO NOT** put the implementation (X) in the subject.
     - If the commit is a **`feat:`** (new feature), the subject **MUST** describe the **feature itself (X)** (e.g., `Add dark mode toggle`).
+    - **User perspective (mandatory):** The subject is published verbatim into `CHANGELOG.md` by `script/release.sh`, so it must describe what the **plugin user** observes or can now do — never internal architecture (e.g., `allow turning off most features`, not `Unify feature lifecycle controls`).
 
 ---
 
@@ -130,6 +161,7 @@ If a ticket/issue exists, **MUST** append one of these to the very bottom of the
 - ❌ **No passive voice** (e.g., `Error was fixed` → use `Fix error`).
 - ❌ **No past tense** (e.g., `Updated` → use `Update`).
 - ❌ **Do not put the implementation details (X) in the subject line** when fixing a bug—reserve X for the body.
+- ❌ **No internal architecture jargon in the subject** (e.g., `registry`, `lifecycle controller`, `generation-scoped`, `dependency resolution`, `extension point`). The subject is published to user-facing release notes; describe user-visible behavior and put internals in the body.
 
 ---
 
@@ -152,6 +184,26 @@ This change does not affect the regular non-3DS flow.
 
 Fixes: #4421
 ```
+
+---
+
+### Feat example (user-facing subject)
+
+```text
+feat(settings): allow turning off most features
+
+Most plugin features can now be turned off from the Features tab. API
+scanning and editor integration are now toggleable alongside the export
+channels, field formats, and frameworks, all in one place.
+
+Turning a feature off takes effect immediately without restarting the
+IDE, and a manual rescan stays available even when continuous scanning
+is turned off.
+```
+
+The subject above is what `script/release.sh` publishes verbatim into
+`CHANGELOG.md` under **Added**, so it is phrased as a user-visible
+benefit. The body (developer detail) is not published.
 
 ---
 
