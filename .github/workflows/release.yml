@@ -5,6 +5,14 @@ on:
     branches:
       - master
 
+env:
+  # Compatibility package range: IDEA 2022.1 (build 221) through the last
+  # build before the officially supported range (default since-build comes
+  # from gradle.properties pluginSinceBuild). Keeping the range in env
+  # avoids scattering magic numbers through the steps below.
+  COMPAT_SINCE: '221'
+  COMPAT_UNTIL: '251'
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
@@ -18,20 +26,19 @@ jobs:
         env:
           COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
+          FULL_VERSION=""
           VERSION=$(echo "$COMMIT_MSG" | head -1 | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//')
 
+          if [ -f "gradle.properties" ]; then
+            FULL_VERSION=$(sed -n 's/^pluginBaseVersion=//p' gradle.properties | head -n1 | tr -d '\r' | xargs)
+          fi
+
           if [ -z "$VERSION" ]; then
-            if [ -f "build.gradle.kts" ]; then
-              VERSION=$(grep '^version\s*=' build.gradle.kts | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-              if [ -z "$VERSION" ]; then
-                echo "Error: No version found in build.gradle.kts"
-                cat build.gradle.kts
-                exit 1
-              fi
-            else
-              echo "Error: build.gradle.kts file not found"
+            if [ -z "$FULL_VERSION" ]; then
+              echo "Error: No version found in gradle.properties"
               exit 1
             fi
+            VERSION=$(echo "$FULL_VERSION" | sed -E 's/^v?([0-9]+\.[0-9]+\.[0-9]+).*$/\1/')
           fi
 
           if [[ ! "$VERSION" =~ ^v ]]; then
@@ -39,7 +46,9 @@ jobs:
           fi
 
           echo "Extracted version: $VERSION"
+          echo "Full version: $FULL_VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "full_version=$FULL_VERSION" >> $GITHUB_OUTPUT
 
       - name: Check if tag exists
         id: check_tag
@@ -60,35 +69,75 @@ jobs:
           distribution: 'zulu'
           cache: gradle
 
-      - name: Package Plugin
+      - name: Build Plugin
         if: steps.check_tag.outputs.skip == 'false'
-        run: ./gradlew buildPlugin --stacktrace
+        run: ./gradlew buildPlugin
+
+      - name: Build Compatibility Package
+        # Single best-effort package covering IDEA 2022.1 through the build
+        # before the officially supported range. It is still compiled against
+        # the newest platform (see build.gradle.kts) — only the declared
+        # compatibility range changes — so runtime behaviour on older IDEs
+        # is NOT verified. Best-effort means a failure here must not block
+        # the release; only the default package is required.
+        if: steps.check_tag.outputs.skip == 'false'
+        run: |
+          echo "Building compatibility package for IDEA build ${COMPAT_SINCE}-${COMPAT_UNTIL}"
+          ./gradlew buildPlugin -PpluginSinceBuild="$COMPAT_SINCE" -PpluginUntilBuild="$COMPAT_UNTIL" \
+            || echo "::warning::Compatibility build failed — releasing the default package only"
 
       - name: Generate Release Notes
         if: steps.check_tag.outputs.skip == 'false'
         id: generate_notes
         run: |
-          # Get the previous tag
+          # Get the previous tag (if any)
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           CURRENT_TAG=${{ steps.extract_version.outputs.version }}
           
           # Generate the release notes
           if [ -n "$PREV_TAG" ]; then
             NOTES="**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${CURRENT_TAG}\n\n"
-            COMMITS=$(git log --pretty=format:"* %s" ${PREV_TAG}..HEAD | grep -E '^\* (refactor|feat|fix)' || true)
+            COMMITS=$(git log --pretty=format:"* %s" $PREV_TAG..HEAD | grep -E '^\* (refactor|feat|fix|perf|docs)' || true)
           else
-            NOTES="**Full Changelog**: https://github.com/${{ github.repository }}/commits/${CURRENT_TAG}\n\n"
-            COMMITS=$(git log --pretty=format:"* %s" | grep -E '^\* (refactor|feat|fix)' || true)
+            NOTES="**Initial Release**\n\n"
+            COMMITS=$(git log --pretty=format:"* %s" | grep -E '^\* (refactor|feat|fix|perf|docs)' || true)
           fi
-          NOTES="${NOTES}${COMMITS}\n\n"
           
-          # Add the plugin support table
+          # Add commit messages
+          if [ -n "$COMMITS" ]; then
+            NOTES="${NOTES}### Changes\n${COMMITS}\n\n"
+          fi
+
+          # Add the plugin support table — one row per built package.
+          # Version format <base>.<since>.<until|0> embeds the range; "0"
+          # means unbounded. Translate build numbers to product versions
+          # (243 -> 2024.3, 252 -> 2025.2).
           NOTES="${NOTES}---\n\n"
-          NOTES="${NOTES}| plugin | support |\n"
-          NOTES="${NOTES}| ------------ | ------------ |\n"
-          # Remove 'v' prefix for the download link
-          DOWNLOAD_VERSION=$(echo "$CURRENT_TAG" | sed 's/^v//')
-          NOTES="${NOTES}| [easy-api-${DOWNLOAD_VERSION}.252.0.zip](https://github.com/${{ github.repository }}/releases/download/${CURRENT_TAG}/easy-api-${DOWNLOAD_VERSION}.252.0.zip) | idea 2025.2+ |\n"
+          NOTES="${NOTES}### Downloads\n\n"
+          NOTES="${NOTES}| Plugin | IDE Support |\n"
+          NOTES="${NOTES}| ------ | ----------- |\n"
+          DEFAULT_SINCE=$(sed -n 's/^pluginSinceBuild=//p' gradle.properties | head -n1 | tr -d '[:space:]')
+          build_to_product() {
+            local b="${1%%.*}"
+            echo "20${b:0:2}.${b:2:1}"
+          }
+          for zip in $(ls build/distributions/easy-api-*.zip | sort -r); do
+            ver=$(basename "$zip" .zip)
+            ver="${ver#easy-api-}"
+            since=$(echo "$ver" | cut -d. -f4)
+            until=$(echo "$ver" | cut -d. -f5)
+            if [[ "$until" == "0" ]]; then
+              range_label="IntelliJ IDEA $(build_to_product "$since")+"
+            else
+              range_label="IntelliJ IDEA $(build_to_product "$since") – $(build_to_product "$until")"
+            fi
+            if [[ "$since" == "$DEFAULT_SINCE" ]]; then
+              support="officially supported"
+            else
+              support="best-effort: compiled against the newest platform, not verified on older IDEs — see README to build other ranges"
+            fi
+            NOTES="${NOTES}| [easy-api-${ver}.zip](https://github.com/${{ github.repository }}/releases/download/${CURRENT_TAG}/easy-api-${ver}.zip) | ${range_label} (${support}) |\n"
+          done
           
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo -e "$NOTES" >> $GITHUB_OUTPUT

@@ -9,6 +9,13 @@ permissions:
   pull-requests: write
   contents: read
 
+env:
+  # Compatibility package range: IDEA 2022.1 (build 221) through the last
+  # build before the officially supported range (default since-build comes
+  # from gradle.properties pluginSinceBuild).
+  COMPAT_SINCE: '221'
+  COMPAT_UNTIL: '251'
+
 jobs:
   package-and-comment:
     runs-on: ubuntu-latest
@@ -20,6 +27,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'zulu'
+          cache: gradle
 
       - name: Check for issue number
         id: check_issue
@@ -55,32 +63,93 @@ jobs:
             fi
           fi
 
-      - name: Package plugin
-        run: ./gradlew buildPlugin --stacktrace
-
-      - name: Get plugin filename
-        id: get_filename
+      - name: Resolve package names
+        # Full version is <base>.<since>.<until|0> — derive each package's
+        # artifact name and human-readable IDE range from gradle.properties
+        # and the compat env above, so uploads and comments agree.
+        id: names
         run: |
-          FILENAME=$(ls build/distributions/easy-api-*.zip | xargs basename)
-          echo "plugin_filename=${FILENAME}" >> $GITHUB_OUTPUT
-          # Artifact name without the .zip extension. GitHub Actions always
-          # re-zips the uploaded path and serves it as <name>.zip on download,
-          # so naming the artifact without .zip yields the correct final name.
-          echo "artifact_name=${FILENAME%.zip}" >> $GITHUB_OUTPUT
+          BASE=$(sed -n 's/^pluginBaseVersion=//p' gradle.properties | head -n1 | tr -d '[:space:]')
+          DEFAULT_SINCE=$(sed -n 's/^pluginSinceBuild=//p' gradle.properties | head -n1 | tr -d '[:space:]')
+          DEFAULT_UNTIL=$(sed -n 's/^pluginUntilBuild=//p' gradle.properties | head -n1 | tr -d '[:space:]')
+          DEFAULT_UNTIL="${DEFAULT_UNTIL:-0}"
+          if [ -z "$BASE" ] || [ -z "$DEFAULT_SINCE" ]; then
+            echo "::error::pluginBaseVersion/pluginSinceBuild missing in gradle.properties"
+            exit 1
+          fi
 
-      - name: Extract plugin distribution
-        # Unzip the built plugin so we upload its contents, not the zip itself.
-        # Uploading the .zip directly would cause GitHub to wrap it in another
-        # zip, forcing users to unzip twice to reach the real plugin.
+          build_to_product() {
+            local b="${1%%.*}"
+            echo "20${b:0:2}.${b:2:1}"
+          }
+          if [ "$DEFAULT_UNTIL" = "0" ]; then
+            DEFAULT_RANGE="IntelliJ IDEA $(build_to_product "$DEFAULT_SINCE")+"
+          else
+            DEFAULT_RANGE="IntelliJ IDEA $(build_to_product "$DEFAULT_SINCE") – $(build_to_product "$DEFAULT_UNTIL")"
+          fi
+          COMPAT_RANGE="IntelliJ IDEA $(build_to_product "$COMPAT_SINCE") – $(build_to_product "$COMPAT_UNTIL")"
+
+          echo "default_name=easy-api-${BASE}.${DEFAULT_SINCE}.${DEFAULT_UNTIL}" >> $GITHUB_OUTPUT
+          echo "default_range=${DEFAULT_RANGE}" >> $GITHUB_OUTPUT
+          echo "compat_name=easy-api-${BASE}.${COMPAT_SINCE}.${COMPAT_UNTIL}" >> $GITHUB_OUTPUT
+          echo "compat_range=${COMPAT_RANGE}" >> $GITHUB_OUTPUT
+
+      - name: Build plugin
+        # Builds the default package plus a best-effort compatibility package
+        # covering IDEA 2022.1 through the build before the officially
+        # supported range. Only the default range is officially supported;
+        # the compatibility build is compiled against the newest platform and
+        # is not verified on older IDEs — so a failure there must not block
+        # the default artifact upload.
         run: |
-          mkdir -p build/artifact
-          unzip -q build/distributions/easy-api-*.zip -d build/artifact
+          ./gradlew buildPlugin
+          ./gradlew buildPlugin -PpluginSinceBuild="$COMPAT_SINCE" -PpluginUntilBuild="$COMPAT_UNTIL" \
+            || echo "::warning::Compatibility build failed — uploading the default package only"
 
-      - name: Upload plugin artifact
+      - name: Stage default package
+        # Extract the distribution zip before uploading: GitHub always
+        # re-zips the uploaded path and serves it as <name>.zip, so the
+        # artifact must carry the plugin layout (easy-api/lib/*.jar) at its
+        # root to make the downloaded <name>.zip directly installable via
+        # "Install Plugin from Disk" — no manual extraction needed.
+        id: stage_default
+        run: |
+          ZIP="build/distributions/${{ steps.names.outputs.default_name }}.zip"
+          if [ ! -f "$ZIP" ]; then
+            echo "::error::Default package not found: $ZIP"
+            exit 1
+          fi
+          mkdir -p build/artifact/default
+          unzip -q "$ZIP" -d build/artifact/default
+
+      - name: Upload default artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.get_filename.outputs.artifact_name }}
-          path: build/artifact/
+          name: ${{ steps.names.outputs.default_name }}
+          path: build/artifact/default/
+          if-no-files-found: error
+
+      - name: Stage compatibility package
+        # Best-effort: a missing or failed compat package only warns — the
+        # default artifact above is already uploaded at this point.
+        id: stage_compat
+        continue-on-error: true
+        run: |
+          ZIP="build/distributions/${{ steps.names.outputs.compat_name }}.zip"
+          if [ ! -f "$ZIP" ]; then
+            echo "::warning::Compatibility package not found: $ZIP (build likely failed)"
+            exit 1
+          fi
+          mkdir -p build/artifact/compat
+          unzip -q "$ZIP" -d build/artifact/compat
+
+      - name: Upload compatibility artifact
+        if: steps.stage_compat.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.names.outputs.compat_name }}
+          path: build/artifact/compat/
           if-no-files-found: error
 
       - name: Comment on target issue
@@ -91,14 +160,23 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const issueNumber = '${{ steps.check_issue.outputs.issue_number }}';
-            const pluginFilename = '${{ steps.get_filename.outputs.plugin_filename }}';
+            const defaultName = '${{ steps.names.outputs.default_name }}.zip';
+            const defaultRange = '${{ steps.names.outputs.default_range }}';
+            const compatName = '${{ steps.names.outputs.compat_name }}.zip';
+            const compatRange = '${{ steps.names.outputs.compat_range }}';
+            const compatUploaded = '${{ steps.stage_compat.outcome }}' === 'success';
             const workflowRunUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
+
+            const lines = [`- \`${defaultName}\` — ${defaultRange} (officially supported)`];
+            if (compatUploaded) {
+              lines.push(`- \`${compatName}\` — ${compatRange} (best-effort, not verified on older IDEs)`);
+            }
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
-              body: `A PR (#${pr.number}) has been opened to fix this issue. You can download the packaged plugin \`${pluginFilename}\` from the [GitHub Actions workflow run](${workflowRunUrl}) by clicking on the "Artifacts" dropdown.`
+              body: `A PR (#${pr.number}) has been opened to fix this issue. You can download the packaged plugin from the [GitHub Actions workflow run](${workflowRunUrl}) by clicking on the "Artifacts" dropdown:\n\n${lines.join('\n')}\n\nEach artifact is a ready-to-install plugin zip — pick the one matching your IDEA version and install it via Settings → Plugins → ⚙ → Install Plugin from Disk. No extraction needed.`
             });
 
       - name: Comment on PR
@@ -107,12 +185,21 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request;
-            const pluginFilename = '${{ steps.get_filename.outputs.plugin_filename }}';
+            const defaultName = '${{ steps.names.outputs.default_name }}.zip';
+            const defaultRange = '${{ steps.names.outputs.default_range }}';
+            const compatName = '${{ steps.names.outputs.compat_name }}.zip';
+            const compatRange = '${{ steps.names.outputs.compat_range }}';
+            const compatUploaded = '${{ steps.stage_compat.outcome }}' === 'success';
             const workflowRunUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
+
+            const lines = [`- \`${defaultName}\` — ${defaultRange} (officially supported)`];
+            if (compatUploaded) {
+              lines.push(`- \`${compatName}\` — ${compatRange} (best-effort, not verified on older IDEs)`);
+            }
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: pr.number,
-              body: `📦 Plugin has been packaged for this PR. You can download \`${pluginFilename}\` from the [GitHub Actions workflow run](${workflowRunUrl}) by clicking on the "Artifacts" dropdown.`
+              body: `📦 Plugin has been packaged for this PR. You can download it from the [GitHub Actions workflow run](${workflowRunUrl}) by clicking on the "Artifacts" dropdown:\n\n${lines.join('\n')}\n\nEach artifact is a ready-to-install plugin zip — pick the one matching your IDEA version and install it via Settings → Plugins → ⚙ → Install Plugin from Disk. No extraction needed.`
             });
