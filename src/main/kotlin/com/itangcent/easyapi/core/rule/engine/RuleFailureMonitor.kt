@@ -8,7 +8,7 @@ import java.util.LinkedHashMap
 
 /**
  * Aggregates rule-evaluation failures so a throwing rule surfaces **once
- * per run** instead of silently skipping endpoints (issue #757).
+ * per run** instead of silently skipping endpoints.
  *
  * [RuleEngine] logs every failed evaluation to the console and records it
  * here **while a run window is open**. A throwing `custom.method.is.api`

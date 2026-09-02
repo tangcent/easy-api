@@ -261,7 +261,7 @@ class RuleEngine internal constructor(
                         parse(filter, ruleContext, FILTER_KEY)
                     }.onFailure { e ->
                         // A throwing filter silently disables the rule (false);
-                        // record it like a throwing value (issue #757).
+                        // record it like a throwing value.
                         ruleContext.console.warn("Filter evaluation failed for key=${key.name}", e)
                         RuleFailureMonitor.getInstance(project).record(key.name, e)
                     }
@@ -282,8 +282,8 @@ class RuleEngine internal constructor(
                         throw e
                     } catch (e: Exception) {
                         // A throwing rule must not be silent: aggregation drops
-                        // failures, which would skip endpoints invisibly
-                        // (issue #757). Log per occurrence and record for the
+                        // failures, which would skip endpoints invisibly.
+                        // Log per occurrence and record for the
                         // per-run aggregated notification.
                         ruleContext.console.warn("Rule ${key.name} threw during evaluation", e)
                         RuleFailureMonitor.getInstance(project).record(key.name, e)

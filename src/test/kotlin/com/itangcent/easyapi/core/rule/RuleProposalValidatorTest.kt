@@ -110,8 +110,7 @@ class RuleProposalValidatorTest : EasyApiLightCodeInsightFixtureTestCase() {
     @Test
     fun testParamContextCanonicalTextProducesSoftWarning() = runTest {
         // On a parameter context canonicalText() is the element path, not the
-        // type — a scalar-type check written with it matches every parameter
-        // (issue #757).
+        // type — a scalar-type check written with it matches every parameter.
         val content = """param.doc=groovy: it.canonicalText() == "java.lang.String""""
         val result = RuleProposalValidator.validate(content, project)
 

@@ -45,7 +45,7 @@ class ExportOrchestrator(private val project: Project) : IdeaLog {
         }
 
         // Bracket the whole run so throwing rules surface once at the end
-        // instead of silently skipping endpoints (issue #757).
+        // instead of silently skipping endpoints.
         val failureMonitor = RuleFailureMonitor.getInstance(project)
         failureMonitor.beginRun()
         try {

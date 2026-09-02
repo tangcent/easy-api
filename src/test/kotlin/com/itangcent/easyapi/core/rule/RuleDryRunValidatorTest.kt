@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 
 /**
  * Tests for [RuleDryRunValidator] — the proposal-time execution of every
- * `groovy:` value against representative PSI contexts (issue #757).
+ * `groovy:` value against representative PSI contexts.
  *
  * The fixture project supplies one class, so every context kind
  * (class/method/field/parameter) has a representative element. Which exact
@@ -40,7 +40,7 @@ class RuleDryRunValidatorTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     /**
-     * The exact regression from issue #757: `it.static` resolves through the
+     * The exact regression this pass covers: `it.static` resolves through the
      * boolean is-getter, which was missing from method contexts — the dry
      * run must accept it now that
      * [com.itangcent.easyapi.core.rule.context.MethodContext.isStatic] exists.

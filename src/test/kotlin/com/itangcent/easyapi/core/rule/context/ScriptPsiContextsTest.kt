@@ -543,7 +543,7 @@ class ScriptPsiContextsTest : EasyApiLightCodeInsightFixtureTestCase() {
     }
 
     /**
-     * API symmetry with ClassContext/FieldContext (issue #757): `it.static`
+     * API symmetry with ClassContext/FieldContext: `it.static`
      * resolves through the boolean is-getter, so a method context without
      * `isStatic()` made every AI-authored rule using `it.static` throw.
      */

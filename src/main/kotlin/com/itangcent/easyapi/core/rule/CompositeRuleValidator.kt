@@ -24,7 +24,7 @@ class CompositeRuleValidator(
         /**
          * The default review pipeline: static checks first (cheap, catches
          * mechanical errors), then dry-run execution of `groovy:` values
-         * (best-effort, catches context-API misses — issue #757).
+         * (best-effort, catches context-API misses).
          */
         fun defaultPipeline(): CompositeRuleValidator = CompositeRuleValidator(
             listOf(

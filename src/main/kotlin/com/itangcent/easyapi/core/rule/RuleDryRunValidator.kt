@@ -24,8 +24,7 @@ import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Executes every `groovy:` rule value in an AI-authored proposal **once**
- * against representative PSI contexts before the proposal is staged
- * (issue #757).
+ * against representative PSI contexts before the proposal is staged.
  *
  * [RuleProposalValidator] catches mechanical mistakes (unknown keys, invalid
  * filters, malformed JSON) but never executes the proposed scripts, so a

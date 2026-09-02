@@ -5,8 +5,8 @@ import com.intellij.notification.Notifications
 import com.itangcent.easyapi.testFramework.EasyApiLightCodeInsightFixtureTestCase
 
 /**
- * Tests for [RuleFailureMonitor] — the per-run aggregation behind issue
- * #757: a throwing rule must surface once per export run, not skip
+ * Tests for [RuleFailureMonitor] — the per-run aggregation behind rule
+ * failures: a throwing rule must surface once per export run, not skip
  * endpoints silently.
  *
  * JUnit 3-style `testXxx()` naming is required because

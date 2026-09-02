@@ -28,8 +28,8 @@ import com.itangcent.easyapi.framework.spi.FrameworkRegistry
  *   as the bare `class:` prefix; class-context `name()` calls that may be
  *   mistaken for fully-qualified names; `respondsTo(` probes that guess the
  *   context kind instead of calling `it.contextType()`; `canonicalText()`
- *   calls in parameter-context scripts (the element path, not the type —
- *   issue #757); keys whose owning channel/framework is currently disabled
+ *   calls in parameter-context scripts (the element path, not the type);
+ *   keys whose owning channel/framework is currently disabled
  *   in Settings (design C4a / task A5c). Reported back to the drafter /
  *   surfaced on the proposal card, but the proposal still proceeds.
  *
@@ -78,8 +78,8 @@ object RuleProposalValidator : RuleValidator {
     /**
      * `it.canonicalText()` on a **parameter** context returns the element
      * path (`com.example.Foo#bar.userId`), not the parameter's type — a
-     * scalar-type check written with it returns true for every parameter
-     * (issue #757). Only warned for parameter-context keys.
+     * scalar-type check written with it returns true for every parameter.
+     * Only warned for parameter-context keys.
      */
     private val PARAM_CANONICAL_TEXT = Regex("""\bit\.canonicalText\(\)""")
 
@@ -182,8 +182,7 @@ object RuleProposalValidator : RuleValidator {
 
     /**
      * Soft warning when a parameter-context rule's script calls
-     * `it.canonicalText()` — the element path, not the parameter's type
-     * (issue #757, defect 3).
+     * `it.canonicalText()` — the element path, not the parameter's type.
      */
     private fun warnCanonicalTextOnParam(key: String, script: String, lineNo: Int?, warnings: MutableList<String>) {
         if (!isParamContextKey(key)) return
