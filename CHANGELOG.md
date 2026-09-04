@@ -1,3 +1,210 @@
+## [3.2.0] - 2026-09-05
+
+### Added
+-  add best-effort compatibility builds for older IDEA versions
+- feat(ai): accept simple class names in PSI tools (#763)
+- feat(ai): self-describing rule keys with exported context catalogs (#762)
+- feat(settings): allow turning off most features (#750)
+-  enrich AI rule authoring context (#748)
+- feat(swagger3): export @Parameter#example as parameter example
+- feat(ai): hybrid agent architecture with per-task sub-agent isolation (#744)
+-  add custom framework (#742)
+- feat(channel): add OpenAPI 3.0.3 export channel (#741)
+- feat(settings): per-channel/format enablement + Features tab (#736)
+- feat(ai): enrich PSI perception tools with name resolution, type FQNs, and method bodies (#734)
+- feat(ai): add loop-safety and chat-retry to rule authoring agent (#733)
+- feat(ai): namespace per-app env vars across exporters and agent
+- feat(ai): teach rule agent cross-endpoint workflow patterns (#732)
+- feat(curl): add variable rendering, output options, pre-scripts, and reusable cURL builder (#731)
+-  refactor BodyView to carry ObjectModel with render helpers (#726)
+-  free-form Markdown export templates with i18n and remote source support (#1411)
+-  support `###include <path-or-url>` directive for loading config from local files and remote URLs (#1410)
+- feat(rules): add folder-based rule management with AI assistant
+- feat(logging): hide EasyAPI console tool window when log level is SILENT (#1396)
+- feat(logging): enforce logging channel discipline with SILENT default console (#1394)
+-  add Postman environment sync with dashboard integration (#722)
+- feat(logging): make the plugin self-explanatory when it fails
+-  add YAML field format support with dynamic extension architecture
+-  implement enum resolution spec with @JsonValue/@EnumValue and @see support
+-  add Hoppscotch export channel as beta feature (#715)
+-  add toJson/toJson5 to script class context and define context interfaces
+-  introduce LoggingHttpClient for request/response logging (#714)
+-  implement pluggable exporter architecture with extension points (#707)
+-  add setting to enable/disable API method gutter icon
+-  show response JSON demo when viewing API endpoint (#696)
+-  add depth and element count limits to prevent OOM in object model building (#694)
+-  add Postman-compatible script execution with PmScriptExecutor as project service (#691)
+-  support Scala/Kotlin/Groovy language adapters for PSI integration (#690)
+-  improve settings panel usability (#688)
+-  extract ClassNameConstants and InheritanceHelper with cached inheritance checks (#687)
+-  add variable resolution support in ApiDashboard (#684)
+-  handle properties.prefix rule in FieldsToPropertiesAction (#682)
+-  enhance script PSI context with class introspection methods and fix Swing dispatcher modality (#676)
+-  remember export dialog options for better UX (#674)
+-  add concurrent API scanning option for better performance (#673)
+-  add rule-based configuration support with cache invalidation (#672)
+-  support URL paste in API Search Everywhere with path variable matching (#659)
+-  add API endpoint selection panel to ExportDialog (#644)
+-  add PsiType-aware rule evaluation for json.rule.convert (#643)
+-  replace recommend config system with extension-based system (#642)
+-  add ConfigSyncService with coroutine-based debounce for config reload (#640)
+-  add on-demand Swagger config loading and API lifecycle events (#639)
+-  add @RpcMethod annotation support for gRPC method resolution (#631)
+-  add gRPC support (#629)
+-  support file-type form params in API dashboard (#628)
+-  add toString() methods to ScriptPsi contexts (#622)
+-  easy-api v3.0 progress and CI workflow fixes
+-  initial commit for easy-api v3.0
+
+### Fixed
+-  stop dropping public fields from exported models
+-  propagate required flag to @RequestHeader-derived headers
+-  prevent read-access error in rule scripts
+- fix(rules): surface rule failures during export (#761)
+- fix(ai): read rule files relative to project dir (#758)
+- fix(rules): garbled Chinese text in rule files (#759)
+- fix(settings): add apiScanEnabled master toggle for API scanning
+-  read Kotlin KDoc description as API title and folder name
+-  Features tab renders narrower than other tabs (#740)
+-  inherit mapping annotations from bounded-generic interfaces
+-  YAML export drops @ConfigurationProperties prefix (#728)
+-  FieldsTo* resolves caret class instead of first class in file (#727)
+-  respect method-level selection when exporting APIs
+-  settings/AI-panel UI interactions (modality, stale proposals, unsaved edits)
+- fix(test): add AwaitUtils and stabilize flaky ApiIndexManagerTest
+- fix(dashboard): prevent header duplication when switching APIs in ApiDashboard (#1397)
+-  fix annotation expression bugs and add comprehensive integration tests for all extensions
+-  preserve dashboard edits when switching between APIs
+-  @Api ignored for class folder names
+-  correct plugin id and extension point name typo (#720)
+-  replace fragile delay with waitForClass to fix flaky test
+-  add delay after loadFile in ProjectClassAvailabilityServiceTest to prevent flaky failures
+-  make ApiIndex.invalidate() atomic to prevent race condition
+-  channel export actions missing from Keymap settings
+-  invalidate cache on settings/branch change to prevent occasional test failures
+-  annotation array attributes are stringified instead of expanded
+-  api.tag=#tag captures all @tag values instead of only the first
+-  avoid double-zip when downloading PR artifact (#712)
+-  properly handle array/collection return values from groovy scripts
+- fix(source helper): fix source file resolution for library classes (#711)
+-  Fix binary incompatibility with IntelliJ 2026.2 by removing Groovy runtime dependencies (#710)
+-  handle IndexNotReadyException during IDEA Dumb Mode export
+-  resolve inherited method/field handling in ClassType
+-  wrap PsiAnnotation.owner access in read action in JaxRsClassExporter
+-  resolve IntelliJ IDEA 2026.1 (IU-261) compatibility issues
+-  resolve ClassCastException on double-shift Search Everywhere
+-  DocMetadataResolver now correctly reads settings.pathMulti dynamically (#704)
+-  remove duplicated comments when combining doc comments with rule-based docs (#703)
+-  support extracting comments from JAR classes and fix gRPC runtime Guava resolution (#701)
+-  correct log level filtering semantic inversion (#700)
+-  fix config parsing and extension sources loading issues
+-  keep api dashboard in bottom tool window (#697)
+-  pass Disposable to addDocumentListener to resolve deprecation warning (#692)
+-  Postman workspace and collections stuck on loading in modal dialog (#662)
+-  add missing same-package imports in test resources (#661)
+-  resolve JacksonConfigIntegrationTest failures for @JsonUnwrapped and @JsonView (#660)
+-  implement proper enum.use.custom resolution with unified enum handling (#656)
+-  ensure fieldContext is always available for field rule evaluation (#655)
+-  inject fieldContext correctly into Groovy rule engine scripts (#653)
+-  resolve EDT threading violations in API dashboard navigation (#652)
+-  resolve generic types in API method params (#1302) (#649)
+-  export multipart and file-like params as FILE type (#648)
+-  NegationParser should return null for null input (#647)
+-  respect ExportDialog output path and handle user cancellation properly (#645)
+-  resolve IDE freeze on startup (issue #1299) and improve script engine management (#638)
+-  prevent OOM from circular ObjectModel references in markdown formatter (#637)
+-  resolve export silent failure and threading issues (#636)
+-  support inherited method annotations and dashboard navigation (#634)
+-  support inherited API mappings and correct Feign metadata access (#633)
+-  allow optional 'v' prefix in release version pattern
+-  correct version extraction in release workflow
+-  catch CancellationException in ReadActionDispatcher to prevent unhandled coroutine exception (#627)
+-  expire setting binder cache after timeout (#625)
+-  improve API scan performance and add auto-scan toggle (#624)
+-  inherited controller export — superMethod perf, generic param scoping, resolver early-exit (#623)
+
+### Changed
+- refactor(markdown): move template settings from export dialog to settings panel (#747)
+-  use PluginInfo.PLUGIN_ID instead of local constant (#745)
+- refactor(grpc): move gRPC settings & panel into framework/grpc (#743)
+- refactor(pkg): reorganize easyapi into channel/format/framework/core buckets (#737)
+-  restructure settings modules, rename Intelligent tab, group panel sections (#725)
+-  consolidate exporters into self-contained channel folders with modular settings (#724)
+-  reorganize project structure with feature-based package layout (#708)
+-  extract shared EndpointBuilder from ClassExporters (#689)
+- refactor(ExtensionConfigRegistry): update list of known extensions
+-  refactor event system and remove deprecated ActionContext (#650)
+
+### Improved
+- test: cover read-access fix for rule scripts
+- perf(rule): speed up field-model building
+- test: add MyBatis-Plus IPage response coverage
+- enhance(ai): teach the rule agent contextType() (#760)
+- docs(git-commit): require user-facing commit subjects (#752)
+- docs: document isExtend FQN contract (#753)
+- release v3.1.9 (#751)
+- test(extension): Add real execution coverage (#749)
+- release v3.1.8 (#746)
+- chore: centralize plugin id in PluginInfo and update EP name references (#739)
+- docs: add developer extension guides for channel/format/framework (#738)
+- release v3.1.7 (#735)
+- chore: drop spec reference from LangChain4j build comment
+- docs(readme): sync Architecture section with v3.0 channel EP and add YAML field conversion (#730)
+- release v3.1.6 (#729)
+- docs: add DeepWiki badge to READMEs
+- release v3.1.5 (#723)
+- build(skill): sync shared knowledge base to skill
+- style: replace tool window icons for EasyAPI and API Dashboard (#1395)
+- release v3.1.4 (#721)
+- amend: extract ObjectModelVisitTracker to centralize visit-count logic
+- docs: add git-commit skill, AGENTS.md, and fix skill accuracy issues
+- release v3.1.3 (#719)
+- build: rewrite PR release workflow to use github script
+- test: replace jacoco with kotlinx kover for coverage reporting (#718)
+- test: add variety of new unit tests across codebase (#717)
+- test: add variety of new unit tests across codebase (#716)
+- docs: remove contributing section and contributor image from readmes
+- ci: fix pr-release workflow checkout and script injection
+- build: fix github workflow permissions and add missing configs
+- fix : method.return support generic canonical types
+- chore: upgrade codecov-action from v5 to v7
+- release v3.1.2 (#713)
+- chore: use org.jetbrains.changelog plugin for proper HTML rendering in marketplace
+- release v3.1.1 (#709)
+- release v3.1.0 (#705)
+- release v3.0.9 (#702)
+- release v3.0.8 (#699)
+- test: add generic resolution coverage (#695)
+- release v3.0.7 (#693)
+- docs: update readme with comprehensive project details
+- test: add unit tests for ScriptSupport, EventBus, RequestPersistence, RepositoryService, MavenHelper, ModuleHelper (#686)
+- test: add unit tests for IDE actions, settings, and utilities (#685)
+- release v3.0.6 (#683)
+- chore: remove unused module rule (RuleKeys.MODULE, resolveModule, module.config) (#681)
+- chore: remove unused MarkdownRender and related code (#680)
+- test: add missing unit tests and fix test failures (#679)
+- test: improve test coverage across multiple packages (#678)
+- perf: optimize rule engine with Flow-based lazy evaluation (#677)
+- perf: optimize exporter selection with framework availability caching (#675)
+- release v3.0.5 (#664)
+- chore: remove YApi-specific features and deprecated configurations (#663)
+- chore: cleanup unused test resource files (#658)
+- amend: remove Recommend settings from plugin configuration (#657)
+- amend: simplify SettingBinder and RuleEngine APIs (#654)
+- release v3.0.4 (#651)
+- perf: use fine-grained ReadAction scoping in API exporters (#646)
+- chore: remove unused SPI infrastructure and MethodFilter (#641)
+- chore: remove redundant documentation
+- release v3.0.3 (#635)
+- test: add comprehensive unit tests across modules
+- release v3.0.2 (#632)
+- amend: improve HTTP client export and add format filtering (#630)
+- release v3.0.1 (#626)
+- chore: update release workflow
+- chore: add release script
+
+---
+
 # Changelog
 
 All notable changes to the EasyAPI plugin will be documented in this file.
