@@ -5,6 +5,31 @@ All notable changes to the EasyAPI plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-09-05
+
+### Added
+-  add best-effort compatibility builds for older IDEA versions
+- feat(ai): accept simple class names in PSI tools (#763)
+- feat(ai): self-describing rule keys with exported context catalogs (#762)
+
+### Fixed
+-  stop dropping public fields from exported models
+-  propagate required flag to @RequestHeader-derived headers
+-  prevent read-access error in rule scripts
+- fix(rules): surface rule failures during export (#761)
+- fix(ai): read rule files relative to project dir (#758)
+- fix(rules): garbled Chinese text in rule files (#759)
+
+### Improved
+- test: cover read-access fix for rule scripts
+- perf(rule): speed up field-model building
+- test: add MyBatis-Plus IPage response coverage
+- enhance(ai): teach the rule agent contextType() (#760)
+- docs(git-commit): require user-facing commit subjects (#752)
+- docs: document isExtend FQN contract (#753)
+
+---
+
 ## [3.1.9] - 2026-08-11
 
 ### Added
