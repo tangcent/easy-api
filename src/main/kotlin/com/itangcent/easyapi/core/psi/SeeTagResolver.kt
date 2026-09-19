@@ -65,26 +65,10 @@ class SeeTagResolver(
     private val enumValueResolver: EnumValueResolver by lazy { EnumValueResolver.getInstance(project) }
 
     /**
-     * Resolve options from all `@see` tags on the given PSI element.
-     * Returns options from the first `@see` tag that successfully resolves, or null.
-     */
-    suspend fun resolveOptions(
-        psiElement: PsiElement,
-        docHelper: DocHelper
-    ): List<FieldOption>? {
-        val seeTags = docHelper.findDocsByTag(psiElement, "see") ?: return null
-        for (seeTag in seeTags) {
-            val options = resolveFromSeeText(seeTag.trim(), psiElement, docHelper)
-            if (!options.isNullOrEmpty()) return options
-        }
-        return null
-    }
-
-    /**
      * Resolve options from all `@see` tags on the given PSI element, along with
      * the resolved enum's value-field JSON type (for Case 2 type reconciliation).
      *
-     * The `valueFieldJsonType` is non-null only when the `@see` target is an enum;
+     * The `valueFieldIrType` is non-null only when the `@see` target is an enum;
      * it is null for static-constant classes or when no `@see` tag resolves.
      * Callers use it with [EnumValueResolver.reconcileType] to adjust the
      * declared field type against the actual enum value type.
@@ -107,22 +91,8 @@ class SeeTagResolver(
      */
     data class ResolvedSeeOptions(
         val options: List<FieldOption>,
-        val valueFieldJsonType: String?
+        val valueFieldIrType: String?
     )
-
-    /**
-     * Resolve options from a single `@see` tag text.
-     *
-     * @param seeText the raw text after `@see`, e.g. `{@link com.example.UserType#type}`
-     * @param context the PSI element where the tag appears (used for import resolution and type matching)
-     * @param docHelper the [DocHelper] for doc-comment extraction (unifies Case 1/Case 2)
-     */
-    suspend fun resolveFromSeeText(
-        seeText: String,
-        context: PsiElement,
-        docHelper: DocHelper
-    ): List<FieldOption>? =
-        resolveFromSeeTextWithType(seeText, context, docHelper)?.options
 
     /**
      * Resolve options from a single `@see` tag text, along with the resolved
@@ -158,7 +128,7 @@ class SeeTagResolver(
                     seeMemberName = parsed.memberName
                 )
                 val options = enumValueResolver.buildOptions(psiClass, resolution, docHelper)
-                val jsonType = enumValueResolver.resolveJsonType(psiClass, resolution)
+                val jsonType = enumValueResolver.resolveIrType(psiClass, resolution)
                 if (options != null) ResolvedSeeOptions(options, jsonType) else null
             } else {
                 val staticOptions = resolveStaticOptions(psiClass)
