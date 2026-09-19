@@ -7,7 +7,7 @@ Auto-generated from `src/main/resources/META-INF/plugin.xml` (`SkillFactsExporte
 | EP name | Interface | Area | Dynamic | Implementations |
 |---------|-----------|------|---------|-----------------|
 | `classExporter` | `com.itangcent.easyapi.core.export.ClassExporter` | `IDEA_PROJECT` | yes | 6 |
-| `channel` | `com.itangcent.easyapi.channel.spi.Channel` | `IDEA_PROJECT` | yes | 8 |
+| `channel` | `com.itangcent.easyapi.channel.spi.Channel` | `IDEA_PROJECT` | yes | 7 |
 | `fieldFormatChannel` | `com.itangcent.easyapi.format.spi.FieldFormatChannel` | _(application)_ | yes | 4 |
 | `apiClassRecognizer` | `com.itangcent.easyapi.core.export.recognizer.ApiClassRecognizer` | `IDEA_PROJECT` | yes | 6 |
 | `featureContributor` | `com.itangcent.easyapi.core.feature.FeatureContributor` | `IDEA_PROJECT` | yes | 2 |
@@ -23,11 +23,10 @@ Auto-generated from `src/main/resources/META-INF/plugin.xml` (`SkillFactsExporte
 - `com.itangcent.easyapi.framework.grpc.GrpcClassExporter`
 - `com.itangcent.easyapi.framework.custom.CustomClassExporter`
 
-### `channel` (8)
+### `channel` (7)
 
 - `com.itangcent.easyapi.channel.markdown.MarkdownChannel`
 - `com.itangcent.easyapi.channel.postman.PostmanChannel`
-- `com.itangcent.easyapi.channel.yapi.YapiChannel`
 - `com.itangcent.easyapi.channel.curl.CurlChannel`
 - `com.itangcent.easyapi.channel.httpclient.HttpClientChannel`
 - `com.itangcent.easyapi.channel.hoppscotch.HoppscotchChannel`
