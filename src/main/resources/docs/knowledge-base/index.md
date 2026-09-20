@@ -54,7 +54,6 @@ search this list.
 - **Hoppscotch export** → [usage-guide §First Export](usage-guide.md#first-export)
 - **Hoppscotch settings** → [settings-guide §Hoppscotch (Beta)](settings-guide.md#hoppscotch-beta)
 - **HTTP settings** → [settings-guide §HTTP](settings-guide.md#http)
-- **Help button (Rules tab)** → [README](README.md)
 
 ## I
 
