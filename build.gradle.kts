@@ -1,3 +1,5 @@
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
+
 plugins {
     kotlin("jvm") version "2.1.0"
     id("org.jetbrains.intellij.platform") version "2.11.0"
@@ -200,6 +202,30 @@ intellijPlatform {
             sinceBuild = pluginSinceBuild.get()
             untilBuild = provider { pluginUntilBuild }
         }
+    }
+
+    // Compatibility verification. The verifier is the same tool behind the Marketplace
+    // compatibility report, so running it here catches problems before a plugin upload does.
+    pluginVerification {
+        // Required, not optional: with org.jetbrains.intellij.platform 2.11.0, leaving `ides`
+        // unset makes verifyPlugin fail with "No IDE versions configured for verification"
+        // before it ever reaches the verification step, despite the documented recommended()
+        // fallback. `recommended()` resolves the same IDE set Marketplace verifies against.
+        ides {
+            recommended()
+        }
+
+        // DEPRECATED_API_USAGES is deliberately excluded: a deprecated usage should be visible
+        // without turning the build red, so the CI job surfaces those findings as annotations
+        // instead. The three levels below are the plugin defaults, listed explicitly so the
+        // failure set cannot drift when the Gradle plugin is upgraded.
+        failureLevel.set(
+            listOf(
+                VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS,
+                VerifyPluginTask.FailureLevel.INTERNAL_API_USAGES,
+                VerifyPluginTask.FailureLevel.OVERRIDE_ONLY_API_USAGES,
+            ),
+        )
     }
 
     buildSearchableOptions = false
