@@ -219,6 +219,12 @@ intellijPlatform {
         // without turning the build red, so the CI job surfaces those findings as annotations
         // instead. The three levels below are the plugin defaults, listed explicitly so the
         // failure set cannot drift when the Gradle plugin is upgraded.
+        //
+        // "Visible without turning the build red" applies to deprecations reported on IDEs
+        // *newer* than the since-build. Deprecations on the since-build IDE itself are
+        // blocking, but one level up: the "Check since-build deprecations" step of
+        // .github/workflows/ci.yml fails on them, not this task. See
+        // .skills/compat-fixer/SKILL.md.
         failureLevel.set(
             listOf(
                 VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS,

@@ -92,7 +92,40 @@ jobs:
 
       - name: verify plugin
         timeout-minutes: 60
-        run: ./gradlew verifyPlugin --stacktrace
+        shell: bash
+        # Keep the log outside build/: on a fresh checkout build/ does not exist
+        # yet, so `tee build/...` fails before Gradle can create it, and pipefail
+        # turns that into a bogus step failure.
+        run: set -o pipefail && ./gradlew verifyPlugin --stacktrace 2>&1 | tee "$RUNNER_TEMP/verifier-stdout.log"
+
+      # Release gate: the since-build IDE must report zero deprecated API usages.
+      # Deprecations on newer IDEs are observation-only (next step); see .skills/compat-fixer/SKILL.md.
+      - name: Check since-build deprecations
+        if: always()
+        run: |
+          log="$RUNNER_TEMP/verifier-stdout.log"
+          if [ ! -f "$log" ]; then echo "::error::Verifier log not found (verify plugin step did not run?)"; exit 1; fi
+          since=$(sed -n 's/^pluginSinceBuild=//p' gradle.properties | head -1 | tr -d '[:space:]')
+          if [ -z "$since" ]; then echo "::error::pluginSinceBuild not found in gradle.properties"; exit 1; fi
+
+          # The verifier prints one summary line per IDE:
+          #   Plugin <plugin>:<version> against <PRODUCT>-<build>: <verdict>
+          # Asserting that at least one such line mentions the since-build keeps
+          # this gate honest: without it, an "ides { recommended() }" set that no
+          # longer covers the since-build would look identical to a clean result.
+          verdicts=$(grep -E "^Plugin .* against [A-Z]+-${since}\.[0-9.]+: " "$log" || true)
+          if [ -z "$verdicts" ]; then
+            echo "::error::No verification result for since-build ${since}: the verifier matrix no longer covers it, so this gate proves nothing. See .skills/compat-fixer/SKILL.md"
+            exit 1
+          fi
+
+          hits=$(printf '%s\n' "$verdicts" | grep -E "[1-9][0-9]* usage(s)? of deprecated API" || true)
+          if [ -n "$hits" ]; then
+            echo "$hits"
+            echo "::error::Deprecated API usages on the since-build IDE (${since}). Fix required before merge — see .skills/compat-fixer/SKILL.md"
+            exit 1
+          fi
+          echo "since-build (${since}) has no deprecated API usages."
 
       - name: Surface deprecated API usages as warnings
         if: always()
