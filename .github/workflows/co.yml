@@ -49,6 +49,7 @@ jobs:
         java-version: [17]
     env:
       OS: ${{ matrix.os }}
+      DISPLAY: ':99'
 
     steps:
       - uses: actions/checkout@v4
@@ -57,6 +58,7 @@ jobs:
         with:
           java-version: ${{ matrix.java-version }}
           distribution: 'zulu'
+          cache: gradle
       - name: Install Xvfb
         run: sudo apt-get update && sudo apt-get install -y xvfb
       - name: Start Xvfb
