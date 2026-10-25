@@ -5,6 +5,30 @@ All notable changes to the EasyAPI plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.2] - 2026-10-25
+
+### Fixed
+- add missing Swagger 2 annotation attributes
+- support @ApiImplicitParam in swagger rules
+- export selected APIs
+- fix(compat): pass the 2025.3 compatibility check
+- fix(export): support exporting a contract method and its docs
+- fix(export): show record field comments in exported docs
+- fix(compat): use Messages.showDialog instead of the internal MessagesService (#770)
+- fix(compat): drop deprecated URL(String) and Messages.showChooseDialog (#768)
+- fix(ci): give the coverage job's Xvfb something to do
+- fix(ci): use the codecov-action inputs that v7 actually reads
+- fix(ci): skip unit test and coverage for release PRs by branch name (#767)
+
+### Improved
+- chore(skills): align agent skills with repo practice
+- docs: drop the stale DeepWiki badge from READMEs (#773)
+- ci(verifier): fix bogus failure by writing the verifier log outside build/ (#772)
+- docs(knowledge-base): fix where Chat / Magic live; drop removed Help button (#771)
+- ci(verifier): run the Plugin Verifier in CI, reporting deprecated APIs as warnings (#769)
+
+---
+
 ## [3.2.1] - 2026-09-19
 
 ### Added
