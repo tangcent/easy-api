@@ -34,6 +34,7 @@ Framework recognition and output formatting.
 | Enable Actuator | `false` | Recognize Spring Boot Actuator endpoints | `actuatorEnable` |
 | Auto Scan Enabled | `true` | Automatically scan the project for API endpoints (only effective when API scanning is enabled) | `autoScanEnabled` |
 | Concurrent Scan | `false` | Use parallel scanning for faster discovery (only effective when API scanning is enabled) | `concurrentScanEnabled` |
+| Remove API Name in Description | `true` | When the exported description's first non-blank line equals the API name, drop that line (the name and description come from the same comment) | `removeDuplicateTitleFromDescription` |
 | Output Charset | `UTF-8` | Character encoding for exported files | `outputCharset` |
 | Log Level | `100` (SILENT) | Console verbosity. Lower = more verbose. `100`=SILENT, `40`=ERROR, `30`=WARN, `20`=INFO, `10`=DEBUG, `0`=TRACE | `logLevel` |
 | API Scanning | `true` | Master toggle for API scanning. When `false`, auto-scan, concurrent scan, and the gutter icon (which navigates via the API index) are all forced off. | `apiScanEnabled` |
